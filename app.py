@@ -146,6 +146,13 @@ if "auth" not in st.session_state:
         st.error("Could not connect to StudyDuel. Please try again shortly.")
         st.stop()
 auth=st.session_state.auth
+# Upgrade an existing session safely when Streamlit hot-reloads a deployment.
+if not hasattr(auth,"resumable_session"):
+    previous=auth
+    auth=AuthService(previous.client,app_url=previous.app_url)
+    auth.user=previous.user
+    auth.recovery_verified=previous.recovery_verified
+    st.session_state.auth=auth
 # Recovery tokens are received once from the email redirect and verified by Supabase.
 if not st.session_state.get("recovery_received"):
     recovery_data=recovery_callback()
@@ -228,7 +235,7 @@ if not auth.user:
     if st.session_state.get("pending_invite"):st.info("You have a friend invitation. Sign in or create an account, then accept it after completing your profile.")
     st.title("Your next study win starts here.")
     st.write("Create your student profile. Build your knowledge, then challenge your friends.")
-    mode=st.segmented_control("Account",["Sign in","Create account"],default="Sign in",key="account_mode")
+    mode=st.segmented_control("Account",["Sign in","Create account"],default=None if "account_mode" in st.session_state else "Sign in",key="account_mode")
     if st.session_state.pop("clear_account_passwords",False):
         st.session_state["account_password"]=""
         st.session_state["account_confirmation"]=""
@@ -268,6 +275,9 @@ if not auth.user:
                 if result.status=="check_email":st.success(result.message)
                 else:st.error(result.message)
     st.caption("Your email stays private. You’ll confirm it before signing in.")
+    if st.button("View welcome screen"):
+        st.session_state.started=False
+        st.rerun()
     st.stop()
 
 for credential_key in ("account_password","account_confirmation"):
