@@ -82,7 +82,7 @@ class DeckRepository:
         except Exception as exc:raise ValueError('Publication could not be confirmed. Retry Create Deck; the same draft will not be published twice.') from exc
 
     def list(self,course):
-        try:return self.client.table('decks').select('id,name,course,creator_id,created_at,profiles(username)').ilike('course',course.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')).order('created_at',desc=True).execute().data
+        try:return self.client.table('decks').select('id,name,course,language,creator_id,created_at,profiles(username)').ilike('course',course.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')).order('created_at',desc=True).execute().data
         except Exception as exc:raise ValueError('Could not load decks. Please try again.') from exc
 
     def get(self,deck_id):
@@ -90,3 +90,17 @@ class DeckRepository:
         except Exception as exc:raise ValueError('Could not load this deck. Please try again.') from exc
         if not rows:raise ValueError('This deck is unavailable at your university.')
         return rows[0]
+
+
+class PlayRepository:
+    """Server-authoritative matchmaking and rounds under the current user's JWT."""
+    def __init__(self,client):self.client=client
+
+    def action(self,action,data=None):
+        try:
+            result=self.client.rpc('play_action',{'p_action':action,'p_data':data or {}}).execute().data
+        except Exception as exc:
+            raise ValueError('Could not confirm this Play action. Refresh Play before retrying.') from exc
+        if not isinstance(result,dict):raise ValueError('Could not load Play. Please try again.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result

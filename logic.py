@@ -193,8 +193,8 @@ import json
 def new_card():
     return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None}
 
-def new_deck(course=''):
-    return {'id':str(uuid4()),'course':course,'name':'','cards':[new_card()]}
+def new_deck(course='',language=''):
+    return {'id':str(uuid4()),'course':course,'language':language,'name':'','cards':[new_card()]}
 
 def _deck_id(value):
     try:
@@ -230,7 +230,9 @@ def validate_deck(draft):
         except ValueError as exc:raise ValueError(f'Card {i+1}: {exc}') from exc
     ids=[c['id'] for c in clean]+[a['id'] for c in clean for a in c['answers']]
     if len(set(ids))!=75:raise ValueError('Card and answer identities must be unique.')
-    return {'id':_deck_id(draft.get('id')),'course':_deck_text(draft.get('course'),'a course'),'name':_deck_text(draft.get('name'),'a deck name'),'cards':clean}
+    language=draft.get('language')
+    if language not in LANGUAGES:raise ValueError('Select a deck language from your profile.')
+    return {'language':language,'id':_deck_id(draft.get('id')),'course':_deck_text(draft.get('course'),'a course'),'name':_deck_text(draft.get('name'),'a deck name'),'cards':clean}
 
 def deck_fingerprint(draft):
     return hashlib.sha256(json.dumps(validate_deck(draft),sort_keys=True,ensure_ascii=False).encode()).hexdigest()

@@ -4,7 +4,7 @@ def test_main_tabs_and_profile_button(monkeypatch):
     at=deck_app(monkeypatch)
     for label in ['Decks','Play','Friends','Leaderboard','Study Plan','Profile']:
         assert button(at,label)
-    for page in ['Play','Leaderboard','Study Plan']:
+    for page in ['Leaderboard','Study Plan']:
         button(at,page).click().run()
         assert at.title[0].value==page
         assert any(i.value=='Coming soon' for i in at.info)

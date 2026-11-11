@@ -4,7 +4,7 @@ from logic import new_deck, new_card, validate_card, validate_deck, deck_fingerp
 
 
 def complete_deck():
-    d=new_deck('Finance');d['name']='Finance foundations'
+    d=new_deck('Finance','English');d['name']='Finance foundations'
     d['cards']=[]
     for i in range(15):
         c=new_card();c['question']=f'Question {i+1}?'

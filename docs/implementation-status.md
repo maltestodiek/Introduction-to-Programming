@@ -34,3 +34,12 @@ Live signup email delivery, confirmation, full user round-trip and saved-profile
 - Browser walkthrough with fictional local data verified incomplete-card rejection, completing the last card, mandatory review and read-only publication. No fictional deck or student was added to production.
 - Production migration applied successfully. Real account publication remains a user walkthrough; storage and permissions were tested in an isolated engine using the production migration.
 - Changed feature files: app.py, logic.py, db.py, supabase/decks-schema.sql, tests/test_deck_rules.py, tests/test_deck_repository.py, tests/test_deck_ui.py, tests/decks_database.mjs, specs/third-feature.md, README.md and related concept/status documentation.
+
+## Play — 11 November 2026
+Implemented `specs/fourth-feature.md` with the user's one-hour search correction. Supabase stores private searches, invitations and rounds; matching and scoring are transactional. Play replaces its placeholder. New decks declare a profile-supported language; creators can fill missing legacy language once. Both deck languages and both players' languages must match.
+
+Verification: 108 Python tests passed; 21 isolated PostgreSQL-compatible checks passed, including one-hour non-renewing queues, mismatches, invitation limits/cooldown, participant-only access, answer retries, 30-second expiry, all 30 questions, ratings, score privacy, XP/streak outcomes and progress across a fresh process. The existing deck fixture now declares English, as required by the new language rule. The former Play-placeholder expectation was replaced by actual lobby/round/navigation UI checks; existing other-tab expectations remain.
+
+Browser preview used fictional users and verified the missing-course confirmation, one-hour search and cancellation. The production migration was applied successfully without creating synthetic accounts, invitations or duels. A two-real-account walkthrough is still needed for acceptance by the group. Expired matches settle on the next participant request, not a background job. Search eligibility is opt-in; no external invitation messages are sent automatically.
+
+Changed application files: app.py, logic.py, db.py, supabase/play-schema.sql. Acceptance checks: tests/test_play.py, tests/test_play_ui.py, tests/play_database.mjs, updated tests/test_deck_rules.py and tests/test_navigation.py. Documentation: specs/fourth-feature.md, README.md, docs/product-brief.md, this status file.

@@ -163,6 +163,13 @@ def decks_screen(client,profile):
         st.caption(f"Decks › {deck['course']} › {deck['name']}")
         st.header(deck['name'])
         st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
+        st.caption('Deck language: '+(deck.get('language') or 'Not set'))
+        if not deck.get('language') and deck.get('creator_id')==st.session_state.auth.user.id:
+            language=st.selectbox('Set missing deck language',profile['languages'])
+            st.caption('This can only be set once. Your questions and answers remain unchanged.')
+            if st.button('Save deck language'):
+                from db import PlayRepository
+                if play_request(PlayRepository(client),'set_language',{'deck_id':deck['id'],'language':language}) is not None:st.rerun()
         st.info('Published decks are read-only. All solutions are shown for studying.')
         show_deck_cards(deck['cards']);return
     if 'deck_draft' in st.session_state:
@@ -190,6 +197,10 @@ def decks_screen(client,profile):
         course_key='deck_course_'+draft['id'];name_key='deck_name_'+draft['id']
         st.selectbox('Course',courses,index=courses.index(draft['course']) if draft['course'] in courses else 0,key=course_key,on_change=deck_input_changed,args=(None,'course',course_key))
         if draft['course'] not in courses:draft['course']=courses[0]
+        language_key='deck_language_'+draft['id']
+        if draft.get('language') not in profile['languages']:
+            draft['language']=profile['languages'][0];st.session_state.pop('deck_review',None)
+        st.selectbox('Deck language',profile['languages'],index=profile['languages'].index(draft['language']),key=language_key,on_change=deck_input_changed,args=(None,'language',language_key))
         st.text_input('Deck name',value=draft['name'],key=name_key,on_change=deck_input_changed,args=(None,'name',name_key),placeholder='For example: Corporate Finance foundations')
         completed=[]
         for c in draft['cards']:
@@ -236,7 +247,7 @@ def decks_screen(client,profile):
     with manual:
         st.write('**Manual**');st.caption('Write your own questions and answers.')
         if st.button('+ Create New Deck',type='primary',use_container_width=True):
-            st.session_state.deck_draft=new_deck(profile['courses'][0]);st.session_state.deck_index=0;st.rerun()
+            st.session_state.deck_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.deck_index=0;st.rerun()
     with anki:
         st.write('**Anki import**');st.caption('Coming soon')
         st.button('Import from Anki',disabled=True,use_container_width=True)
@@ -255,6 +266,182 @@ def decks_screen(client,profile):
             st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
             if st.button('Open deck',key='open_'+deck['id']):
                 st.session_state.deck_open=deck['id'];st.rerun()
+
+def play_request(repository,action,data=None):
+    try:return repository.action(action,data)
+    except ValueError as exc:st.error(str(exc));return None
+
+
+def navigate(page):
+    if st.session_state.get('play_in_round'):
+        st.session_state.play_exit_to=page
+    else:st.session_state.main_page=page
+    st.rerun()
+
+
+@st.fragment(run_every='1s')
+def play_round_screen(client,duel_id):
+    from db import PlayRepository
+    repository=PlayRepository(client)
+    feedback=st.session_state.get('play_feedback')
+    if feedback and feedback.get('duel_id')==duel_id:
+        card=feedback['card'];response=feedback['feedback']
+        st.subheader(f"Question {response['index']+1} of 30")
+        st.write(card['question'])
+        if response['timed_out']:st.warning('Time expired.')
+        elif response['correct']:st.success('Correct!')
+        else:st.error('That answer was incorrect.')
+        for a in card['answers']:
+            if a['id']==card['correct_answer_id']:st.success('✓ '+a['text'])
+            elif a['id']==response['answer_id']:st.error('Your answer: '+a['text'])
+            else:st.write(a['text'])
+        if st.button('Continue',type='primary'):
+            st.session_state.pop('play_feedback',None);st.rerun()
+        return
+    result=play_request(repository,'round',{'duel_id':duel_id})
+    if result is None:return
+    state=result['state']
+    if state in ('completed','pending'):
+        st.session_state.play_in_round=False
+        st.info('Your duel is complete.' if state=='completed' else 'Your round is saved. Waiting for your opponent.')
+        if st.button('Back to Play'):
+            st.session_state.pop('play_duel',None);st.rerun()
+        return
+    st.session_state.play_in_round=True
+    if state=='feedback':
+        st.session_state.play_feedback={**result,'duel_id':duel_id};st.rerun()
+    if state=='rating':
+        st.subheader('Your round is finished')
+        st.metric('Correct answers',f"{result['score']} / 30")
+        st.write('Rate each deck to save your completed round. Your individual ratings are private.')
+        ratings={}
+        for deck in result['decks']:
+            ratings[deck['id']]=st.radio(deck['name'],['up','neutral','down'],index=None,format_func=lambda v:{'up':'👍 Helpful','neutral':'— Neutral','down':'👎 Needs work'}[v],horizontal=True,key='rating_'+duel_id+deck['id'])
+        if st.button('Finish round',type='primary',disabled=not all(ratings.values())):
+            if play_request(repository,'finish',{'duel_id':duel_id,'ratings':ratings}) is not None:
+                st.session_state.play_in_round=False;st.session_state.pop('play_duel',None);st.rerun()
+        return
+    st.progress(result['index']/30,text=f"Question {result['index']+1} of 30")
+    st.caption(f"⏱ {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
+    st.subheader(result['question'])
+    cols=st.columns(2)
+    for i,option in enumerate(result['options']):
+        if cols[i%2].button(option['text'],key=f"play_answer_{duel_id}_{result['index']}_{option['id']}",use_container_width=True):
+            response=play_request(repository,'answer',{'duel_id':duel_id,'index':result['index'],'answer_id':option['id']})
+            if response is not None:
+                if response.get('state')=='feedback':st.session_state.play_feedback={**response,'duel_id':duel_id}
+                st.rerun()
+
+
+@st.fragment(run_every='10s')
+def play_lobby(client,profile):
+    from db import PlayRepository,DeckRepository
+    repository=PlayRepository(client)
+    state=play_request(repository,'list')
+    if state is None:return
+    if st.session_state.get('play_notice'):st.success(st.session_state.pop('play_notice'))
+    st.caption('Asynchronous duels · 30 questions · 30 seconds per question · Finish within 24 hours of matching')
+    with st.expander('Invitation settings'):
+        paused=st.checkbox('Pause incoming duel invitations',value=state['paused'])
+        if paused!=state['paused']:
+            if play_request(repository,'set_pause',{'paused':paused}) is not None:st.rerun()
+    if state['queue']:
+        q=state['queue']
+        st.info(f"Searching: {q['course']} · {q['language']} · {q['deck_name']}")
+        st.caption('Expires '+q['expires_at']+' · You can leave and return. Refreshing does not extend the one-hour search.')
+        if st.button('Cancel search'):
+            if play_request(repository,'cancel_search') is not None:st.rerun()
+    st.subheader('New duel')
+    course=st.selectbox('Choose course',profile['courses'],key='play_course')
+    try:all_decks=DeckRepository(client).list(course)
+    except ValueError as exc:st.error(str(exc));return
+    decks=[d for d in all_decks if d.get('language') in profile['languages']]
+    if any(not d.get('language') for d in all_decks):st.caption('Some older decks need their creator to set a language in Decks before they can be played.')
+    if not decks:st.info('No compatible decks yet. Create a deck in one of your profile languages, or ask its creator to set the deck language.')
+    else:
+        deck_id=st.selectbox('Your deck',[d['id'] for d in decks],format_func=lambda id:next(d['name']+' · '+d['language'] for d in decks if d['id']==id),key='play_deck')
+        st.caption('Your 15 questions + your opponent’s 15 questions. Both players answer the same 30 questions. If you both choose the same deck, its questions appear twice.')
+        mode=st.radio('Opponent',['Friend','Random player'],horizontal=True)
+        if mode=='Random player':
+            st.write('Match with a student from your university, in this course and deck language, who also starts a search. Searches last one hour.')
+            if st.button('Find random player',type='primary',disabled=bool(state['queue'])):
+                result=play_request(repository,'join',{'deck_id':deck_id})
+                if result is not None:st.session_state.play_notice=result['message'];st.rerun()
+        else:
+            options=play_request(repository,'friend_options',{'deck_id':deck_id})
+            if options is not None:
+                friends=options['friends']
+                if not friends:st.info('Add a friend first in Friends.')
+                else:
+                    friend_id=st.selectbox('Invite a friend',[f['id'] for f in friends],format_func=lambda id:next(f['username'] for f in friends if f['id']==id))
+                    friend=next(f for f in friends if f['id']==friend_id)
+                    confirmed=False
+                    if not friend['speaks_language']:st.warning('This friend does not list the deck language in their profile.')
+                    if not friend['has_course']:
+                        st.warning('This friend has not added this course to their profile.')
+                        confirmed=st.checkbox('Invite anyway',key='confirm_course_'+friend_id+'_'+deck_id)
+                    if st.button('Send duel invitation',type='primary',disabled=not friend['speaks_language'] or (not friend['has_course'] and not confirmed)):
+                        result=play_request(repository,'invite',{'deck_id':deck_id,'friend_id':friend_id,'confirm_missing_course':confirmed})
+                        if result is not None:st.session_state.play_notice=result['message'];st.rerun()
+    st.subheader('Invitations')
+    if not state['invites']:st.caption('No pending invitations.')
+    for inv in state['invites']:
+        with st.container(border=True):
+            st.write(('From ' if inv['incoming'] else 'To ')+inv['username'])
+            st.caption(f"{inv['course']} · {inv['language']} · {inv['deck_name']} · Expires {inv['expires_at']}")
+            if inv['incoming']:
+                options=play_request(repository,'invite_decks',{'invite_id':inv['id']})
+                if options and options['decks']:
+                    chosen=st.selectbox('Choose your deck',[d['id'] for d in options['decks']],format_func=lambda id:next(d['name'] for d in options['decks'] if d['id']==id),key='accept_deck_'+inv['id'])
+                    if chosen==inv['deck_id']:st.info('You selected the same deck: each of its 15 questions will appear twice.')
+                    if st.button('Accept invitation',key='accept_duel_'+inv['id'],type='primary'):
+                        result=play_request(repository,'accept',{'invite_id':inv['id'],'deck_id':chosen})
+                        if result is not None:st.session_state.play_notice='Duel ready. Both players have 24 hours to finish.';st.rerun()
+                if st.button('Decline',key='decline_duel_'+inv['id']):
+                    if play_request(repository,'decline',{'invite_id':inv['id']}) is not None:st.rerun()
+            elif st.button('Cancel invitation',key='cancel_duel_'+inv['id']):
+                if play_request(repository,'cancel',{'invite_id':inv['id']}) is not None:st.rerun()
+    for category in ['Ongoing','Pending','Completed']:
+        st.subheader(category)
+        duels=[d for d in state['duels'] if d['status']==category]
+        if not duels:st.caption('No '+category.lower()+' duels.')
+        for duel in duels:
+            with st.container(border=True):
+                st.write(f"**vs {duel['username']}** · {duel['course']} · {duel['language']}")
+                st.caption('Deadline '+duel['deadline'])
+                if category=='Ongoing':
+                    if st.button('Resume round' if duel['started'] else 'Start round',key='start_'+duel['id'],type='primary'):
+                        st.session_state.play_duel=duel['id'];st.session_state.pop('play_feedback',None);st.rerun()
+                elif category=='Pending':st.info(f"Your score: {duel['score']}/30. Waiting for your opponent.")
+                else:
+                    st.write(f"{duel['result'].title()} · {duel['xp_delta']:+d} XP · Your score: {duel['score']}/30")
+                    st.caption('Opponent: '+(str(duel['opponent_score'])+'/30' if duel['opponent_score'] is not None else 'Did not finish'))
+                    if st.button('Review answers',key='review_'+duel['id']):
+                        st.session_state.play_review=duel['id'];st.rerun()
+
+
+def play_screen(client,profile):
+    from db import PlayRepository
+    st.title('Play')
+    if st.session_state.get('play_duel'):
+        if st.button('Exit round'):
+            st.session_state.play_exit_to='Play';st.rerun()
+        play_round_screen(client,st.session_state.play_duel)
+    elif st.session_state.get('play_review'):
+        if st.button('Back to Play'):
+            st.session_state.pop('play_review',None);st.rerun()
+        result=play_request(PlayRepository(client),'review',{'duel_id':st.session_state.play_review})
+        if result:
+            for i,card in enumerate(result['cards']):
+                with st.expander(f"Question {i+1}: {card['question']}"):
+                    response=next((a for a in result['answers'] if a['index']==i),None)
+                    st.caption('Not answered' if response is None else 'Time expired' if response['timed_out'] else 'Correct' if response['correct'] else 'Incorrect')
+                    for a in card['answers']:
+                        label=a['text']+(' — Your answer' if response and response['answer_id']==a['id'] else '')
+                        if a['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
+                        else:st.write(label)
+    else:play_lobby(client,profile)
+
 
 def config(key):
     if os.getenv(key):return os.getenv(key)
@@ -432,14 +619,29 @@ with brand:
 with avatar_slot:portrait(picture or render_avatar(DEFAULT_AVATAR),44)
 with profile_slot:
     if st.button('Profile',use_container_width=True,key='open_profile'):
-        st.session_state.main_page='Profile';st.rerun()
+        navigate('Profile')
 if profile:
     tabs=['Decks','Play','Friends','Leaderboard','Study Plan']
     columns=st.columns(len(tabs))
     page=st.session_state.get('main_page','Profile')
     for col,label in zip(columns,tabs):
         if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
-            st.session_state.main_page=label;st.rerun()
+            navigate(label)
+    if st.session_state.get('play_exit_to'):
+        st.warning('Leave this round? This counts as a loss and your opponent wins. Your question timer continues while you decide.')
+        yes,no=st.columns(2)
+        if no.button('Stay in round'):
+            st.session_state.pop('play_exit_to',None);st.rerun()
+        if yes.button('Confirm abandonment'):
+            from db import PlayRepository
+            result=play_request(PlayRepository(auth.client),'abandon',{'duel_id':st.session_state.get('play_duel'),'confirmed':True})
+            if result is not None:
+                st.session_state.main_page=st.session_state.pop('play_exit_to')
+                st.session_state.play_in_round=False
+                st.session_state.pop('play_duel',None);st.session_state.pop('play_feedback',None);st.rerun()
+        st.stop()
+    if page=='Play':
+        play_screen(auth.client,profile);st.stop()
     if page=='Decks':
         decks_screen(auth.client,profile);st.stop()
     if page=='Friends':
@@ -451,7 +653,7 @@ if profile:
             if st.button('Retry friends'):st.rerun()
         else:friends_screen(friends,repo,friend_state)
         st.stop()
-    if page in ('Play','Leaderboard','Study Plan'):
+    if page in ('Leaderboard','Study Plan'):
         st.title(page)
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
         st.write(descriptions[page]);st.info('Coming soon')

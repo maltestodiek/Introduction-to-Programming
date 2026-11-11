@@ -87,3 +87,6 @@ Friends are now implemented ahead of gameplay, per specs/second-feature.md. Supa
 
 ## Approved third workflow
 Manual deck creation is implemented according to specs/third-feature.md with the original exactly-15/four-answers/one-solution/review/immutable-publication rules. It uses signed-in identities, selected courses and Supabase persistence. Decks are shared within the creator's university. Anki import and AI from lecture slides remain disabled placeholders. This supersedes the old SQLite/demo-user deck proposal.
+
+## Approved fourth workflow
+Play now follows specs/fourth-feature.md: real Supabase friend challenges and mutual one-hour random searches replace simulated opponents. Each duel uses all 15 questions from each selected deck (30 total), with shared course and deck language, server-owned timing, saved progress, required deck ratings, and once-only XP settlement. Both profiles must support the deck language. Random matches additionally require the same university and course enrollment.

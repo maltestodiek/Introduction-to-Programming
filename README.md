@@ -54,3 +54,19 @@ The English concept is available in `docs/overall-concept-en.md` and `docs/Study
 
 ## Isolated database checks
 Python tests use mocks. For actual SQL and RLS checks, install `@electric-sql/pglite@0.5.16` in a temporary tooling folder and run `tests/decks_database.mjs` with Node, setting `PGLITE_MODULE` to its module path if it is not resolvable normally. This starts a temporary PostgreSQL-compatible database, applies the real deck migration with minimal auth/profile fixtures, checks authorization and atomicity, and reopens the database from a fresh process. It never contacts Supabase and removes its temporary data afterward. Node is a test tool only; the application remains Python/Streamlit.
+
+### Play
+The Play tab supports accepted friend challenges and mutual random matching. Choose a course and a published deck in one of your profile languages. Random searches last one hour and can be cancelled; refreshing does not renew them. A friend without the course requires an explicit warning confirmation. Both profiles and both decks must support the same language. Creators can set a missing language on older decks once, from the deck view.
+
+Apply `supabase/play-schema.sql` once after the deck migration before deploying this version. It adds private queues, invitations, presence, duels and round progress; only authenticated participant-checked RPCs can access them. Existing deck content is retained. No new secrets or API services are needed. Multiplayer data lives in Supabase, not on Streamlit's temporary disk.
+
+Each player answers 30 questions with a server-owned 30-second timer per question, then rates both distinct decks. Both players have 24 hours from matching/acceptance. Answers and XP settlement are transactional and retry-safe. Expired duels are settled on the next participant request; there is no background scheduler. Play refreshes its lobby every ten seconds. A single database advisory lock serializes short Play transactions for this class release; a larger deployment should move to narrower locks and paginated history. Browser closure retains progress and timers; reopen Play and choose Resume round.
+
+Verification: `sh run-tests.sh` includes Play UI and repository checks. `tests/play_database.mjs` runs the actual migration/RPCs in an isolated PGlite PostgreSQL instance, with a separate-process persistence check. Set `PGLITE_MODULE` to the installed `@electric-sql/pglite` module and run the file with Node. Node is test tooling only; the app remains Streamlit/Python.
+
+Manual walkthrough with two group accounts:
+1. Both select the same university, course and compatible profile/deck language. Open Play, choose a deck, and click Find random player on both accounts. With only one opt-in, no match should be created. Cancel a search to remove eligibility.
+2. Alternatively, invite an accepted friend. Verify the missing-course warning and explicit override, then select a deck and Accept invitation on the recipient's account. Decline/cancel must not award XP.
+3. Start a round, answer a question and reload. Resume must retain progress. Let a question expire; it scores zero. Try leaving through Profile and cancel the abandonment prompt.
+4. Finish all 30 questions and rate the decks on both accounts. Check score comparison and XP, then reload to confirm XP is not awarded twice.
+5. Stop and restart the app process. Sign in again if necessary, open Play, and verify the same saved match/progress/results. Refresh alone is not a process restart.
