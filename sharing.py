@@ -2,7 +2,7 @@
 import streamlit as st
 from urllib.parse import quote
 
-_share=st.components.v2.component('studyduel_share',html='''<div class="share"><button class="copy">Copy link</button><button class="native">Share…</button><span role="status" aria-live="polite"></span></div>''',css='''.share{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:system-ui;color:#17223B}button{background:#fff;color:#273D9C;border:1px solid #9CAACB;border-radius:9px;padding:10px 16px;cursor:pointer;font:inherit}button:focus-visible{outline:3px solid #3448B8}span{font-size:14px}''',js='''export default function({data,parentElement}) {
+_share=st.components.v2.component('studyduel_share',html='''<div class="share"><button class="copy">Copy link</button><button class="native">Share…</button><span role="status" aria-live="polite"></span></div>''',css='''.share{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:system-ui;color:#17223B}button{background:#fff;color:#273D9C;border:1px solid #9CAACB;border-radius:9px;padding:10px 16px;cursor:pointer;font:inherit}button:focus-visible{outline:3px solid #4F46E5}span{font-size:14px}''',js='''export default function({data,parentElement}) {
  const root=parentElement.querySelector('.share'),status=root.querySelector('[role=status]');
  root.querySelector('.copy').onclick=async()=>{try{await navigator.clipboard.writeText(data.url);status.textContent='Link copied.';}catch(_){status.textContent='Select and copy the link shown below.';}};
  root.querySelector('.native').onclick=async()=>{if(!navigator.share){status.textContent='Use WhatsApp, Email, or Copy link on this browser.';return;}

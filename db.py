@@ -28,9 +28,10 @@ class ProfileRepository:
                 self.client.storage.from_("profile-images").upload(
                     path,image,{"content-type":"image/png","upsert":"false"})
                 uploaded=True
-            self.client.rpc("save_profile_v2",{
+            self.client.rpc("save_profile_v3",{
                 "p_username":data["username"],"p_university":data["university"],
                 "p_languages":data["languages"],"p_courses":data["courses"],
+                "p_graduation_year":data["graduation_year"],
                 "p_degree":data["degree"],"p_area":data["area"],
                 "p_avatar":data["avatar"],"p_image_mode":mode,"p_image_path":path,
             }).execute()

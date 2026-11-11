@@ -26,7 +26,9 @@ def validate_username(username):
 
 DEGREES = ["Not specified", "Bachelor's", "Master's", "Doctorate", "Associate", "Diploma / certificate", "Other"]
 
-def validate_profile(username,university,courses,languages,avatar,degree="Not specified",area=""):
+def validate_profile(username,university,courses,languages,avatar,degree="Not specified",area="",graduation_year=None):
+    if graduation_year is not None and (type(graduation_year) is not int or not 2000<=graduation_year<=2100):
+        raise ValueError("Enter an expected graduation year between 2000 and 2100.")
     username=validate_username(username)
     university=" ".join(university.split())
     if not 2<=len(university)<=160: raise ValueError("Enter a university name between 2 and 160 characters.")
@@ -41,7 +43,7 @@ def validate_profile(username,university,courses,languages,avatar,degree="Not sp
     if set(avatar)!=set(OPTIONS) or any(v not in OPTIONS[k] for k,v in avatar.items()):
         raise ValueError("Choose valid avatar options.")
     return dict(username=username,university=university,courses=list(dict.fromkeys(courses)),
-                languages=list(dict.fromkeys(languages)),avatar=dict(avatar),degree=degree,area=area)
+                languages=list(dict.fromkeys(languages)),avatar=dict(avatar),degree=degree,area=area,graduation_year=graduation_year)
 
 class _SmoothDraw:
     """Draw original design coordinates at 4x resolution for clean curved edges."""

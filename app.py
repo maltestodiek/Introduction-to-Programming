@@ -1,5 +1,7 @@
 """StudyDuel authentication and profile setup."""
 import os
+from pathlib import Path
+from PIL import Image
 import base64
 from html import escape
 import streamlit as st
@@ -14,13 +16,15 @@ from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username
 
-st.set_page_config(page_title="StudyDuel",page_icon="✦",layout="centered")
+LOGO_PATH=Path(__file__).parent / "assets" / "studyduel-icon.png"
+st.set_page_config(page_title="StudyDuel",page_icon=Image.open(LOGO_PATH),layout="centered")
 st.markdown("""<style>
 .block-container{max-width:940px;padding-top:2.5rem}
 h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:18px;padding:24px}
-.stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:16px;padding:20px}
+.stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 </style>""",unsafe_allow_html=True)
-st.markdown("### ✦ StudyDuel")
+logo_data=base64.b64encode(LOGO_PATH.read_bytes()).decode()
+st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
 st.caption("A little competition. A lot of learning.")
 # The invitation remains in the URL across signup, email confirmation and login.
 if "invite" in st.query_params:
@@ -262,6 +266,8 @@ if not editing:
         degree=degree_labels.get(profile.get("degree"),"")
         field=profile.get("area","")
         study=degree+(" in "+field if degree and field else field)
+        if profile.get("graduation_year"):
+            study+=(" · " if study else "")+f"Class of {profile['graduation_year']}"
         if study:st.write(study)
         st.caption(" · ".join(profile["languages"]))
         if st.button("Edit profile"):st.session_state.editing=True;st.rerun()
@@ -317,6 +323,7 @@ with st.popover(university or "Select your university",use_container_width=True)
                 st.rerun()
 degree=st.selectbox("Degree level (optional)",DEGREES,index=DEGREES.index(profile.get("degree","Not specified")))
 area=st.text_input("Field of study (optional)",value=profile.get("area",""),placeholder="For example: Finance, Computer Science or Psychology",max_chars=120)
+graduation_year=st.number_input("Expected graduation year (optional)",min_value=2000,max_value=2100,value=profile.get("graduation_year"),step=1,placeholder="For example: 2028",help="Your planned graduation year. Private and editable later.")
 st.caption("Degree level and field of study are private for now, ready for future matching.")
 course_options=list(dict.fromkeys([*CATALOG.get(university,[]),*profile.get("courses",[])]))
 courses=st.multiselect("Your courses",course_options,default=profile.get("courses",[]),accept_new_options=True)
@@ -352,7 +359,7 @@ else:
         image_valid=False
 if st.button("Save profile",type="primary",disabled=not image_valid,use_container_width=True):
     try:
-        repo.save(dict(username=name,university=university,courses=courses,languages=languages,avatar=avatar,degree=degree,area=area),
+        repo.save(dict(username=name,university=university,courses=courses,languages=languages,avatar=avatar,degree=degree,area=area,graduation_year=graduation_year),
                   mode,image,profile.get("image_path"))
         st.session_state.editing=False
         st.session_state.notice="Your profile is saved."
