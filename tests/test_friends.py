@@ -69,6 +69,7 @@ def test_profile_summary_shows_studies_and_invitation_without_auto_accept(monkey
     assert not at.exception
     assert any('Master in Finance' in m.value for m in at.markdown)
     assert 'accept_invite' not in actions
+    next(b for b in at.button if b.label=='Friends').click().run()
     assert any(b.label=='Accept invitation' for b in at.button)
     next(b for b in at.button if b.label=='Accept invitation').click().run()
     assert actions.count('accept_invite')==1

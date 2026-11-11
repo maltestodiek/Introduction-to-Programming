@@ -54,7 +54,6 @@ def friend_action(friends,action,value=""):
         return None
 
 def friends_screen(friends,repo,state):
-    st.subheader("Friends")
     st.caption("Your friend code")
     st.code("#"+state["code"],language=None)
     st.caption("Share this code so another student can send you a request. It is not a login code.")
@@ -333,7 +332,7 @@ if not st.session_state.get("browser_loaded"):
         if auth.restore_session(saved["session"]):
             if saved.get("user_id")==auth.user.id:
                 st.session_state.editing=saved.get("route")=="edit"
-                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Profile") else "Profile"
+                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Play","Friends","Leaderboard","Study Plan","Profile") else "Profile"
                 if isinstance(saved.get("deck_open"),str):st.session_state.deck_open=saved["deck_open"]
             st.session_state.started=True
         else:
@@ -360,8 +359,9 @@ if not auth.user and not st.session_state.get("started") and not st.session_stat
         st.session_state.started=True
         st.rerun()
     st.stop()
-st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
-st.caption("A little competition. A lot of learning.")
+if not auth.user:
+    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
+    st.caption("A little competition. A lot of learning.")
 notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
 
@@ -417,25 +417,50 @@ if not auth.user:
 for credential_key in ("account_password","account_confirmation"):
     st.session_state.pop(credential_key,None)
 repo=ProfileRepository(auth.client,auth.user.id)
-head,logout=st.columns([4,1])
-with logout:
-    if st.button("Sign out",use_container_width=True):
-        message=auth.sign_out().message
-        for k in list(st.session_state):del st.session_state[k]
-        st.session_state.browser_loaded=True
-        st.session_state.started=True
-        st.session_state.notice=message
-        st.rerun()
 try: profile=repo.load()
 except Exception:
     st.error("We couldn’t load your profile. Please retry; your saved information hasn’t changed.")
     if st.button("Retry"):st.rerun()
     st.stop()
+picture=None
 if profile:
-    page=st.segmented_control('Navigation',['Profile','Decks'],default=None if 'main_page' in st.session_state else 'Profile',key='main_page')
+    try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
+    except Exception:pass
+brand,avatar_slot,profile_slot=st.columns([5,.65,1.35],vertical_alignment="center")
+with brand:
+    st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
+with avatar_slot:portrait(picture or render_avatar(DEFAULT_AVATAR),44)
+with profile_slot:
+    if st.button('Profile',use_container_width=True,key='open_profile'):
+        st.session_state.main_page='Profile';st.rerun()
+if profile:
+    tabs=['Decks','Play','Friends','Leaderboard','Study Plan']
+    columns=st.columns(len(tabs))
+    page=st.session_state.get('main_page','Profile')
+    for col,label in zip(columns,tabs):
+        if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
+            st.session_state.main_page=label;st.rerun()
     if page=='Decks':
-        decks_screen(auth.client,profile)
+        decks_screen(auth.client,profile);st.stop()
+    if page=='Friends':
+        st.title('Friends')
+        friends=FriendsRepository(auth.client)
+        try:friend_state=friends.action('list')
+        except ValueError as exc:
+            st.error(str(exc))
+            if st.button('Retry friends'):st.rerun()
+        else:friends_screen(friends,repo,friend_state)
         st.stop()
+    if page in ('Play','Leaderboard','Study Plan'):
+        st.title(page)
+        descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
+        st.write(descriptions[page]);st.info('Coming soon')
+        st.stop()
+if st.button('Sign out'):
+    message=auth.sign_out().message
+    for k in list(st.session_state):del st.session_state[k]
+    st.session_state.browser_loaded=True;st.session_state.started=True
+    st.session_state.notice=message;st.rerun()
 editing=not profile or st.session_state.get("editing",False)
 if not editing:
     friends=FriendsRepository(auth.client)
@@ -443,9 +468,6 @@ if not editing:
     except ValueError as exc:
         friend_state=None
         st.warning(str(exc))
-    picture=None
-    try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
-    except Exception:pass
     left,right=st.columns([1,3])
     with left:portrait(picture or render_avatar(DEFAULT_AVATAR),176)
     with right:
@@ -466,8 +488,10 @@ if not editing:
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:st.write("📚 "+course)
-    if friend_state:friends_screen(friends,repo,friend_state)
-    elif st.button("Retry friends"):st.rerun()
+    if st.session_state.get("pending_invite"):
+        st.info("You have a friend invitation. Open Friends to review and accept it.")
+    if st.button("Open friends"):
+        st.session_state.main_page="Friends";st.rerun()
     st.caption("Your username, university, languages, chosen image, XP and streak are visible to signed-in students. Your email and courses are private.")
     st.stop()
 
