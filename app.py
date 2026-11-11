@@ -1,5 +1,7 @@
 """StudyDuel authentication and profile setup."""
 import os
+import base64
+from html import escape
 import streamlit as st
 from supabase import create_client
 from supabase.lib.client_options import SyncClientOptions as ClientOptions
@@ -7,7 +9,9 @@ from avatar_picker import avatar_picker
 from universities import search_universities, UniversitySearchError
 from auth import AuthService
 from recovery import recovery_callback
-from db import ProfileRepository
+from db import ProfileRepository, FriendsRepository
+from sharing import share_invitation
+from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username
 
 st.set_page_config(page_title="StudyDuel",page_icon="✦",layout="centered")
@@ -18,8 +22,112 @@ h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:#FFFFFF;color:#172
 </style>""",unsafe_allow_html=True)
 st.markdown("### ✦ StudyDuel")
 st.caption("A little competition. A lot of learning.")
+# The invitation remains in the URL across signup, email confirmation and login.
+if "invite" in st.query_params:
+    try:st.session_state.pending_invite=invitation_token(st.query_params["invite"])
+    except ValueError:
+        st.session_state.pop("pending_invite",None)
+        st.warning("This invitation link is invalid. Ask your friend for a new one.")
+
+def portrait(data,size=160):
+    encoded=base64.b64encode(data).decode()
+    st.html(f'<img src="data:image/png;base64,{encoded}" alt="Profile picture" style="width:{size}px;height:{size}px;max-width:100%;object-fit:cover;border-radius:50%;display:block" />')
+
+def public_person(person,repo):
+    left,right=st.columns([1,5])
+    with left:
+        try: data=repo.image(person.get("image_path"))
+        except Exception:data=None
+        portrait(data or render_avatar(DEFAULT_AVATAR),56)
+    with right:st.write(person["username"])
+
+def friend_action(friends,action,value=""):
+    try:
+        result=friends.action(action,value)
+        st.session_state.notice=result.get("message","Updated.")
+        return result
+    except ValueError as exc:
+        st.error(str(exc))
+        return None
+
+def friends_screen(friends,repo,state):
+    st.subheader("Friends")
+    st.caption("Your friend code")
+    st.code("#"+state["code"],language=None)
+    st.caption("Share this code so another student can send you a request. It is not a login code.")
+    if st.button("Refresh friends"):st.rerun()
+    token=st.session_state.get("pending_invite")
+    if token:
+        st.subheader("Friend invitation")
+        try:
+            invitation_token(token)
+            preview=friends.action("preview_invite",token)
+            public_person(preview["person"],repo)
+            st.write("Accept this invitation to add each other as friends.")
+            if st.button("Accept invitation",type="primary"):
+                if friend_action(friends,"accept_invite",token):
+                    st.session_state.pop("pending_invite",None)
+                    if "invite" in st.query_params:del st.query_params["invite"]
+                    st.rerun()
+        except ValueError as exc:st.warning(str(exc))
+        if st.button("Dismiss invitation"):
+            st.session_state.pop("pending_invite",None)
+            if "invite" in st.query_params:del st.query_params["invite"]
+            st.rerun()
+    with st.expander("Add a friend by code"):
+        with st.form("find_friend"):
+            code=st.text_input("Friend code",placeholder="#AB23CD45",max_chars=12)
+            find=st.form_submit_button("Find friend")
+        if find:
+            st.session_state.pop("friend_preview",None)
+            try:
+                normalized=normalize_friend_code(code)
+                result=friends.lookup(normalized)
+                st.session_state.friend_preview={"code":normalized,"person":result["person"]}
+            except ValueError as exc:st.error(str(exc))
+        preview=st.session_state.get("friend_preview")
+        if preview:
+            public_person(preview["person"],repo)
+            if st.button("Send friend request"):
+                if friend_action(friends,"request",preview["code"]):
+                    st.session_state.pop("friend_preview",None)
+                    st.rerun()
+    with st.expander("Invite a friend with a link"):
+        if st.button("Create new invitation link"):
+            result=friend_action(friends,"create_invite")
+            if result:
+                st.session_state.share_invite_token=result["token"]
+                st.rerun()
+        if state.get("invite_expires"):
+            st.caption("Your current link expires: "+state["invite_expires"][:10])
+            if st.session_state.get("share_invite_token"):
+                try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",st.session_state.share_invite_token))
+                except ValueError as exc:st.info(str(exc))
+            else:st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
+            if st.button("Revoke invitation link"):
+                if friend_action(friends,"revoke_invite"):
+                    st.session_state.pop("share_invite_token",None)
+                    st.rerun()
+        st.caption("Links expire after seven days. Creating a new link replaces the previous one.")
+    for title,items,actions in [("Incoming requests",state["incoming"],[("Accept","accept"),("Decline","decline")]),("Sent requests",state["sent"],[("Cancel request","cancel")]),("Your friends",state["friends"],[("Remove friend","remove")])]:
+        st.subheader(f"{title} ({len(items)})")
+        if not items:st.caption("Nothing here yet.")
+        for item in items:
+            with st.container(border=True):
+                public_person(item["person"],repo)
+                for label,action in actions:
+                    if action=="remove":
+                        with st.expander("Remove friend"):
+                            st.caption("This removes the friendship for both of you.")
+                            if st.button("Confirm removal",key="remove_"+item["id"]):
+                                if friend_action(friends,action,item["id"]):st.rerun()
+                    elif st.button(label,key=action+"_"+item["id"]):
+                        if friend_action(friends,action,item["id"]):st.rerun()
+
 def config(key):
-    return os.getenv(key) or st.secrets.get(key,"")
+    if os.getenv(key):return os.getenv(key)
+    try:return st.secrets.get(key,"")
+    except FileNotFoundError:return ""
 try:
     url=config("SUPABASE_URL");key=config("SUPABASE_PUBLISHABLE_KEY")
 except Exception:
@@ -74,6 +182,7 @@ notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
 
 if not auth.user:
+    if st.session_state.get("pending_invite"):st.info("You have a friend invitation. Sign in or create an account, then accept it after completing your profile.")
     st.title("Your next study win starts here.")
     st.write("Create your student profile. Build your knowledge, then challenge your friends.")
     mode=st.segmented_control("Account",["Sign in","Create account"],default="Sign in",key="account_mode")
@@ -98,7 +207,7 @@ if not auth.user:
                 username_error.error(str(exc))
                 st.markdown("<style>.st-key-account_username input{border:2px solid #D84550!important}</style>",unsafe_allow_html=True)
                 st.stop()
-            result=auth.sign_up(email,password,confirmation,username)
+            result=auth.sign_up(email,password,confirmation,username,st.session_state.get("pending_invite"))
         else: result=auth.sign_in(email,password)
         if result.status in ("signed_in","check_email"):
             st.session_state.clear_account_passwords=True
@@ -135,27 +244,34 @@ except Exception:
     st.stop()
 editing=not profile or st.session_state.get("editing",False)
 if not editing:
+    friends=FriendsRepository(auth.client)
+    try:friend_state=friends.action("list")
+    except ValueError as exc:
+        friend_state=None
+        st.warning(str(exc))
     picture=None
     try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
     except Exception:pass
     left,right=st.columns([1,3])
-    with left:st.image(picture or render_avatar(DEFAULT_AVATAR),width=160)
+    with left:portrait(picture or render_avatar(DEFAULT_AVATAR),176)
     with right:
-        st.title(profile["username"])
+        code_label=("#"+friend_state["code"]) if friend_state else ""
+        st.html(f'<h1 style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;color:#17223B"><span>{escape(profile["username"])}</span><span aria-label="Your friend code" style="font-size:16px;font-weight:400;letter-spacing:.03em;color:#667085">{escape(code_label)}</span></h1>')
         st.write(profile["university"])
+        degree_labels={"Bachelor's":"Bachelor","Master's":"Master","Doctorate":"Doctorate","Associate":"Associate degree","Diploma / certificate":"Diploma / certificate"}
+        degree=degree_labels.get(profile.get("degree"),"")
+        field=profile.get("area","")
+        study=degree+(" in "+field if degree and field else field)
+        if study:st.write(study)
         st.caption(" · ".join(profile["languages"]))
         if st.button("Edit profile"):st.session_state.editing=True;st.rerun()
     a,b,c=st.columns(3)
-    a.metric("XP",profile.get("xp",0));b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends","0")
+    a.metric("XP",profile.get("xp",0));b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:st.write("📚 "+course)
-    st.subheader("Your studies")
-    st.write(profile.get("degree","Not specified"))
-    if profile.get("area"): st.write(profile["area"])
-    st.caption("Your degree level and field of study are private.")
-    st.subheader("Friends")
-    st.info("Your friends list is empty. Friendships and duels are coming in a later feature.")
+    if friend_state:friends_screen(friends,repo,friend_state)
+    elif st.button("Retry friends"):st.rerun()
     st.caption("Your username, university, languages, chosen image, XP and streak are visible to signed-in students. Your email and courses are private.")
     st.stop()
 

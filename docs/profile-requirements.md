@@ -65,6 +65,8 @@ Optional degree level and field of study are editable, saved privately, and rese
 
 The former tests rejecting every unknown university/course were updated to reject blank names instead, reflecting the user's explicit custom-entry requirement.
 
-UI refinements: University selection opens a dropdown with search first, selectable results, and manual entry. The prototype option and ROR detail link are removed. Skin labels use Light, Tanned, Deep brown, Blue, Green, Purple, Pink, and Gold. Existing stored skin identifiers stay unchanged to preserve saved avatars.
+UI refinements: University selection opens a dropdown with search first, selectable results, and manual entry. The prototype option and ROR detail link are removed. Skin labels use Light, Tanned, Coloured, Blue, Green, Purple, Pink, and Gold. Existing stored skin identifiers stay unchanged to preserve saved avatars.
 
 Profile study fields appear in this order: university, degree level, field of study, courses, languages.
+
+Profile summary: show the individual friend code in muted grey beside the username. Display degree and field together beneath the university (for example, Master in Finance). Render the avatar at full source resolution, sized only by CSS, to avoid blurry downsampling.

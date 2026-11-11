@@ -18,3 +18,12 @@ Live signup email delivery, confirmation, full user round-trip and saved-profile
 ## Profile refinement verification
 
 35 tests passed in 2.80s after adding regression tests for preserving signup inputs, username guidance, ten distinct hairstyles, ten accessories plus None, playful skin colors, and custom study fields. Unknown university/course rejection expectations were explicitly revised to blank-name rejection per the user's new requirements. ROR directory integration and shared university-scoped course search are planned, not implemented.
+
+
+## Friends release — 11 November 2026
+- Supabase-backed stable friend codes, recipient-approved requests, sender cancellation, mutual friendships and removal.
+- Seven-day revocable/rotatable invitation links, explicit acceptance, signup continuation, and user-initiated sharing.
+- 62 Python checks passed. Both SQL acceptance scripts passed against synthetic identities under authenticated/anonymous roles and rolled back all test data.
+- Local browser preview verified acceptance changes the count/list, code placement, degree subtitle, and native-resolution profile artwork. No real invitation messages were sent.
+- Real two-person email-confirmation/acceptance remains a user walkthrough; automated checks do not create real accounts or send email.
+- Profile skin label updated to Coloured at the user's explicit request.

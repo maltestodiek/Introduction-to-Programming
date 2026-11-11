@@ -80,3 +80,7 @@ Use deterministic opponent outcomes and an injectable clock for tests and protot
 ## Confirmed account and profile scope
 
 Authentication and profile setup are now the first workflow. See docs/profile-requirements.md for required username, university, course and language selections, editable photo/avatar options, visibility decisions, and Supabase persistence. XP, streak, and friends are displayed with initial empty values; their gameplay and management rules remain later work. These decisions supersede demo-only profile assumptions above.
+
+
+## Approved second workflow
+Friends are now implemented ahead of gameplay, per specs/second-feature.md. Supabase persists codes, requests, invitations and mutual friendships. This supersedes friends-later and simulated-only statements for the friendship workflow; duels are still future work.

@@ -43,3 +43,21 @@ class ProfileRepository:
         if uploaded and old_path and old_path!=path:
             try:self.client.storage.from_("profile-images").remove([old_path])
             except Exception:pass  # Old unreferenced image remains owner-only.
+
+
+class FriendsRepository:
+    """All identities and relationship permissions are checked inside Supabase."""
+    def __init__(self,client):self.client=client
+
+    def action(self,action,value=''):
+        try:
+            result=self.client.rpc('friends_action',{'p_action':action,'p_value':value}).execute().data
+        except Exception as exc:
+            raise ValueError('Could not confirm this action. Refresh your friends list before retrying.') from exc
+        if not isinstance(result,dict):raise ValueError('Could not load your friends. Refresh and try again.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
+
+    def lookup(self,code):
+        from logic import normalize_friend_code
+        return self.action('lookup',normalize_friend_code(code))

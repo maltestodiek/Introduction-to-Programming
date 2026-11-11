@@ -13,9 +13,9 @@ Open http://localhost:8501. The local secrets file is configured on this compute
 
 ## Available now
 
-Sign up, confirm email, sign in and sign out. Choose a username, university, courses and languages. Customize an avatar or upload and crop a photo. Save and edit the profile. XP and streak begin at zero; friends are an empty state.
+Sign up, confirm email, sign in and sign out. Choose a username, university, courses and languages. Customize an avatar or upload and crop a photo. Save and edit the profile. XP and streak begin at zero. Add friends using codes and invitation links.
 
-Universities can be searched live through the ROR API, with country labels and manual entry for missing institutions. University selection opens a dropdown with search at the top and a manual-entry fallback. No prototype institution is offered. Courses can be typed in. Degree level and field of study are optional and private. Shared course discovery is future work. The avatar editor supports sideways swipes, arrows, keyboard navigation, and category tabs with immediate character previews. Decks, games, earned XP, friendship management, deployment are not yet implemented.
+Universities can be searched live through the ROR API, with country labels and manual entry for missing institutions. University selection opens a dropdown with search at the top and a manual-entry fallback. No prototype institution is offered. Courses can be typed in. Degree level and field of study are optional and private. Shared course discovery is future work. The avatar editor supports sideways swipes, arrows, keyboard navigation, and category tabs with immediate character previews. Decks, games and earned XP are not yet implemented. The app is hosted at https://studyduel-nova.streamlit.app.
 
 ## Data and privacy
 
@@ -37,3 +37,10 @@ Password recovery uses Supabase email links and a new-password form. The local a
 
 ## Reliable local launch on this Mac
 Run `sh run-app.sh` to start StudyDuel and `sh run-tests.sh` for verification. These use uv and the locked dependencies, with the environment and compiled cache under `~/Library/Caches/StudyDuel` to avoid the stalled Desktop environment/cache. The original `.venv` remains untouched. No Supabase data or credentials were moved.
+
+## Friends
+Each completed profile receives a stable eight-character friend code. Find a friend by code and send a request; only the recipient can accept or decline it. The sender can cancel it. Accepted friendships appear in both accounts and either participant can remove them.
+
+Invitation links require explicit acceptance after sign-in and profile completion. They expire after seven days; creating a new one replaces the old one. Copy link, WhatsApp, email and native sharing leave sending under the user's control. The link token is shown only in the creating session and stored as a digest in Supabase.
+
+`supabase/friends-schema.sql` was applied on 11 November 2026; do not rerun it on this project. `tests/sql/friends_acceptance.sql` exercises synthetic identities with rollback; it must never be changed to operate on actual student records. The only wildcard authentication redirect is the app's own `/?invite=*` route. No gameplay or messaging APIs are included.

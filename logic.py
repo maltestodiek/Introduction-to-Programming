@@ -160,3 +160,24 @@ def crop_photo(data,x=.5,y=.5,zoom=1):
         out=io.BytesIO();clean.save(out,format="PNG");return out.getvalue()
     except (OSError, SyntaxError, Image.DecompressionBombError) as exc:
         raise ValueError("That file is not a supported photo. Choose a JPEG or PNG.") from exc
+
+
+def normalize_friend_code(value):
+    value=value.strip().removeprefix('#').upper()
+    if not re.fullmatch(r'[A-HJ-NP-Z2-9]{8}',value):
+        raise ValueError('Enter the eight letters and numbers shown in your friend’s code.')
+    return value
+
+
+def invitation_token(value):
+    if not isinstance(value,str) or not re.fullmatch(r'[a-f0-9]{48}',value):
+        raise ValueError('This invitation is invalid or expired.')
+    return value
+
+
+def invitation_url(base,token):
+    from urllib.parse import urlsplit, urlencode
+    parsed=urlsplit(base)
+    if parsed.scheme!='https' or not parsed.hostname or parsed.hostname in ('localhost','127.0.0.1','::1') or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError('Invitation sharing needs the public HTTPS app address.')
+    return base.rstrip('/')+'/?'+urlencode({'invite':invitation_token(token)})

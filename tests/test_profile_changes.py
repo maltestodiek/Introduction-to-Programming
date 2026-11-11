@@ -39,7 +39,7 @@ def test_playful_skin_colors_and_custom_study_information():
 
 def test_skin_color_labels_are_neutral_and_preserve_saved_values():
     from avatar_picker import SKIN_LABELS
-    assert SKIN_LABELS=={"Light":"Light","Medium":"Tanned","Deep":"Deep brown"}
+    assert SKIN_LABELS=={"Light":"Light","Medium":"Tanned","Deep":"Coloured"}
     assert all(key in OPTIONS["skin"] for key in SKIN_LABELS)
     for value in SKIN_LABELS:
         assert render_avatar(dict(DEFAULT_AVATAR,skin=value))

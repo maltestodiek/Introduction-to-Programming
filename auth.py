@@ -14,17 +14,21 @@ class AuthService:
         self.user=None
         self.recovery_verified=False
 
-    def sign_up(self,email,password,confirmation,username=None):
+    def sign_up(self,email,password,confirmation,username=None,invite_token=None):
         try:
             email=validate_email(email)
             if len(password)<8: raise ValueError("Use a password with at least 8 characters.")
             if password!=confirmation: raise ValueError("The passwords do not match.")
             if username is not None: username=validate_username(username)
+            redirect=self.app_url
+            if invite_token:
+                from logic import invitation_url
+                redirect=invitation_url(self.app_url,invite_token)
         except ValueError as exc:
             return Result("invalid_input",str(exc))
         try:
             credentials={"email":email,"password":password,
-                         "options":{"email_redirect_to":self.app_url}}
+                         "options":{"email_redirect_to":redirect}}
             if username: credentials["options"]["data"]={"username":username}
             self.client.auth.sign_up(credentials)
             self.user=None

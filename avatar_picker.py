@@ -5,7 +5,7 @@ import streamlit as st
 from logic import DEFAULT_AVATAR, OPTIONS, render_avatar
 
 LABELS={"skin":"Skin","hair":"Hair","hair_color":"Hair color","clothing":"Clothes","accessory":"Accessories"}
-SKIN_LABELS={"Light":"Light","Medium":"Tanned","Deep":"Deep brown"}
+SKIN_LABELS={"Light":"Light","Medium":"Tanned","Deep":"Coloured"}
 HTML="""
 <div class="avatar-editor">
   <div class="categories" role="tablist" aria-label="Avatar category"></div>
