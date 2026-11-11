@@ -12,6 +12,7 @@ from universities import search_universities, UniversitySearchError
 from auth import AuthService
 from recovery import recovery_callback
 from db import ProfileRepository, FriendsRepository
+from launch import browser_bridge, welcome
 from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username
@@ -24,8 +25,6 @@ h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:#FFFFFF;color:#172
 .stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 </style>""",unsafe_allow_html=True)
 logo_data=base64.b64encode(LOGO_PATH.read_bytes()).decode()
-st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
-st.caption("A little competition. A lot of learning.")
 # The invitation remains in the URL across signup, email confirmation and login.
 if "invite" in st.query_params:
     try:st.session_state.pending_invite=invitation_token(st.query_params["invite"])
@@ -141,7 +140,7 @@ if not url or not key:
     st.stop()
 if "auth" not in st.session_state:
     try:
-        client=create_client(url,key,options=ClientOptions(auto_refresh_token=True,persist_session=True))
+        client=create_client(url,key,options=ClientOptions(auto_refresh_token=False,persist_session=True))
         st.session_state.auth=AuthService(client,app_url=config("APP_URL") or "http://localhost:8501")
     except Exception:
         st.error("Could not connect to StudyDuel. Please try again shortly.")
@@ -168,20 +167,60 @@ if st.session_state.get("recovering"):
         result=auth.update_password(new_password,confirm_password)
         if result.status=="password_updated":
             for state_key in list(st.session_state):del st.session_state[state_key]
+            st.session_state.browser_loaded=True
+            st.session_state.started=True
             st.session_state.notice=result.message
             st.rerun()
         else:st.error(result.message)
     if st.button("Back to sign in"):
         auth.sign_out()
         for state_key in list(st.session_state):del st.session_state[state_key]
+        st.session_state.browser_loaded=True
+        st.session_state.started=True
         st.rerun()
     st.stop()
 if st.session_state.get("recovery_error"):
     st.error(st.session_state.recovery_error)
+# Read browser state once per server session. Never trust a stored user ID.
+if not st.session_state.get("browser_loaded"):
+    saved=browser_bridge("read")
+    if saved is None:
+        st.caption("Opening StudyDuel…")
+        st.stop()
+    saved=saved if isinstance(saved,dict) else {}
+    st.session_state.browser_loaded=True
+    st.session_state.started=bool(saved.get("started")) or bool(auth.user)
+    if "account_mode" not in st.session_state and saved.get("mode") in ("Sign in","Create account"):
+        st.session_state.account_mode=saved["mode"]
+    if not auth.user and not st.session_state.get("recovery_error") and saved.get("session"):
+        if auth.restore_session(saved["session"]):
+            if saved.get("user_id")==auth.user.id:
+                st.session_state.editing=saved.get("route")=="edit"
+            st.session_state.started=True
+        else:
+            st.session_state.started=True
+            st.session_state.notice="Please sign in again to continue. Your saved profile is still here."
+    st.rerun()
 if auth.user and not auth.verify():
     for k in list(st.session_state):
         if k!="auth": del st.session_state[k]
+    st.session_state.browser_loaded=True
+    st.session_state.started=True
     st.warning("Your session has ended. Please sign in again.")
+browser_bridge("write",{
+    "started":bool(st.session_state.get("started") or auth.user),
+    "mode":st.session_state.get("account_mode","Sign in"),
+    "route":"edit" if st.session_state.get("editing") else "profile",
+    "user_id":auth.user.id if auth.user else None,
+    "session":auth.resumable_session(),
+})
+if not auth.user and not st.session_state.get("started") and not st.session_state.get("pending_invite") and not st.session_state.get("recovery_error"):
+    if welcome(logo_data):
+        st.session_state.started=True
+        st.rerun()
+    st.stop()
+st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
+st.caption("A little competition. A lot of learning.")
 notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
 
@@ -239,6 +278,8 @@ with logout:
     if st.button("Sign out",use_container_width=True):
         message=auth.sign_out().message
         for k in list(st.session_state):del st.session_state[k]
+        st.session_state.browser_loaded=True
+        st.session_state.started=True
         st.session_state.notice=message
         st.rerun()
 try: profile=repo.load()

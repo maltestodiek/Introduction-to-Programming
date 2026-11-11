@@ -10,6 +10,7 @@ def test_signup_error_keeps_inputs_and_shows_username_guidance():
     at.session_state["auth"]=AuthService(p)
     at.session_state["account_mode"]="Create account"
     at.run()
+    next(b for b in at.button if b.label=="Start").click().run()
     values=["bad name","student@example.test","test-password-123","test-password-123"]
     for field,value in zip(at.text_input,values):field.set_value(value)
     at.button[0].click().run()

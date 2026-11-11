@@ -57,11 +57,36 @@ class AuthService:
     def verify(self):
         if not self.user: return False
         try:
+            # Refresh on interaction so rotated tokens are immediately copied to the browser.
+            self.client.auth.get_session()
             self.user=self.client.auth.get_user().user
             return self.user is not None
         except Exception:
             self.user=None
             return False
+
+    def restore_session(self,data):
+        """Browser state is untrusted; only Supabase may establish identity."""
+        self.user=None
+        if not isinstance(data,dict) or any(not isinstance(data.get(k),str) or not data[k] for k in ("access_token","refresh_token")):
+            return False
+        try:
+            self.client.auth.set_session(data["access_token"],data["refresh_token"])
+            self.user=self.client.auth.get_user().user
+            return self.user is not None
+        except Exception:
+            self.user=None
+            return False
+
+    def resumable_session(self):
+        if not self.user or self.recovery_verified:return None
+        try:
+            session=self.client.auth.get_session()
+            if not session:return None
+            access,refresh=session.access_token,session.refresh_token
+            if not isinstance(access,str) or not isinstance(refresh,str):return None
+            return {"access_token":access,"refresh_token":refresh}
+        except Exception:return None
 
     def sign_out(self):
         try:

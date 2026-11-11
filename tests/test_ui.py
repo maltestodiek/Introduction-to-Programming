@@ -19,6 +19,7 @@ def signed_in():
 
 def test_signin_screen_and_invalid_email():
     at=AppTest.from_file(str(APP),default_timeout=15).run()
+    next(b for b in at.button if b.label=="Start").click().run()
     assert not at.exception
     at.text_input[0].set_value("bad")
     at.text_input[1].set_value("password123")
@@ -68,6 +69,7 @@ def test_university_search_populates_choices_and_retains_username():
 
 def test_forgot_password_ui_invalid_email_does_not_send():
     at=AppTest.from_file(str(APP),default_timeout=15).run()
+    next(b for b in at.button if b.label=="Start").click().run()
     next(w for w in at.text_input if w.label=="Account email").set_value("bad")
     next(b for b in at.button if b.label=="Send reset link").click().run()
     assert any("valid email" in e.value for e in at.error)
