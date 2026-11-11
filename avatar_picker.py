@@ -30,11 +30,11 @@ button{font:inherit;cursor:pointer;border:0}
 .portrait{position:relative;width:240px;height:240px;object-fit:contain;border-radius:50%;pointer-events:none;transition:transform .16s}
 .previous,.next{position:absolute;top:120px;width:44px;height:44px;border-radius:50%;background:#eef0fb;color:#424fae;font-size:32px;line-height:36px;box-shadow:0 2px 8px #3331}
 .previous{left:0}.next{right:0}
-.selection{text-align:center;min-height:47px}.selection strong{display:block;font-size:20px}.selection span{display:block;font-size:12px;color:#777c96;margin-top:5px}
+.selection{text-align:center;min-height:47px}.selection strong{display:block;font-size:20px}.selection span{display:block;font-size:12px;color:#535D75;margin-top:5px}
 .dots{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:14px 0}
-.dots button{width:12px;height:12px;border-radius:50%;background:#dce0f3;padding:0}
+.dots button{width:12px;height:12px;border-radius:50%;background:#8993B5;padding:0}
 .dots button[aria-current=true]{background:#5260da;transform:scale(1.25)}
-p{text-align:center;font-size:12px;color:#737892;margin-bottom:2px}
+p{text-align:center;font-size:12px;color:#535D75;margin-bottom:2px}
 button:focus-visible{outline:3px solid #acb6ff;outline-offset:3px}
 @media(max-width:400px){.stage{height:260px}.portrait{width:210px;height:210px}.halo{width:210px;height:210px}.previous,.next{top:110px}}
 @media(prefers-reduced-motion:reduce){.portrait{transition:none}}

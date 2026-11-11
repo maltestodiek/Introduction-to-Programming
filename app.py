@@ -13,8 +13,8 @@ from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_a
 st.set_page_config(page_title="StudyDuel",page_icon="✦",layout="centered")
 st.markdown("""<style>
 .block-container{max-width:940px;padding-top:2.5rem}
-h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:white;border-radius:18px;padding:24px}
-.stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:white;border:1px solid #E6E8F2;border-radius:16px;padding:20px}
+h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:18px;padding:24px}
+.stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:16px;padding:20px}
 </style>""",unsafe_allow_html=True)
 st.markdown("### ✦ StudyDuel")
 st.caption("A little competition. A lot of learning.")
