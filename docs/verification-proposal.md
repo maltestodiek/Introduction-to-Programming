@@ -1,65 +1,47 @@
-# First feature verification proposal
+# Login acceptance review
 
-This is a proposed test plan, not executable tests and not a test result. Review the expected outcomes before implementation.
+These are proposed expectations for review before implementation. The draft tests in tests/test_auth_acceptance.py intentionally target a not-yet-implemented AuthService in auth.py. They have not been run and are not passing test evidence.
 
-## State and persistence
+## Files
+app.py: authentication, profile setup, and profile display/editing.
+logic.py: input checks.
+auth.py: Supabase Auth adapter and per-session authentication service.
+db.py: Supabase profile persistence and privacy-safe reads; no password or token storage.
+tests/test_auth_acceptance.py: fake-provider acceptance cases.
+tests/test_auth_ui.py: to be written after approval; missing configuration, confirmation prompt, password field clearing, logout and separate Streamlit sessions.
+pyproject.toml/uv.lock: dependencies added after review.
+docs/supabase-setup.md: project and manual verification instructions.
 
-Temporary state: the selected course, deck name, draft identifier, ordered draft cards, selected correct answers, current editor view, and the exact draft revision approved for review.
+## Review checklist
+- Signup pending email confirmation never authenticates.
+- Wrong credentials and provider errors never reveal raw error details or authenticate.
+- Blank input and password mismatch never call the provider.
+- Session presence alone is insufficient; identity must be verified remotely.
+- Two service/session instances cannot share auth state.
+- Sign-out removes local identity even if provider sign-out fails.
+- A restart clears login state but leaves the Supabase account usable.
+- Use one auth client per Streamlit session, not a shared cached client.
+- Draft tests use no real project or emails.
 
-Persistent state: demo creator identity, course identifiers and names, confirmed deck identity and draft confirmation token, ordered cards, ordered answer identities/text, and each card's correct answer identity. Persist the entire deck atomically. A rejected action leaves saved data unchanged. Deck content is separate from future player progress.
+## Live verification after implementation
+Configure a dedicated Supabase project, email/password provider and confirmation. Set localhost redirect URL. Check email delivery settings before signup; the default email sender has recipient/rate restrictions, so team-wide testing may require custom SMTP.
+Register a user with their own email, complete confirmation, sign in, try wrong credentials, sign out, and repeat after stopping and restarting Streamlit. Use a second independent browser session to check identity separation. Report live checks separately from automated tests.
 
-A restart test must open the same SQLite file from a fresh process/connection. Each automated persistence test gets its own temporary database. Unconfirmed drafts are intentionally not restart-persistent in this first slice.
+## Sources
+- https://supabase.com/docs/reference/python/auth-signup
+- https://supabase.com/docs/reference/python/auth-signinwithpassword
+- https://supabase.com/docs/reference/python/auth-getuser
+- https://supabase.com/docs/reference/python/auth-signout
+- https://supabase.com/docs/guides/auth/passwords
+- https://supabase.com/docs/guides/getting-started/api-keys
 
-## Proposed files
 
-- app.py: authoring, cards list, review, confirmation, course browsing, and read-only deck screen.
-- logic.py: pure input validation, card addition/deletion rules, exact-15 deck validation, and review revision rules.
-- db.py: schema initialization, demo identity/courses, atomic confirmation, duplicate-confirmation protection, and read-only queries.
-- tests/conftest.py: temporary database and 15 original question fixtures.
-- tests/test_deck_rules.py: draft validation and transitions.
-- tests/test_deck_storage.py: atomicity, confirmation retries, and reload.
-- tests/test_deck_ui.py: Streamlit AppTest interactions where supported; manual checks cover the full visual workflow.
-- pyproject.toml and uv.lock: add dependencies during implementation.
-- docs/product-brief.md and specs/first-feature.md: reviewed source of expected outcomes.
+## Expanded profile acceptance checks
 
-Do not create application code, dependencies, or tests until the planning review is complete.
+Preserve the existing auth checks. Extend signup tests to include unique usernames before implementing the expanded workflow; the current draft tests cover authentication only.
 
-## Tests to write first
+Add tests for required university/course/language selections, persistence across fresh connections and restart, default avatar, deterministic customization, cropping, valid/invalid image uploads, active image switching, failed-save preservation, and university changes that invalidate course choices.
 
-### Allowed workflow
-Create a complete 15-card draft for Corporate Finance. Use a fixture whose correct choice cycles through all four answer positions so position errors are detectable. Open review: no permanent deck exists. Confirm: expect one deck, exactly 15 cards and four answers each, and an exact match of all content, order, metadata, and correct choices.
+Use two authenticated test identities to exercise database and Storage access rules directly. Verify an owner can update only permitted profile fields, another user sees only allowed profile fields and the active image, and anonymous requests see no profile. Check that private email, course choices, raw avatar settings, and inactive images are inaccessible, not merely hidden by UI controls. Verify profile updates cannot alter XP, streak, or friendships.
 
-### Invalid actions
-Check incomplete question, whitespace-only answer, missing answer, three or five answers, no correct answer, multiple correct answers, out-of-range selection, blank deck name, and unsupported course. A saved deck requires exactly 15 cards: reject 0, 14, and 16 at the business boundary. An incomplete current card blocks Add Flashcard. At 15 cards, adding another is rejected. Check the draft as well as database contents remain unchanged on rejection.
-
-### Editing and review
-Edit an earlier card's text and solution. Delete a middle card and compare all survivors and their solution identities. Add a replacement. Verify Back to editing retains every field. Modify a reviewed draft and attempt direct confirmation: require a fresh review. Ensure the newly displayed review matches what is persisted.
-
-### Persistence and retry
-Save a valid deck, reject a second invalid draft, and compare the first deck field by field. Confirm the same draft twice and expect one record; confirm a separate valid draft with the same name and expect two records under the proposed naming rule. Inject a storage failure after writing deck metadata but before all cards are written: expect full rollback, not an incomplete deck.
-
-Close the database connection, reopen the same temporary file, and compare all saved values. Also run the manual full-process restart check below.
-
-### Read-only behavior
-Verify confirmed decks have no editing/deletion controls or user update/delete operations. Opening a saved deck must not change it. All solutions are visible as intended. Do not implement admin deletion in this feature.
-
-## Manual walkthrough after implementation
-
-1. Run uv sync, uv run pytest -q, then uv run streamlit run app.py.
-2. Try Add Flashcard on an incomplete card. Check the error and unchanged count.
-3. Complete 15 cards, edit an earlier card, delete a middle one, and replace it.
-4. Open review, go back and amend a solution, then review again.
-5. Confirm and browse the stored deck. Verify every question and answer.
-6. Stop the Streamlit process, restart the same command, and reopen the deck. Browser refresh alone is insufficient.
-7. Report actual test output and changed files, review the diff, then follow the class commit/branch/review workflow. No push or merge is part of preparing this plan.
-
-## Decisions before implementation
-
-- 'Fixed input value' in the source is undefined. Confirm whether it means a format or a length limit; do not invent one.
-- Review the proposed trimming, duplicate-name allowance, and unsaved draft restart boundary.
-- Approve this complete deck workflow as the first feature. It changes the source's 13-step sequence without changing the deck rules.
-- Confirm repository visibility before publishing: the class instructions request private; this repository was previously observed as public.
-
-## Questions for later features
-
-Define leaderboard ranking and ties; random-opponent eligibility; friend request/removal behavior; enrollment; rating averages and ranking ties; selection among the top three and the unrated fallback; the exact start of the 24-hour timer and whether finishing answers or rating meets it; outcomes for abandonment before opponent play and browser closure; ordering simultaneous duel completions for streaks; report threshold aggregation; consequences of admin deletion; calendar settings; and AI upload formats/count. These do not block deck authoring.
+These tests are still to be written and run. The original auth draft tests are not sufficient evidence for the expanded profile feature.

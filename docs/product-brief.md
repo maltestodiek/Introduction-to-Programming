@@ -6,9 +6,9 @@ Source: StudyDuel – Gesamtkonzept v2, dated 10 November 2026. This English bri
 
 ## Delivery decision
 
-The group confirmed the class stack: Python, Streamlit, SQLite, pytest, and uv. Keep app.py for screens, logic.py for rules, db.py for storage, and tests/ for verification. The source's React/Vite/localStorage recommendation and embedded build prompt are not adopted. No implementation is authorized by this brief.
+The group confirmed the class stack: Python, Streamlit, SQLite, pytest, and uv. Keep app.py for screens, logic.py for rules, db.py for storage, and tests/ for verification. The source's React/Vite/localStorage recommendation and embedded build prompt are not adopted. On 11 November 2026, the user selected real Supabase email/password authentication as the first feature. Review the new acceptance tests before implementation.
 
-For the local university prototype, use fictional users and simulated opponents; real accounts, server multiplayer, and authentication are a later project. SQLite must preserve accepted changes after stopping and restarting the app. Draft and saved content must remain distinct. The proposed first task is manual deck creation, review, confirmation, and reopening, rather than the source's navigation-only starting task.
+Use Supabase Auth for real accounts; opponents remain simulated and server multiplayer remains a later feature. SQLite must preserve accepted changes after stopping and restarting the app. Draft and saved content must remain distinct. The first task is signup, email confirmation, login, and logout. Deck creation follows authentication.
 
 ## Navigation and courses
 
@@ -68,7 +68,7 @@ Calendar reminders cover an incoming duel's 24-hour deadline and recurring study
 
 ## Proposed delivery sequence
 
-1. Manual deck authoring, review, durable confirmation, and read-only browsing.
+1. Supabase authentication, then manual deck authoring, review, durable confirmation, and read-only browsing.
 2. Timed answering and required ratings.
 3. Simulated challenges, state transitions, and deadlines.
 4. XP, streaks, history, review, and reports.
@@ -76,3 +76,7 @@ Calendar reminders cover an incoming duel's 24-hour deadline and recurring study
 6. Optional admin moderation, calendar export, and AI generation.
 
 Use deterministic opponent outcomes and an injectable clock for tests and prototype controls. Clearly distinguish simulation controls from real multiplayer.
+
+## Confirmed account and profile scope
+
+Authentication and profile setup are now the first workflow. See docs/profile-requirements.md for required username, university, course and language selections, editable photo/avatar options, visibility decisions, and Supabase persistence. XP, streak, and friends are displayed with initial empty values; their gameplay and management rules remain later work. These decisions supersede demo-only profile assumptions above.

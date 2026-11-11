@@ -1,33 +1,34 @@
-# First feature Create and reopen a reviewed deck
+# First feature Supabase authentication and profile setup
 
 ## Why
-
-A student needs a trustworthy course deck before they can study or duel. Let them compose, inspect, correct, and permanently confirm exactly 15 complete questions, then reopen those same questions and solutions after restarting the app.
+StudyDuel needs a real identity for each student before building user-owned decks and duels. The user selected Supabase and email/password on 11 November 2026, superseding the demo-user-only scope.
 
 ## What
+Keep Python, Streamlit, uv, and pytest. Use Supabase Auth for signup, confirmation, sign-in, identity verification, and sign-out. Keep SQLite reserved for future class application data; never store passwords or authentication tokens in it.
 
-Use the existing class scaffold and a clearly labeled fictional demo creator. Offer the three specified courses. Keep an unconfirmed draft in session memory: course, name, ordered cards, question text, four ordered answers per card, and exactly one selected correct answer.
+Show Sign in and Create account forms in English. Signup requires email, password, matching password confirmation, and a unique username. Use the project's configured password policy; proposed minimum is eight characters. Do not trim or silently alter passwords. Trim outer whitespace on email. Incomplete/invalid input never contacts Supabase.
 
-Create New Deck begins with one empty card. Add Flashcard requires the current card to be complete and is unavailable at 15 cards. Show Card N of 15. Any earlier card can be edited or deleted. Deletion preserves the relative order and correct-answer associations of surviving cards. A deleted slot can be replaced by adding another card; a draft may contain fewer than 15.
+Keep email confirmation enabled. Signup without a session displays a generic instruction to check email and never opens the signed-in screen. Only a Supabase-verified user associated with a valid session can see the signed-in welcome screen. Wrong credentials, expired/invalid sessions, and network errors fail closed without displaying raw provider errors or tokens.
 
-Proposed input rules for group review: trim outer whitespace; require nonblank deck name, question, and all answers; require a listed course; allow repeated deck names and repeated question/answer text because the source does not prohibit them. No invented length limits or arbitrary 'fixed input' constraint. Reject absent, multiple, or out-of-range correct-answer selections at the rules layer, even though the UI uses a single-choice control.
+Create an auth client per Streamlit session, never in a global cache. Verify identity with get_user rather than trusting a UI flag or only reading a cached session. Preserve all form fields after invalid submission so the user can correct them; clear password fields after successful signup or login. Sign out clears local auth and user-specific state even if the remote request fails; explain that remote sign-out could not be confirmed. Tokens stay only in server session memory. A new browser session or full process restart requires login again; the Supabase account persists.
 
-Save Deck opens review only for exactly 15 valid cards and valid deck metadata. Review lists all 15 questions, all four answers, and exactly one marked solution per question. It creates no permanent deck. Back to editing preserves all content and invalidates the prior review. After any edit, the revised draft must be reviewed again.
+Use project URL and publishable key from ignored environment/Streamlit configuration. Never use service-role/admin credentials. A missing configuration shows setup guidance and leaves the app locked. No external signup emails are sent by automated tests.
 
-Create Deck is available only from a valid current review. Validate again before writing. In one transaction, save the deck, its creator and course, its 15 ordered cards, and answer identities/correct-answer associations. A failed validation or storage write must create no partial deck. Repeating the confirmation for the same draft must not create a duplicate deck; a new draft may use the same name.
-
-After success, display a read-only deck. Add it to its course's deck list with creator. Ratings are not implemented in this slice: show Not rated rather than a fabricated average. Users have no edit/delete actions for confirmed decks. Reopen the same saved content after a full Streamlit process restart using the same SQLite file.
+## Profile setup
+After confirmed login, complete the required university, courses, and languages. Offer a cropped photo upload or customizable avatar, with a default avatar when skipped. Implement the visibility, persistence, editing, and ownership rules in docs/profile-requirements.md. Include a profile screen showing XP and win streak initialized to zero and an empty friends list; earning XP and managing friendships come later.
 
 ## Out of scope
-
-Real signup, enrollment, multiplayer, timers, answer shuffling during play, duels, ratings, XP, leaderboard, reports, moderation, friends, calendar integrations, AI uploads, design polish, and deployment. No requirement to recover unconfirmed drafts after a process restart. No preview app or placeholder game implementation is part of this planning task.
+Deck creation, duels, friend search, social login, persistent login cookies, public deployment, and automatic publishing to GitHub. Password reset is a follow-up before a public launch.
 
 ## Done when
+1. Valid signup with confirmation enabled asks the student to check email and does not authenticate them.
+2. After confirmation, valid credentials produce a verified welcome screen. Wrong credentials or unconfirmed email leave the app signed out.
+3. Sign out removes access; provider failure still clears local access.
+4. A fresh session cannot inherit another user's identity. Restarting the app returns to login, and the same confirmed account can sign in again.
+5. Missing config, invalid input, expired session, and a provider outage display safe messages and never unlock the app.
+6. Tests use a fake provider. A separate live walkthrough verifies signup email delivery, confirmation, login, logout, and restart against the new Supabase project.
 
-1. With an empty temporary database and demo creator, choose Corporate Finance, name a deck Corporate Finance 1, and enter 15 complete original cards. Each has four answers and one correct choice. Save Deck opens the full review; the database still contains zero decks. Create Deck saves exactly one deck with 15 cards and 60 answers.
-2. Start an incomplete card, leave Answer 4 blank, and try Add Flashcard. An actionable error appears, and no card is added. At 14 complete cards, Save Deck cannot proceed. At 15, a sixteenth card cannot be added.
-3. Edit card 3 and its correct choice, delete card 7, and add a replacement. Review shows the changed content and current order. Go back, edit again, and confirm only after reviewing the revised version.
-4. Attempt confirmation with an invalid 14-card draft or a blank answer through the business-rule entry point. It fails; no partial deck appears and any existing saved deck is unchanged. Repeating a successful confirmation for its draft leaves the saved count at one.
-5. Stop Streamlit, start it again against the same database, browse Decks > Corporate Finance > Corporate Finance 1, and compare all questions, answer orders, solutions, name, course, and creator. They match the confirmed review. There are no edit/delete controls for the saved deck.
+7. All six profile acceptance scenarios in docs/profile-requirements.md pass, including restart persistence, image switching, and cross-user access checks.
 
-Acceptance details beyond the source (whitespace handling, repeated names, confirmation retry behavior, and draft durability boundary) are proposals to review before coding.
+
+User extension: Supabase password recovery is now in scope. Send a reset email, consume and verify the recovery session, validate the new password and confirmation, update through Supabase, and return to sign-in. Never log recovery tokens. Email delivery and the real recovery link require a user-run walkthrough.

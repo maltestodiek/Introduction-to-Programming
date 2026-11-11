@@ -1,6 +1,6 @@
 # Working on StudyDuel
 
-Use English for the interface, documentation, and tests. Read docs/product-brief.md, specs/first-feature.md, and docs/verification-proposal.md before implementation. The group explicitly chose the class stack over the source document’s React recommendation. This is planning only until the first feature and expected test outcomes are reviewed.
+Use English for the interface, documentation, and tests. Read docs/product-brief.md, specs/first-feature.md, and docs/verification-proposal.md before implementation. The group explicitly chose the class stack over the source document’s React recommendation. The user approved implementing authentication and profile setup on 11 November 2026. Supabase Auth, Database and Storage are used for this feature; SQLite is not used for credentials or profiles. Keep later gameplay changes out of this feature.
 
 For the class release, use uv with Python, Streamlit, SQLite, and pytest. Planned commands once implemented: uv sync, uv run pytest -q, and uv run streamlit run app.py. Put screens in app.py, business rules in logic.py, persistence in db.py, and tests in tests/. Use a temporary database per persistence test.
 
