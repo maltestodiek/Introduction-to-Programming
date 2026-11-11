@@ -3,10 +3,12 @@ import streamlit as st
 
 _callback=st.components.v2.component("studyduel_recovery",html="<span></span>",js="""
 export default function({setStateValue}) {
-    const params=new URLSearchParams(window.location.hash.slice(1));
+    let redirectWindow=window;
+    try { if(window.top.location.origin===window.location.origin) redirectWindow=window.top; } catch (_) {}
+    const params=new URLSearchParams(redirectWindow.location.hash.slice(1));
     if(params.get('type')==='recovery' || params.has('error_code')) {
         const value={type:params.get('type'),access_token:params.get('access_token'),refresh_token:params.get('refresh_token')};
-        window.history.replaceState(null,'',window.location.pathname+window.location.search);
+        redirectWindow.history.replaceState(null,'',redirectWindow.location.pathname+redirectWindow.location.search);
         setStateValue('value',value);
     }
 }
