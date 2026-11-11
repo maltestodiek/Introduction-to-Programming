@@ -183,3 +183,65 @@ def invitation_url(base,token):
     if parsed.scheme!='https' or not parsed.hostname or parsed.hostname in ('localhost','127.0.0.1','::1') or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('Invitation sharing needs the public HTTPS app address.')
     return base.rstrip('/')+'/?'+urlencode({'invite':invitation_token(token)})
+
+# Deck content is separate from future duel progress.
+from copy import deepcopy
+from uuid import uuid4, UUID
+import hashlib
+import json
+
+def new_card():
+    return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None}
+
+def new_deck(course=''):
+    return {'id':str(uuid4()),'course':course,'name':'','cards':[new_card()]}
+
+def _deck_id(value):
+    try:
+        if not isinstance(value,str) or str(UUID(value))!=value:raise ValueError()
+    except (ValueError,TypeError,AttributeError):raise ValueError('Invalid card or answer identity.')
+    return value
+
+def _deck_text(value,label):
+    if not isinstance(value,str) or not value.strip():raise ValueError(f'Enter {label}.')
+    return value.strip()
+
+def validate_card(card):
+    if not isinstance(card,dict):raise ValueError('Complete this card.')
+    answers=card.get('answers')
+    if not isinstance(answers,list) or len(answers)!=4:raise ValueError('Each card needs exactly four answers.')
+    clean=[]
+    for i,a in enumerate(answers):
+        if not isinstance(a,dict):raise ValueError('Complete all four answers.')
+        clean.append({'id':_deck_id(a.get('id')),'text':_deck_text(a.get('text'),f'Answer {i+1}')})
+    ids=[a['id'] for a in clean]
+    if len(set(ids))!=4:raise ValueError('Answer identities must be unique.')
+    correct=card.get('correct_answer_id')
+    if not isinstance(correct,str) or correct not in ids:raise ValueError('Select exactly one correct answer.')
+    return {'id':_deck_id(card.get('id')),'question':_deck_text(card.get('question'),'a question'),'answers':clean,'correct_answer_id':correct}
+
+def validate_deck(draft):
+    if not isinstance(draft,dict):raise ValueError('Create a deck first.')
+    cards=draft.get('cards')
+    if not isinstance(cards,list) or len(cards)!=15:raise ValueError('A deck must contain exactly 15 complete cards.')
+    clean=[]
+    for i,c in enumerate(cards):
+        try:clean.append(validate_card(c))
+        except ValueError as exc:raise ValueError(f'Card {i+1}: {exc}') from exc
+    ids=[c['id'] for c in clean]+[a['id'] for c in clean for a in c['answers']]
+    if len(set(ids))!=75:raise ValueError('Card and answer identities must be unique.')
+    return {'id':_deck_id(draft.get('id')),'course':_deck_text(draft.get('course'),'a course'),'name':_deck_text(draft.get('name'),'a deck name'),'cards':clean}
+
+def deck_fingerprint(draft):
+    return hashlib.sha256(json.dumps(validate_deck(draft),sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+
+def add_card(draft,index=None):
+    if len(draft['cards'])>=15:raise ValueError('A deck has at most 15 cards.')
+    if draft['cards']:validate_card(draft['cards'][-1 if index is None else index])
+    result=deepcopy(draft);result['cards'].append(new_card());return result
+
+def delete_card(draft,index):
+    if type(index) is not int or not 0<=index<len(draft['cards']):raise ValueError('Choose a card to delete.')
+    result=deepcopy(draft);result['cards'].pop(index)
+    if not result['cards']:result['cards']=[new_card()]
+    return result

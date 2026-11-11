@@ -62,3 +62,31 @@ class FriendsRepository:
     def lookup(self,code):
         from logic import normalize_friend_code
         return self.action('lookup',normalize_friend_code(code))
+
+class DeckRepository:
+    """Reviewed snapshots and atomic publication under the signed-in identity."""
+    def __init__(self,client):self.client=client
+
+    def review(self,draft):
+        from logic import validate_deck,deck_fingerprint
+        clean=validate_deck(draft)
+        try:r=self.client.rpc('review_deck',{'p_draft':clean}).execute().data
+        except Exception as exc:raise ValueError('Could not prepare the review. Check your selected course and try again.') from exc
+        return {'id':r['id'],'fingerprint':deck_fingerprint(clean)}
+
+    def publish(self,draft,review):
+        from logic import validate_deck,deck_fingerprint
+        clean=validate_deck(draft)
+        if not review or review.get('fingerprint')!=deck_fingerprint(clean):raise ValueError('This deck changed. Open a new review before publishing.')
+        try:return self.client.rpc('publish_deck',{'p_review_id':review['id'],'p_draft':clean}).execute().data
+        except Exception as exc:raise ValueError('Publication could not be confirmed. Retry Create Deck; the same draft will not be published twice.') from exc
+
+    def list(self,course):
+        try:return self.client.table('decks').select('id,name,course,creator_id,created_at,profiles(username)').ilike('course',course.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')).order('created_at',desc=True).execute().data
+        except Exception as exc:raise ValueError('Could not load decks. Please try again.') from exc
+
+    def get(self,deck_id):
+        try:rows=self.client.table('decks').select('*,profiles(username)').eq('id',deck_id).execute().data
+        except Exception as exc:raise ValueError('Could not load this deck. Please try again.') from exc
+        if not rows:raise ValueError('This deck is unavailable at your university.')
+        return rows[0]

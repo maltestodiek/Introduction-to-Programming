@@ -84,3 +84,6 @@ Authentication and profile setup are now the first workflow. See docs/profile-re
 
 ## Approved second workflow
 Friends are now implemented ahead of gameplay, per specs/second-feature.md. Supabase persists codes, requests, invitations and mutual friendships. This supersedes friends-later and simulated-only statements for the friendship workflow; duels are still future work.
+
+## Approved third workflow
+Manual deck creation is implemented according to specs/third-feature.md with the original exactly-15/four-answers/one-solution/review/immutable-publication rules. It uses signed-in identities, selected courses and Supabase persistence. Decks are shared within the creator's university. Anki import and AI from lecture slides remain disabled placeholders. This supersedes the old SQLite/demo-user deck proposal.

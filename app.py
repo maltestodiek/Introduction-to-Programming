@@ -127,6 +127,136 @@ def friends_screen(friends,repo,state):
                     elif st.button(label,key=action+"_"+item["id"]):
                         if friend_action(friends,action,item["id"]):st.rerun()
 
+def deck_input_changed(card_id,field,key,answer_index=None):
+    draft=st.session_state.deck_draft
+    st.session_state.pop('deck_review',None)
+    if card_id is None:draft[field]=st.session_state[key];return
+    card=next(c for c in draft['cards'] if c['id']==card_id)
+    if answer_index is None:card[field]=st.session_state[key]
+    else:card['answers'][answer_index]['text']=st.session_state[key]
+
+
+def deck_select_card(index):
+    st.session_state.deck_index=index
+
+
+def show_deck_cards(cards):
+    for i,card in enumerate(cards):
+        with st.container(border=True):
+            st.subheader(f"Question {i+1}")
+            st.write(card['question'])
+            for n,a in enumerate(card['answers']):
+                if a['id']==card['correct_answer_id']:st.success(f"{chr(65+n)}. {a['text']} — Correct answer")
+                else:st.write(f"{chr(65+n)}. {a['text']}")
+
+
+def decks_screen(client,profile):
+    from db import DeckRepository
+    from logic import new_deck,validate_card,validate_deck,add_card,delete_card
+    repository=DeckRepository(client)
+    st.title('Decks')
+    st.caption('Create questions. Check every answer. Share what you know.')
+    if st.session_state.get('deck_open'):
+        if st.button('Back to course decks'):
+            st.session_state.pop('deck_open',None);st.rerun()
+        try:deck=repository.get(st.session_state.deck_open)
+        except ValueError as exc:st.error(str(exc));return
+        st.caption(f"Decks › {deck['course']} › {deck['name']}")
+        st.header(deck['name'])
+        st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
+        st.info('Published decks are read-only. All solutions are shown for studying.')
+        show_deck_cards(deck['cards']);return
+    if 'deck_draft' in st.session_state:
+        draft=st.session_state.deck_draft
+        review=st.session_state.get('deck_review')
+        if review:
+            st.caption(f"Decks › {draft['course']} › Review")
+            st.header(draft['name'])
+            st.warning('Check all 15 questions and solutions. Once published, this deck cannot be edited or deleted.')
+            show_deck_cards(draft['cards'])
+            back,confirm=st.columns(2)
+            if back.button('Back to editing',use_container_width=True):
+                st.session_state.pop('deck_review',None);st.rerun()
+            if confirm.button('Create Deck',type='primary',use_container_width=True):
+                try:result=repository.publish(draft,review)
+                except ValueError as exc:st.error(str(exc));return
+                st.session_state.deck_open=result['id']
+                st.session_state.deck_course=draft['course']
+                st.session_state.pop('deck_draft',None);st.session_state.pop('deck_review',None)
+                st.session_state.notice='Your deck is published.';st.rerun()
+            return
+        st.caption('Decks › Create New Deck › Manual')
+        st.info('Your draft stays while you navigate in this session. Publish it before closing or refreshing the page.')
+        courses=profile['courses']
+        course_key='deck_course_'+draft['id'];name_key='deck_name_'+draft['id']
+        st.selectbox('Course',courses,index=courses.index(draft['course']) if draft['course'] in courses else 0,key=course_key,on_change=deck_input_changed,args=(None,'course',course_key))
+        if draft['course'] not in courses:draft['course']=courses[0]
+        st.text_input('Deck name',value=draft['name'],key=name_key,on_change=deck_input_changed,args=(None,'name',name_key),placeholder='For example: Corporate Finance foundations')
+        completed=[]
+        for c in draft['cards']:
+            try:validate_card(c);completed.append(True)
+            except ValueError:completed.append(False)
+        st.progress(sum(completed)/15,text=f'{sum(completed)} of 15 cards complete')
+        st.caption('Choose any card to edit it. ✓ means complete; ○ means incomplete.')
+        for row in range(0,len(draft['cards']),5):
+            columns=st.columns(5)
+            for j in range(row,min(row+5,len(draft['cards']))):
+                columns[j-row].button(f"{j+1} {'✓' if completed[j] else '○'}",key='choose_'+draft['cards'][j]['id'],on_click=deck_select_card,args=(j,),use_container_width=True)
+        index=min(st.session_state.get('deck_index',0),len(draft['cards'])-1)
+        card=draft['cards'][index];prefix='deck_card_'+card['id']
+        st.subheader(f'Card {index+1} of 15')
+        st.text_area('Question',value=card['question'],key=prefix+'_q',on_change=deck_input_changed,args=(card['id'],'question',prefix+'_q'))
+        for i,a in enumerate(card['answers']):
+            key=prefix+'_answer_'+a['id']
+            st.text_input(f'Answer {i+1}',value=a['text'],key=key,on_change=deck_input_changed,args=(card['id'],'answers',key,i))
+        answer_ids=[a['id'] for a in card['answers']]
+        st.radio('Correct answer',answer_ids,index=answer_ids.index(card['correct_answer_id']) if card['correct_answer_id'] in answer_ids else None,format_func=lambda value:f'Answer {answer_ids.index(value)+1}',horizontal=True,key=prefix+'_correct',on_change=deck_input_changed,args=(card['id'],'correct_answer_id',prefix+'_correct'))
+        a,b=st.columns(2)
+        if a.button('+ Add Flashcard',disabled=len(draft['cards'])>=15,use_container_width=True):
+            try:st.session_state.deck_draft=add_card(draft,index)
+            except ValueError as exc:st.error(str(exc))
+            else:st.session_state.deck_index=len(draft['cards']);st.rerun()
+        if b.button('Delete this card',use_container_width=True):
+            st.session_state.deck_draft=delete_card(draft,index)
+            st.session_state.deck_index=max(0,index-1);st.session_state.pop('deck_review',None);st.rerun()
+        error=None
+        try:validate_deck(draft)
+        except ValueError as exc:error=str(exc)
+        if error:st.caption(error)
+        if st.button('Save Deck',type='primary',disabled=error is not None,use_container_width=True):
+            try:st.session_state.deck_review=repository.review(draft)
+            except ValueError as exc:st.error(str(exc))
+            else:st.rerun()
+        with st.expander('Discard draft'):
+            st.caption('This removes the unpublished draft from this session.')
+            if st.button('Confirm discard'):
+                st.session_state.pop('deck_draft',None);st.session_state.pop('deck_review',None);st.rerun()
+        return
+    st.subheader('Create a deck')
+    manual,anki,ai=st.columns(3)
+    with manual:
+        st.write('**Manual**');st.caption('Write your own questions and answers.')
+        if st.button('+ Create New Deck',type='primary',use_container_width=True):
+            st.session_state.deck_draft=new_deck(profile['courses'][0]);st.session_state.deck_index=0;st.rerun()
+    with anki:
+        st.write('**Anki import**');st.caption('Coming soon')
+        st.button('Import from Anki',disabled=True,use_container_width=True)
+    with ai:
+        st.write('**AI from lecture slides**');st.caption('Coming soon')
+        st.button('Generate with AI',disabled=True,use_container_width=True)
+    st.subheader('Your courses')
+    st.caption('Decks are shared with signed-in students at your university. Add courses in Edit profile.')
+    course=st.selectbox('Browse course',profile['courses'],key='deck_browse_course')
+    try:decks=repository.list(course)
+    except ValueError as exc:st.error(str(exc));return
+    if not decks:st.info('No decks in this course yet. Create the first one.')
+    for deck in decks:
+        with st.container(border=True):
+            st.subheader(deck['name'])
+            st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
+            if st.button('Open deck',key='open_'+deck['id']):
+                st.session_state.deck_open=deck['id'];st.rerun()
+
 def config(key):
     if os.getenv(key):return os.getenv(key)
     try:return st.secrets.get(key,"")
@@ -203,6 +333,8 @@ if not st.session_state.get("browser_loaded"):
         if auth.restore_session(saved["session"]):
             if saved.get("user_id")==auth.user.id:
                 st.session_state.editing=saved.get("route")=="edit"
+                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Profile") else "Profile"
+                if isinstance(saved.get("deck_open"),str):st.session_state.deck_open=saved["deck_open"]
             st.session_state.started=True
         else:
             st.session_state.started=True
@@ -218,6 +350,8 @@ browser_bridge("write",{
     "started":bool(st.session_state.get("started") or auth.user),
     "mode":st.session_state.get("account_mode","Sign in"),
     "route":"edit" if st.session_state.get("editing") else "profile",
+    "page":st.session_state.get("main_page","Profile"),
+    "deck_open":st.session_state.get("deck_open"),
     "user_id":auth.user.id if auth.user else None,
     "session":auth.resumable_session(),
 })
@@ -297,6 +431,11 @@ except Exception:
     st.error("We couldn’t load your profile. Please retry; your saved information hasn’t changed.")
     if st.button("Retry"):st.rerun()
     st.stop()
+if profile:
+    page=st.segmented_control('Navigation',['Profile','Decks'],default=None if 'main_page' in st.session_state else 'Profile',key='main_page')
+    if page=='Decks':
+        decks_screen(auth.client,profile)
+        st.stop()
 editing=not profile or st.session_state.get("editing",False)
 if not editing:
     friends=FriendsRepository(auth.client)

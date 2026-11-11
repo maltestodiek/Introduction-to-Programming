@@ -27,3 +27,10 @@ Live signup email delivery, confirmation, full user round-trip and saved-profile
 - Local browser preview verified acceptance changes the count/list, code placement, degree subtitle, and native-resolution profile artwork. No real invitation messages were sent.
 - Real two-person email-confirmation/acceptance remains a user walkthrough; automated checks do not create real accounts or send email.
 - Profile skin label updated to Coloured at the user's explicit request.
+
+## Manual decks and English concept — 11 November 2026
+- English concept delivered as Word and repository text; original German source retained. All nine Word pages rendered and inspected. Wireframes and flow diagrams are translated as English descriptions. Historical React/browser-storage proposal is explicitly superseded by Python/Streamlit/Supabase.
+- 98 Python tests passed in 12.33s, including a full 15-card UI workflow. 13 isolated PostgreSQL-compatible checks passed: validation, atomicity, exact review matching, retry protection, RLS, denied writes, and exact content after a separate process restart.
+- Browser walkthrough with fictional local data verified incomplete-card rejection, completing the last card, mandatory review and read-only publication. No fictional deck or student was added to production.
+- Production migration applied successfully. Real account publication remains a user walkthrough; storage and permissions were tested in an isolated engine using the production migration.
+- Changed feature files: app.py, logic.py, db.py, supabase/decks-schema.sql, tests/test_deck_rules.py, tests/test_deck_repository.py, tests/test_deck_ui.py, tests/decks_database.mjs, specs/third-feature.md, README.md and related concept/status documentation.

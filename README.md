@@ -1,6 +1,6 @@
 # StudyDuel
 
-First working feature: Supabase email/password authentication and editable student profiles.
+StudyDuel uses Python and Streamlit for its interface and Supabase for authentication, shared data and profile images. Features: student profiles, friends and manual quiz-deck creation.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ Universities can be searched live through the ROR API, with country labels and m
 
 Supabase Auth owns account credentials. profiles contains fields visible to signed-in students. profile_private contains owner-only courses and avatar settings. profile-images is a private Storage bucket: other signed-in users can read only an image referenced by an active profile. XP and streak fields are not client-editable. SQL setup is recorded in supabase/profile-schema.sql; it and supabase/profile-options-update.sql are already applied to the StudyDuel project and should not be rerun there.
 
-Login sessions are per browser connection and are not saved to disk. Restarting or reloading may require sign-in again. Profile data remains in Supabase.
+Returning browsers can restore a Supabase-verified session and the last saved screen. Passwords are never saved; sign out on shared devices. Invalid sessions return to sign-in. See docs/launch-and-resume.md.
 
 ## Verify
 
@@ -44,3 +44,13 @@ Each completed profile receives a stable eight-character friend code. Find a fri
 Invitation links require explicit acceptance after sign-in and profile completion. They expire after seven days; creating a new one replaces the old one. Copy link, WhatsApp, email and native sharing leave sending under the user's control. The link token is shown only in the creating session and stored as a digest in Supabase.
 
 `supabase/friends-schema.sql` was applied on 11 November 2026; do not rerun it on this project. `tests/sql/friends_acceptance.sql` exercises synthetic identities with rollback; it must never be changed to operate on actual student records. The only wildcard authentication redirect is the app's own `/?invite=*` route. No gameplay or messaging APIs are included.
+
+## Manual decks
+Open Decks after completing your profile. Choose Create New Deck, use one of your selected courses, and enter exactly 15 questions with four answers and one correct answer each. Any draft card can be edited or deleted. Save Deck opens the mandatory review; Create Deck publishes the reviewed version. Published decks and solutions are read-only and shared with signed-in students at your university. Anki and AI creation are disabled Coming soon options.
+
+Decks live in Supabase, not browser storage or local SQLite. Unpublished drafts live in the current session and are lost after a full reload. The private review snapshot enforces exact-content confirmation; publication is atomic and retry-safe. `supabase/decks-schema.sql` is already applied to the current project; do not rerun it there.
+
+The English concept is available in `docs/overall-concept-en.md` and `docs/StudyDuel Overall Concept v2 English.docx`. The original German document remains under docs/source. Historical technology proposals in the translation are not implementation instructions. `specs/third-feature.md` governs the active deck workflow.
+
+## Isolated database checks
+Python tests use mocks. For actual SQL and RLS checks, install `@electric-sql/pglite@0.5.16` in a temporary tooling folder and run `tests/decks_database.mjs` with Node, setting `PGLITE_MODULE` to its module path if it is not resolvable normally. This starts a temporary PostgreSQL-compatible database, applies the real deck migration with minimal auth/profile fixtures, checks authorization and atomicity, and reopens the database from a fresh process. It never contacts Supabase and removes its temporary data afterward. Node is a test tool only; the application remains Python/Streamlit.
