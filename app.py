@@ -436,14 +436,20 @@ def study_request(client,action,data=None):
     return play_request(StudyRepository(client),action,data)
 
 
-STUDY_LEVELS={'new':'○ New · grey','0':'! Needs practice · red','1':'● Level 1 · orange','2':'● Level 2 · yellow','3':'✓ Level 3 · green'}
+STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
 
 
 def study_progress_summary(cards):
     counts={k:0 for k in STUDY_LEVELS}
     for c in cards:counts['new' if c.get('level') is None else str(c['level'])]+=1
     colors={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
-    st.html('<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">'+''.join(f'<span style="background:{colors[k]};color:#17223B;padding:6px 10px;border-radius:12px;font-size:13px">{STUDY_LEVELS[k]}: {v}</span>' for k,v in counts.items())+'</div>')
+    descriptions={'new':'Not answered yet','0':'Ready to revisit','1':'Learning level 1 of 3','2':'Learning level 2 of 3','3':'Learning level 3 of 3'}
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style><div class="study-legend">'+''.join(f'<div class="study-level"><span class="study-swatch" style="background:{colors[k]}"></span><span><strong>{STUDY_LEVELS[k]}</strong><small>{descriptions[k]}</small></span><b>{v}</b></div>' for k,v in counts.items())+'</div>')
+    with st.popover('About learning levels',icon=':material/info:'):
+        st.write('**Grey · New:** you have not answered this question yet.')
+        st.write('**Red · Needs practice:** no earned level remains after an incorrect answer.')
+        st.write('**Orange, yellow, green:** learning levels 1, 2 and 3.')
+        st.caption('Each correct answer moves up one level. Each incorrect answer moves down one level, never below red. Green is the highest level. A first incorrect answer goes straight to red. Progress is private and shared across your Study sessions and duel answers for this question version.')
     st.progress(sum((c.get('level') or 0) for c in cards)/(3*len(cards)) if cards else 0,text='Your learning progress')
 
 
@@ -603,17 +609,58 @@ def study_round_screen(client,sid):
     else:st.info('This session '+state+'. Your completed practice and notes are saved.')
 
 
+def study_design():
+    st.html('<style>'+(Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style>')
+
+
+def study_avatar(kind):
+    settings={**DEFAULT_AVATAR,'skin':'Purple' if kind=='random' else 'Green','hair':'Curly' if kind=='random' else 'Side swept','clothing':'Indigo','accessory':'None'}
+    encoded=base64.b64encode(render_avatar(settings)).decode()
+    badge='<span class="study-avatar-badge" aria-label="Random partner">?</span>' if kind=='random' else ''
+    st.html(f'<div class="study-avatar"><img src="data:image/png;base64,{encoded}" alt="Study partner avatar"/>{badge}</div>')
+
+
+def study_choice_cards(key,choices,locked=False):
+    selected=st.session_state.get(key,choices[0][0])
+    for col,(label,icon,description) in zip(st.columns(len(choices)),choices):
+        with col:
+            with st.container(border=True,key=key+'_'+icon+('_selected' if selected==label else '')):
+                study_avatar(icon)
+                if st.button(label,key=key+'_pick_'+icon,type='primary' if selected==label else 'secondary',use_container_width=True,disabled=locked):
+                    st.session_state[key]=label;st.session_state.pop('study_join',None);st.rerun()
+                st.caption(description)
+    return selected
+
+
 def study_screen(client,profile):
     from uuid import uuid4
     from logic import filter_study_cards
+    study_design()
+    st.html('<style>'+(Path(__file__).parent/'assets'/'play-modes.css').read_text()+'</style>')
+    st.markdown((Path(__file__).parent/'assets'/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
     st.header('Study Mode')
+    st.caption(st.session_state.get('study_choice','Study alone'))
     if st.session_state.get('study_session'):
         study_round_screen(client,st.session_state.study_session);return
-    if st.button('Back to Play modes'):
-        st.session_state.pop('study_active',None);st.rerun()
+    if st.button('Change study mode',icon=':material/arrow_back:'):
+        st.session_state.pop('study_active',None);st.session_state.study_choose=True;st.rerun()
     data=study_request(client,'list')
     if data is None:return
-    with st.expander('Your saved study sessions',expanded=bool(data['sessions'])):
+    # Incoming invitations stay above all setup, regardless of selected course.
+    if data['invites']:
+        st.subheader('Study invitations')
+        for invite in data['invites']:
+            with st.container(border=True,key='study_invitation_'+invite['id']):
+                study_avatar('friend')
+                st.write('**'+invite['username']+' invited you**')
+                st.caption(f"{invite['course']} · {invite['language']} · {invite['count']} questions")
+                accept,decline=st.columns(2)
+                if accept.button('Accept invitation',key='study_accept_'+invite['id'],type='primary'):
+                    st.session_state.study_join=invite['id'];st.session_state.study_choice='Study together';st.session_state.study_partner='Friend';st.rerun()
+                if decline.button('Decline',key='study_decline_'+invite['id']):
+                    if study_request(client,'decline',{'id':invite['id']}) is not None:
+                        st.session_state.pop('study_join',None);st.rerun()
+    with st.expander('Your saved study sessions',expanded=False):
         if st.button('Refresh study sessions'):st.rerun()
         for s in data['sessions']:
             cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {s['state']} · {s['count']} questions")
@@ -621,12 +668,21 @@ def study_screen(client,profile):
             if s['state'] in ('own','waiting') and s['mode']!='solo':
                 if st.button('Cancel search / invitation',key='study_cancel_'+s['id']):
                     if study_request(client,'cancel',{'id':s['id']}) is not None:st.rerun()
-    choice=st.radio('How would you like to study?',['Study alone','Study together'],horizontal=True)
+    choice=st.session_state.get('study_choice','Study alone')
     together=choice=='Study together'
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
     if not together:decks.extend(dict(d,shared=True) for d in data['shared'])
     if not decks:
         st.info('Create a Study deck in Decks, or set the language of an existing deck first.');return
+    offer=next((o for o in data['invites']+data['open'] if o['id']==st.session_state.get('study_join')),None) if together else None
+    if offer:
+        st.info(f"Joining: {offer['course']} · {offer['language']} · {offer['count']} questions")
+        if st.button('Cancel joining and create a new session'):
+            st.session_state.pop('study_join',None);st.rerun()
+        decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
+        if not decks:
+            st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
+    st.subheader('Your session settings' if offer else 'Create a new study session')
     courses=sorted({d['course'] for d in decks});course=st.selectbox('Study course',courses)
     choices=[d for d in decks if d['course']==course]
     selected_id=st.selectbox('Select quiz deck',[d['id'] for d in choices],format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
@@ -646,27 +702,39 @@ def study_screen(client,profile):
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
         st.caption('Answer your own half first, then your partner’s. No timer per question. After matching, both players have 24 hours to finish.')
-        opponent=st.radio('Study partner',['Random player','Friend'],horizontal=True)
+        opponent=study_choice_cards('study_partner',[('Random player','random','Meet someone studying your course.'),('Friend','friend','Practise with someone you know.')],locked=bool(offer))
         mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
-        offers=[s for s in data['open' if mode=='random' else 'invites'] if s['course'].casefold()==course.casefold() and s['language']==deck['language']]
-        options={'new':'Start a new search' if mode=='random' else 'Invite a friend'}
-        for s in offers:options[s['id']]=f"{s['count']} questions · "+(s.get('username','Open study session'))
-        join=st.selectbox('Open study sessions' if mode=='random' else 'Accept an invitation or invite',list(options),format_func=options.get)
-        if join!='new':
-            offer=next(s for s in offers if s['id']==join);count=offer['count'];request['join_id']=join
-            st.info(f'Join this {count}-question session. Your partner is reserved immediately. You will answer your own questions first.')
-            if mode=='friend' and st.button('Decline invitation'):
-                if study_request(client,'decline',{'id':join}) is not None:st.rerun()
+        if offer:
+            count=offer['count'];request['join_id']=offer['id']
+            st.caption('Confirm below to reserve this session. You answer your own questions first.')
         else:
-            count=st.selectbox('Total questions',[20,40,60,80,100])
+            count=20
             if mode=='friend':
-                if not data['friends']:st.info('Add a friend first.');valid=False
+                options=study_request(client,'friend_options',{'deck_id':selected_id})
+                if options is None:return
+                friends=options['friends']
+                if not friends:
+                    if not data['friends']:
+                        st.info('You don’t have any friends yet. Add a friend to study together.')
+                        if st.button('Add friends',icon=':material/person_add:'):
+                            navigate('Friends');st.rerun()
+                    else:st.info('None of your friends have this course and deck language in their profile yet. Ask a friend to add them to study together.')
+                    valid=False
                 else:
-                    friend=st.selectbox('Friend',[f['id'] for f in data['friends']],format_func=lambda x:next(f['username'] for f in data['friends'] if f['id']==x))
+                    friend=st.selectbox('Choose a friend',[f['id'] for f in friends],format_func=lambda x:next(f['username'] for f in friends if f['id']==x))
                     request['friend_id']=friend
-                    request['confirm_missing_course']=st.checkbox('Invite even if my friend has not added this course')
-                st.caption('Your friend receives the invitation after you finish your own half and must accept it.')
-            else:st.caption('Only students who also choose random study can match. Your search lasts 24 hours after your own half.')
+                    st.caption('Only friends enrolled in this course and speaking the deck language are shown.')
+                st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
+            else:
+                st.caption('Only students who also choose random study can match. Your search lasts 24 hours after your own half.')
+                offers=[o for o in data['open'] if o['course'].strip().casefold()==course.strip().casefold() and o['language']==deck['language']]
+                with st.expander('Discover open study sessions',expanded=bool(offers)):
+                    if not offers:st.caption('No open sessions for this course yet. Be the first to start one.')
+                    for available in offers:
+                        cols=st.columns([3,1]);cols[0].write(f"**{available['count']} questions** · {available['course']}")
+                        if cols[1].button('Join',key='study_join_'+available['id']):
+                            st.session_state.study_join=available['id'];st.rerun()
+        if not offer:count=st.selectbox('Total questions',[20,40,60,80,100])
         request['count']=count
         if deck['count']<count//2:st.warning(f"This session needs at least {count//2} questions in your deck; it currently has {deck['count']}.");valid=False
         consent=st.checkbox('I agree to share this version of my full deck with a partner who finishes, even if I do not finish.')
@@ -720,9 +788,16 @@ def play_screen(client,profile):
                 st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
                 st.subheader('Study Mode')
                 st.caption('Practise together and focus on learning.')
-                if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
-                    st.session_state.study_active=True;st.rerun()
-                st.caption('Solo practice · Study together')
+                study_design()
+                if not st.session_state.get('study_choose'):
+                    if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
+                        st.session_state.study_choose=True;st.rerun()
+                else:
+                    st.caption('How would you like to study?')
+                    for col,(label,icon,material) in zip(st.columns(2),[('Study alone','solo',':material/person:'),('Study together','together',':material/group:')]):
+                        with col:
+                            if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
+                                st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_join',None);st.rerun()
         selected=st.session_state.get('play_mode_preview')
         if selected=='Battle':
             st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')

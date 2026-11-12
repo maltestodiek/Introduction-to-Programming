@@ -47,6 +47,10 @@ begin
  select * into a from public.study_sessions where id=aid;select * into b from public.study_sessions where id=bid;
  if a.partner_id is not null or b.partner_id is not null or a.user_id=b.user_id or a.deck_id=b.deck_id or a.total<>b.total or lower(trim(a.course))<>lower(trim(b.course)) or a.language<>b.language then raise exception 'Sessions are not compatible';end if;
  if not exists(select 1 from public.profiles where id=a.user_id and a.language=any(languages)) or not exists(select 1 from public.profiles where id=b.user_id and b.language=any(languages)) then raise exception 'Both players must speak the deck language';end if;
+ if a.mode='friend' then
+  if not exists(select 1 from public.friend_edges where state='accepted' and a.user_id in(low_id,high_id) and b.user_id in(low_id,high_id)) then raise exception 'You must still be friends to accept';end if;
+  if not exists(select 1 from public.profile_private p,unnest(p.courses) course_option where p.user_id=a.user_id and lower(trim(course_option))=lower(trim(a.course))) or not exists(select 1 from public.profile_private p,unnest(p.courses) course_option where p.user_id=b.user_id and lower(trim(course_option))=lower(trim(a.course))) then raise exception 'Both friends must have this course in their profiles';end if;
+ end if;
  if a.mode='random' then
   if a.university<>b.university or not exists(select 1 from public.profiles where id=a.user_id and university=a.university) or not exists(select 1 from public.profiles where id=b.user_id and university=a.university) then raise exception 'Random partners must share a university';end if;
   if not exists(select 1 from public.profile_private p,unnest(p.courses) course_option where p.user_id=a.user_id and lower(trim(course_option))=lower(trim(a.course))) or not exists(select 1 from public.profile_private p,unnest(p.courses) course_option where p.user_id=b.user_id and lower(trim(course_option))=lower(trim(a.course))) then raise exception 'Both random partners must have this course';end if;
@@ -114,6 +118,11 @@ begin
   end if;
   if not exists(select 1 from public.study_reviews where id=(p_data->>'review_id')::uuid and user_id=me and deck_id=did and revision=rev and snapshot=d) then raise exception 'Review this exact deck first';end if;
   insert into public.study_decks(id,creator_id,snapshot) values(did,me,d) on conflict(id) do update set snapshot=excluded.snapshot,revision=study_decks.revision+1,updated_at=now();return jsonb_build_object('id',did);
+ elsif p_action='friend_options' then
+  select snapshot into d from public.study_decks where id=(p_data->>'deck_id')::uuid and creator_id=me;
+  if d is null then select jsonb_build_object('course',course,'language',language) into d from public.decks where id=(p_data->>'deck_id')::uuid and creator_id=me;end if;
+  if d is null then raise exception 'Deck unavailable';end if;
+  return jsonb_build_object('friends',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'username',p.username)) from public.friend_edges f join public.profiles p on p.id=case when f.low_id=me then f.high_id else f.low_id end where f.state='accepted' and me in(f.low_id,f.high_id) and (d->>'language')=any(p.languages) and exists(select 1 from public.profile_private v,unnest(v.courses) course_option where v.user_id=p.id and lower(trim(course_option))=lower(trim(d->>'course')))),'[]'));
  elsif p_action='list' then
   return jsonb_build_object(
    'decks',coalesce((select jsonb_agg(x) from (
@@ -168,7 +177,7 @@ begin
    if (select count(*) from public.study_sessions session_row where session_row.user_id=me and session_row.mode='friend' and session_row.created_at>now()-interval '1 hour')>=5 then raise exception 'Study invitation limit reached. Try again later';end if;
    if not exists(select 1 from public.friend_edges where state='accepted' and me in(low_id,high_id) and (p_data->>'friend_id')::uuid in(low_id,high_id) and (p_data->>'friend_id')::uuid<>me) then raise exception 'Select an accepted friend';end if;
    if not exists(select 1 from public.profiles where id=(p_data->>'friend_id')::uuid and (d->>'language')=any(languages)) then raise exception 'Your friend must speak the deck language';end if;
-   if not exists(select 1 from public.profile_private p,unnest(p.courses) course_option where p.user_id=(p_data->>'friend_id')::uuid and lower(trim(course_option))=lower(trim(d->>'course'))) and not coalesce((p_data->>'confirm_missing_course')::boolean,false) then raise exception 'Your friend has not added this course. Confirm inviting anyway';end if;
+   if not exists(select 1 from public.profile_private p,unnest(p.courses) course_option where p.user_id=(p_data->>'friend_id')::uuid and lower(trim(course_option))=lower(trim(d->>'course'))) then raise exception 'Your friend must have this course in their profile';end if;
   end if;
   insert into public.study_sessions(id,user_id,mode,deck_id,snapshot,cards,total,course,language,university,friend_id)
    values(target,me,mode,(d->>'id')::uuid,d,selected,cnt,d->>'course',d->>'language',campus,(p_data->>'friend_id')::uuid);

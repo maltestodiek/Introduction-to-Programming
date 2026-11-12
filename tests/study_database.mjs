@@ -23,6 +23,13 @@ try{
  await db.query("insert into friend_edges values(least($1::uuid,$2::uuid),greatest($1::uuid,$2::uuid),'accepted')",[A,B]);
  for(const f of ['decks-schema.sql','play-schema.sql','study-schema.sql'])await db.exec((await fs.readFile(new URL('../supabase/'+f,import.meta.url),'utf8')).replace("else 'Study action could not be saved. Check your selections and refresh.'","else sqlerrm"));
  const da=draft(),dbb=draft(),dc=draft();await save(A,da);await save(B,dbb);await save(C,dc);
+ await test('Study friends must share the course; old override cannot bypass eligibility',async()=>{
+  assert.equal((await ok(A,'friend_options',{deck_id:da.id})).friends.length,1);
+  await admin("update profile_private set courses=array['Other'] where user_id=$1",[B]);
+  assert.equal((await ok(A,'friend_options',{deck_id:da.id})).friends.length,0);
+  await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'friend',friend_id:B,count:20,consent:true,confirm_missing_course:true});
+  await admin("update profile_private set courses=array['Finance'] where user_id=$1",[B]);
+ });
  await test('private decks and mandatory reviewed revision',async()=>{await bad(B,'deck',{id:da.id});await bad(A,'save_deck',{draft:da,revision:1,review_id:randomUUID()});const changed=structuredClone(da);changed.cards[0].question='Edited';await bad(A,'save_deck',{draft:changed,revision:1});await save(A,changed,1);await assert.rejects(()=>save(A,da,1));await save(A,da,2);});
  let solo;
  await test('solo filters, locked immediate feedback, idempotence and private notes',async()=>{
