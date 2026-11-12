@@ -41,7 +41,7 @@ def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypa
 
 def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run();button(at,'Study together').click().run()
+    button(at,'Change study mode').click().run();button(at,'Study Mode').click().run();button(at,'Study together').click().run()
     assert button(at,'Start studying').disabled
     next(w for w in at.checkbox if w.label.startswith('I agree')).check().run()
     assert not button(at,'Start studying').disabled
@@ -69,7 +69,7 @@ def test_study_editor_requires_review_and_adds_more_questions(monkeypatch):
 
 def test_friend_settings_only_request_eligible_friends(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run();button(at,'Study together').click().run();button(at,'Friend').click().run()
+    button(at,'Change study mode').click().run();button(at,'Study Mode').click().run();button(at,'Study together').click().run();button(at,'Friend').click().run()
     assert ('friend_options',{'deck_id':d['id']}) in calls
     assert not any('Invite even' in w.label for w in at.checkbox)
     assert any('don’t have any friends yet' in w.value for w in at.info)
@@ -92,4 +92,17 @@ def test_incoming_invites_visible_before_course_setup(monkeypatch):
     button(at,'Accept invitation').click().run()
     assert any('compatible deck' in w.value for w in at.warning)
     assert not any('Accept an invitation or invite'==w.label for w in at.selectbox)
+    assert not at.exception
+
+
+def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
+    at,calls,d=setup(monkeypatch)
+    button(at,'Change study mode').click().run()
+    assert button(at,'Study Mode')
+    assert not any(b.label in ('Study alone','Study together') for b in at.button)
+    button(at,'Study Mode').click().run()
+    assert button(at,'Study alone') and button(at,'Study together')
+    button(at,'Play').click().run()
+    assert button(at,'Study Mode')
+    assert not any(b.label in ('Study alone','Study together') for b in at.button)
     assert not at.exception

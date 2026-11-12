@@ -286,7 +286,11 @@ def play_request(repository,action,data=None):
 def navigate(page):
     if st.session_state.get('play_in_round'):
         st.session_state.play_exit_to=page
-    else:st.session_state.main_page=page
+    else:
+        st.session_state.main_page=page
+        if page=='Play':
+            st.session_state.pop('study_active',None)
+            st.session_state.pop('study_choose',None)
     st.rerun()
 
 
@@ -645,7 +649,7 @@ def study_screen(client,profile):
     if st.session_state.get('study_session'):
         study_round_screen(client,st.session_state.study_session);return
     if st.button('Change study mode',icon=':material/arrow_back:'):
-        st.session_state.pop('study_active',None);st.session_state.study_choose=True;st.rerun()
+        st.session_state.pop('study_active',None);st.session_state.pop('study_choose',None);st.rerun()
     data=study_request(client,'list')
     if data is None:return
     # Incoming invitations stay above all setup, regardless of selected course.
@@ -799,7 +803,7 @@ def play_screen(client,profile):
                     for col,(label,icon,material) in zip(st.columns(2),[('Study alone','solo',':material/person:'),('Study together','together',':material/group:')]):
                         with col:
                             if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
-                                st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_join',None);st.rerun()
+                                st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_join',None);st.session_state.pop('study_choose',None);st.rerun()
         selected=st.session_state.get('play_mode_preview')
         if selected=='Battle':
             st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')
