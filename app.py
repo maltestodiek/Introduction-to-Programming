@@ -449,11 +449,17 @@ def study_progress_summary(cards):
     colors={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
     descriptions={'new':'Not answered yet','0':'Ready to revisit','1':'Learning level 1 of 3','2':'Learning level 2 of 3','3':'Learning level 3 of 3'}
     st.html('<style>'+ (Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style><div class="study-legend">'+''.join(f'<div class="study-level"><span class="study-swatch" style="background:{colors[k]}"></span><span><strong>{STUDY_LEVELS[k]}</strong><small>{descriptions[k]}</small></span><b>{v}</b></div>' for k,v in counts.items())+'</div>')
-    with st.popover('About learning levels',icon=':material/info:'):
-        st.write('**Grey · New:** you have not answered this question yet.')
-        st.write('**Red · Needs practice:** no earned level remains after an incorrect answer.')
-        st.write('**Orange, yellow, green:** learning levels 1, 2 and 3.')
-        st.caption('Each correct answer moves up one level. Each incorrect answer moves down one level, never below red. Green is the highest level. A first incorrect answer goes straight to red. Progress is private and shared across your Study sessions and duel answers for this question version.')
+    with st.popover(' ',icon=':material/info:',help='Learning progress legend'):
+        explanations=[
+            ('new','New','You have not answered this question yet.'),
+            ('0','Needs practice','You answered incorrectly and have no earned steps remaining. One correct answer moves you to level 1.'),
+            ('1','Level 1 · Building confidence','You have earned one step. Answer correctly to reach level 2; an incorrect answer returns you to red.'),
+            ('2','Level 2 · Getting stronger','You have earned two steps. Answer correctly to reach level 3; an incorrect answer moves you back to level 1.'),
+            ('3','Level 3 · Well practised','You have earned three steps—the highest level. Correct answers keep you here; an incorrect answer moves you back to level 2.')]
+        st.write('**How your learning progress works**')
+        for level,title,explanation in explanations:
+            st.html(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:inherit"><span style="flex:0 0 16px;height:16px;margin-top:3px;border-radius:5px;background:{colors[level]}"></span><div><strong>{title}</strong><div style="font-size:14px;line-height:1.5;margin-top:3px">{explanation}</div></div></div>')
+        st.caption('Each correct answer earns one step; each incorrect answer removes one. These levels describe your current progress, not your lifetime number of correct answers. Your first incorrect answer turns a new question red. Your progress stays private.')
     st.progress(sum((c.get('level') or 0) for c in cards)/(3*len(cards)) if cards else 0,text='Your learning progress')
 
 

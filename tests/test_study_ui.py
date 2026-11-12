@@ -26,7 +26,7 @@ def setup(monkeypatch):
 def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypatch):
     at,calls,d=setup(monkeypatch)
     assert not at.exception
-    assert any(p.proto.popover.label=='About learning levels' for p in at.get('popover'))
+    assert any(p.proto.popover.label.strip()=='' for p in at.get('popover'))
     button(at,'Start studying').click().run()
     assert any(a=='start' and v['count']==10 and v['mode']=='solo' for a,v in calls)
     button(at,d['cards'][0]['answers'][0]['text']).click().run()
