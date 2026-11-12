@@ -65,8 +65,8 @@ def _tint(color,target,amount):
 def render_avatar(settings):
     if set(settings)!=set(OPTIONS) or any(v not in OPTIONS[k] for k,v in settings.items()):
         raise ValueError("Invalid avatar settings.")
-    im=Image.new("RGB",(1024,1024),"#E8EBFB"); d=_SmoothDraw(im)
-    d.ellipse((16,13,240,260),fill="#F2F3FF")
+    # Keep the character separate from its theme-aware CSS backdrop.
+    im=Image.new("RGBA",(1024,1024),(0,0,0,0)); d=_SmoothDraw(im)
     skin=SKIN[settings["skin"]]; hair=HAIR_COLORS[settings["hair_color"]]
     style=settings["hair"]
     if style=="Long": d.rounded_rectangle((61,40,195,206),radius=54,fill=hair)

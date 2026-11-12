@@ -38,7 +38,7 @@ if "invite" in st.query_params:
 
 def portrait(data,size=160):
     encoded=base64.b64encode(data).decode()
-    st.html(f'<img src="data:image/png;base64,{encoded}" alt="Profile picture" style="width:{size}px;height:{size}px;max-width:100%;object-fit:cover;border-radius:50%;display:block" />')
+    st.html(f'<img src="data:image/png;base64,{encoded}" alt="Profile picture" style="width:{size}px;height:{size}px;max-width:100%;object-fit:cover;border-radius:50%;display:block;background:var(--sd-avatar)" />')
 
 def public_person(person,repo):
     left,right=st.columns([1,5])

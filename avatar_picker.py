@@ -27,7 +27,7 @@ button{font:inherit;cursor:pointer;border:0}
 .categories button[aria-selected=true]{background:#4F46E5;color:white}
 .stage{position:relative;display:flex;justify-content:center;align-items:center;height:290px;touch-action:pan-y;user-select:none;outline-offset:3px}
 .halo{position:absolute;width:235px;height:235px;border-radius:50%;background:var(--st-background-color,#eef0ff)}
-.portrait{position:relative;width:240px;height:240px;object-fit:contain;border-radius:50%;pointer-events:none;transition:transform .16s}
+.portrait{background:var(--st-secondary-background-color);background:light-dark(#F2F3FF,#273149);position:relative;width:240px;height:240px;object-fit:contain;border-radius:50%;pointer-events:none;transition:transform .16s}
 .previous,.next{position:absolute;top:120px;width:44px;height:44px;border-radius:50%;background:var(--st-background-color,#eef0fb);color:var(--st-text-color,#424fae);font-size:32px;line-height:36px;box-shadow:0 2px 8px #3331}
 .previous{left:0}.next{right:0}
 .selection{text-align:center;min-height:47px}.selection strong{display:block;font-size:20px}.selection span{display:block;font-size:12px;color:var(--st-text-color,#535D75);margin-top:5px}
@@ -100,7 +100,7 @@ def clean_selection(value,default):
 def _cached_avatar(settings,render_version):
     return "data:image/png;base64,"+base64.b64encode(render_avatar(dict(settings))).decode()
 
-def avatar_data_url(settings,render_version=2):
+def avatar_data_url(settings,render_version=3):
     return _cached_avatar(tuple(sorted(settings.items())),render_version)
 
 def avatar_picker(default=None,key="avatar_carousel"):
@@ -110,7 +110,7 @@ def avatar_picker(default=None,key="avatar_carousel"):
     current=clean_selection(value,default)
     category=value.get("_category","hair")
     if category not in OPTIONS:category="hair"
-    previews={field:[avatar_data_url(dict(current,**{field:choice}),render_version=2) for choice in choices]
+    previews={field:[avatar_data_url(dict(current,**{field:choice}),render_version=3) for choice in choices]
               for field,choices in OPTIONS.items()}
     _picker(data={"current":current,"category":category,"options":OPTIONS,"labels":LABELS,"skinLabels":SKIN_LABELS,"previews":previews},
             default={"value":dict(current,_category=category)},key=key,on_value_change=lambda:None)

@@ -5,11 +5,11 @@ PALETTES={
     'light':{'text':'#17223B','muted':'#475569','surface':'#FFFFFF','border':'#CDD5E5',
              'accent':'#4338CA','accent-hover':'#312E81','battle-end':'#EEF2FF','study-end':'#ECFDF5',
              'battle-border':'#C7D2FE','study-border':'#A7F3D0','hover':'#E0E7FF',
-             'icon-battle':'#E0E7FF','icon-study':'#D1FAE5','badge':'#D9F8EB','badge-text':'#174E3B','shadow':'#4F46E51A'},
+             'avatar':'#F2F3FF','icon-battle':'#E0E7FF','icon-study':'#D1FAE5','badge':'#D9F8EB','badge-text':'#174E3B','shadow':'#4F46E51A'},
     'dark':{'text':'#EEF2FF','muted':'#B4BFD6','surface':'#182237','border':'#384560',
             'accent':'#B8B1FF','accent-hover':'#DDD9FF','battle-end':'#252346','study-end':'#143635',
             'battle-border':'#514B7B','study-border':'#30675B','hover':'#302B53',
-            'icon-battle':'#302E50','icon-study':'#163E35','badge':'#163C32','badge-text':'#9DF0CE','shadow':'#00000040'},
+            'avatar':'#273149','icon-battle':'#302E50','icon-study':'#163E35','badge':'#163C32','badge-text':'#9DF0CE','shadow':'#00000040'},
 }
 
 def theme_variables(mode):

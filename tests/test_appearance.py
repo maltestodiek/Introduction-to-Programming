@@ -25,3 +25,13 @@ def test_native_controls_have_light_and_dark_configuration():
 
 def test_unknown_theme_falls_back_to_light_without_injecting_input():
     assert theme_variables('unexpected')==theme_variables('light')
+
+
+def test_avatar_character_is_opaque_but_backdrop_is_transparent():
+    import io
+    from PIL import Image
+    from logic import render_avatar,DEFAULT_AVATAR
+    im=Image.open(io.BytesIO(render_avatar(DEFAULT_AVATAR)))
+    assert im.mode=='RGBA'
+    assert im.getpixel((0,0))[3]==0
+    assert im.getpixel((256,256))[3]==255
