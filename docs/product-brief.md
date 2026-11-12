@@ -90,3 +90,6 @@ Manual deck creation is implemented according to specs/third-feature.md with the
 
 ## Approved fourth workflow
 Play now follows specs/fourth-feature.md: real Supabase friend challenges and mutual one-hour random searches replace simulated opponents. Each duel uses all 15 questions from each selected deck (30 total), with shared course and deck language, server-owned timing, saved progress, required deck ratings, and once-only XP settlement. Both profiles must support the deck language. Random matches additionally require the same university and course enrollment.
+
+## Approved Study Mode workflow — 12 November 2026
+The user approved specs/study-mode.md after reviewing solo practice, chapter/level filters, asynchronous friend/random sessions, 24-hour search and completion deadlines, completion-earned immutable full-deck copies, immediate feedback, private notes and author feedback. Study has scores and winner/draw feedback but no XP or streak effects. New editable private Study decks have flexible question counts; existing published 15-question decks remain intact and available to their owners for study. This supersedes the old fixed-20-question Study proposal and fixed-size rule for new Study decks only. Future Battle Pool rules remain separate.

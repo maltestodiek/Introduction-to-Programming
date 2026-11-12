@@ -104,3 +104,15 @@ class PlayRepository:
         if not isinstance(result,dict):raise ValueError('Could not load Play. Please try again.')
         if result.get('error'):raise ValueError(result['error'])
         return result
+
+
+class StudyRepository:
+    """Authenticated, transactional Study operations. Never accepts a user ID."""
+    def __init__(self,client):self.client=client
+
+    def action(self,action,data=None):
+        try:result=self.client.rpc('study_action',{'p_action':action,'p_data':data or {}}).execute().data
+        except Exception as exc:raise ValueError('Could not confirm this Study action. Refresh and retry. If Study is not set up yet, apply its database migration.') from exc
+        if not isinstance(result,dict):raise ValueError('Could not load Study Mode.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result

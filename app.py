@@ -159,6 +159,12 @@ def decks_screen(client,profile):
     from logic import new_deck,validate_card,validate_deck,add_card,delete_card
     repository=DeckRepository(client)
     st.title('Decks')
+    if st.session_state.get('study_library'):
+        if st.button('Back to course decks'):
+            st.session_state.pop('study_library');st.rerun()
+        study_library(client,profile);return
+    if st.button('Study decks & progress',type='primary'):
+        st.session_state.study_library=True;st.rerun()
     st.caption('Create questions. Check every answer. Share what you know.')
     if st.session_state.get('deck_open'):
         if st.button('Back to course decks'):
@@ -425,9 +431,260 @@ def play_lobby(client,profile):
                         st.session_state.play_review=duel['id'];st.rerun()
 
 
+def study_request(client,action,data=None):
+    from db import StudyRepository
+    return play_request(StudyRepository(client),action,data)
+
+
+STUDY_LEVELS={'new':'○ New · grey','0':'! Needs practice · red','1':'● Level 1 · orange','2':'● Level 2 · yellow','3':'✓ Level 3 · green'}
+
+
+def study_progress_summary(cards):
+    counts={k:0 for k in STUDY_LEVELS}
+    for c in cards:counts['new' if c.get('level') is None else str(c['level'])]+=1
+    colors={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
+    st.html('<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">'+''.join(f'<span style="background:{colors[k]};color:#17223B;padding:6px 10px;border-radius:12px;font-size:13px">{STUDY_LEVELS[k]}: {v}</span>' for k,v in counts.items())+'</div>')
+    st.progress(sum((c.get('level') or 0) for c in cards)/(3*len(cards)) if cards else 0,text='Your learning progress')
+
+
+def study_edit_change(field,key,index=None,answer=None):
+    draft=st.session_state.study_draft
+    st.session_state.pop('study_review',None)
+    if index is None:draft[field]=st.session_state[key]
+    elif answer is None:draft['cards'][index][field]=st.session_state[key]
+    else:draft['cards'][index]['answers'][answer]['text']=st.session_state[key]
+
+
+def study_editor(client,profile):
+    from logic import new_card,validate_card,validate_study_deck
+    d=st.session_state.study_draft;revision=st.session_state.get('study_revision',0)
+    st.subheader('Edit Study deck')
+    st.caption('Study decks are private. A together session shares a fixed copy only with a partner who finishes.')
+    if st.session_state.get('study_review'):
+        st.warning('Review every question and correct answer before saving. Edits affect future sessions; received copies stay unchanged.')
+        show_deck_cards(d['cards'])
+        back,save=st.columns(2)
+        if back.button('Back to Study editing'):st.session_state.pop('study_review');st.rerun()
+        if save.button('Confirm and save Study deck',type='primary'):
+            r=study_request(client,'save_deck',{'draft':validate_study_deck(d),'revision':revision,'review_id':st.session_state.study_review['id']})
+            if r is not None:
+                st.session_state.pop('study_draft');st.session_state.pop('study_review');st.session_state.study_deck_open={'id':r['id']};st.rerun()
+        return
+    for label,field,options in [('Course','course',profile['courses']),('Deck language','language',profile['languages'])]:
+        key='study_edit_'+d['id']+field
+        st.selectbox(label,options,index=options.index(d[field]) if d[field] in options else 0,key=key,on_change=study_edit_change,args=(field,key))
+    key='study_edit_'+d['id']+'name'
+    st.text_input('Study deck name',value=d['name'],key=key,on_change=study_edit_change,args=('name',key))
+    index=st.selectbox('Question to edit',range(len(d['cards'])),format_func=lambda i:f"{i+1}. {d['cards'][i]['question'][:60] or 'New question'}",index=len(d['cards'])-1,key='study_edit_index_'+d['id']+'_'+str(len(d['cards'])))
+    c=d['cards'][index];prefix='study_edit_'+c['id']
+    for label,field in [('Chapter / lecture (optional)','chapter'),('Question','question')]:
+        key=prefix+field
+        st.text_input(label,value=c.get(field,''),key=key,on_change=study_edit_change,args=(field,key,index))
+    st.caption('Use a topic label that does not reveal the answer.')
+    for i,a in enumerate(c['answers']):
+        key=prefix+a['id'];st.text_input(f'Answer {i+1}',value=a['text'],key=key,on_change=study_edit_change,args=('answers',key,index,i))
+    ids=[a['id'] for a in c['answers']];key=prefix+'correct'
+    st.radio('Correct answer',ids,index=ids.index(c['correct_answer_id']) if c['correct_answer_id'] in ids else None,format_func=lambda x:f'Answer {ids.index(x)+1}',key=key,on_change=study_edit_change,args=('correct_answer_id',key,index))
+    add,delete=st.columns(2)
+    if add.button('Add Study question'):
+        try:validate_card(c)
+        except ValueError as exc:st.error(str(exc))
+        else:
+            d['cards'].append(new_card());st.rerun()
+    if delete.button('Remove Study question',disabled=len(d['cards'])<=1):
+        d['cards'].pop(index);st.rerun()
+    st.caption(f"{len(d['cards'])} questions. Changing question content resets its learning level; changing a chapter label does not.")
+    if st.button('Review Study deck',type='primary'):
+        try:clean=validate_study_deck(d)
+        except ValueError as exc:st.error(str(exc))
+        else:
+            r=study_request(client,'review_deck',{'draft':clean,'revision':revision})
+            if r is not None:st.session_state.study_review=r;st.rerun()
+    with st.expander('Discard unsaved Study changes'):
+        if st.button('Confirm discard Study changes'):
+            st.session_state.pop('study_draft');st.session_state.pop('study_review',None);st.rerun()
+
+
+def study_library(client,profile):
+    from uuid import uuid4
+    from copy import deepcopy
+    from logic import new_deck
+    st.header('Study decks & progress')
+    if st.session_state.get('study_draft'):
+        study_editor(client,profile);return
+    if st.session_state.get('study_deck_open'):
+        choice=st.session_state.study_deck_open
+        if st.button('Back to Study decks'):st.session_state.pop('study_deck_open');st.rerun()
+        deck=study_request(client,'deck',choice)
+        if deck is None:return
+        st.subheader(deck['name']);st.caption(f"{deck['course']} · {deck.get('language')} · By {deck.get('author','you')} · {len(deck['cards'])} questions")
+        study_progress_summary(deck['cards'])
+        if choice.get('shared'):st.info('This is the permanent version shared in your study session. Later author changes are not included.')
+        else:
+            label='Create editable Study copy' if deck.get('legacy') else 'Edit Study deck'
+            if st.button(label):
+                d={k:deepcopy(deck[k]) for k in ['id','name','course','language','cards']}
+                if deck.get('legacy'):d['id']=str(uuid4())
+                st.session_state.study_draft=d;st.session_state.study_revision=0 if deck.get('legacy') else deck['revision'];st.session_state.pop('study_review',None);st.rerun()
+        for i,c in enumerate(deck['cards']):
+            level='new' if c.get('level') is None else str(c['level'])
+            with st.expander(f"{i+1}. {c.get('chapter') or 'General'} · {STUDY_LEVELS[level]} · {c['question']}"):
+                show_deck_cards([c])
+                if c.get('note'):st.info('Your private note: '+c['note'])
+                for f in c.get('feedback',[]):st.caption('Feedback you sent: '+f)
+        return
+    data=study_request(client,'list')
+    if data is None:return
+    if st.button('Create Study deck',type='primary'):
+        st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0;st.rerun()
+    st.caption('Study decks have flexible question counts and chapters. Existing published decks remain available below.')
+    for title,key in [('Your decks','decks'),('Shared with me','shared')]:
+        st.subheader(title)
+        if not data[key]:st.caption('No decks yet.' if key=='decks' else 'Finish a together session to receive your partner’s full deck.')
+        for d in data[key]:
+            with st.container(border=True):
+                st.write('**'+d['name']+'**');st.caption(f"{d['course']} · {d.get('language') or 'Set a language first'} · {d['count']} questions")
+                if st.button('View progress and questions',key='study_open_'+d['id']):
+                    st.session_state.study_deck_open={'id':d['id'],'shared':key=='shared'};st.rerun()
+    with st.expander('Feedback on your questions'):
+        if not data['feedback']:st.caption('No feedback yet.')
+        for f in data['feedback']:
+            st.write(f['question']);st.info(f['body']);st.caption(f"From {f['username']} · {f['created_at']}")
+
+
+def study_round_screen(client,sid):
+    r=study_request(client,'round',{'id':sid})
+    if r is None:return
+    if st.button('Save and leave Study session'):
+        st.session_state.pop('study_session',None);st.rerun()
+    state=r['state']
+    if state in ('question','feedback'):
+        st.progress(r['index']/r['total'],text=f"Question {r['index']+1} of {r['total']}")
+        if state=='question':
+            st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
+            if r.get('deadline'):st.caption('Finish by '+r['deadline'])
+            st.subheader(r['question'])
+            cols=st.columns(2)
+            for i,a in enumerate(r['options']):
+                if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):
+                    if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:st.rerun()
+        else:
+            c=r['card'];st.caption(c.get('chapter') or 'General');st.subheader(c['question'])
+            if r['correct']:st.success('Correct!')
+            else:st.error('Not quite. Review the correct answer below.')
+            for a in c['answers']:
+                text=a['text']+(' — Your answer' if a['id']==r['answer_id'] else '')
+                if a['id']==c['correct_answer_id']:st.success(text+' — Correct answer')
+                else:st.write(text)
+            study_progress_summary([c])
+            prefix=f"{sid}_{r['index']}"
+            with st.expander('Private note / feedback to author'):
+                note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
+                if st.button('Save private note',key='study_save_note_'+prefix):
+                    if study_request(client,'annotate',{'id':sid,'index':r['index'],'note':note}) is not None:st.success('Private note saved.')
+                feedback=st.text_area('Feedback for the author',max_chars=2000,key='study_feedback_'+prefix)
+                st.caption('Sent feedback is visible to the author and kept with this question for you. Your private note is not sent.')
+                if st.button('Send feedback to author',key='study_send_'+prefix,disabled=not feedback.strip()):
+                    if study_request(client,'annotate',{'id':sid,'index':r['index'],'feedback':feedback}) is not None:st.success('Feedback sent.')
+            if st.button('Next question' if r['index']+1<r['total'] else 'See session result',type='primary'):
+                if study_request(client,'next',{'id':sid,'index':r['index']}) is not None:st.rerun()
+    elif state=='completed':
+        st.subheader(r['result']);st.metric('Your correct answers',f"{r['score']} / {r['total']}")
+        if r.get('opponent_score') is not None:st.metric('Partner’s correct answers',f"{r['opponent_score']} / {r['total']}")
+        st.caption('Study Mode does not change XP, rankings or win streaks.')
+        if r.get('shared'):st.success('Your partner’s full deck is available under Decks → Study decks & progress → Shared with me.')
+        if st.button('Refresh session result'):st.rerun()
+    elif state=='waiting':
+        st.info('Your practice is saved. Waiting for a partner—there is no need to stay online.')
+        st.caption('Search / invitation expires: '+str(r.get('expires_at')))
+        if st.button('Check for a study partner'):st.rerun()
+        if st.button('Cancel this search or invitation'):
+            if study_request(client,'cancel',{'id':sid}) is not None:st.rerun()
+    else:st.info('This session '+state+'. Your completed practice and notes are saved.')
+
+
+def study_screen(client,profile):
+    from uuid import uuid4
+    from logic import filter_study_cards
+    st.header('Study Mode')
+    if st.session_state.get('study_session'):
+        study_round_screen(client,st.session_state.study_session);return
+    if st.button('Back to Play modes'):
+        st.session_state.pop('study_active',None);st.rerun()
+    data=study_request(client,'list')
+    if data is None:return
+    with st.expander('Your saved study sessions',expanded=bool(data['sessions'])):
+        if st.button('Refresh study sessions'):st.rerun()
+        for s in data['sessions']:
+            cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {s['state']} · {s['count']} questions")
+            if cols[1].button('Open',key='study_resume_'+s['id']):st.session_state.study_session=s['id'];st.rerun()
+            if s['state'] in ('own','waiting') and s['mode']!='solo':
+                if st.button('Cancel search / invitation',key='study_cancel_'+s['id']):
+                    if study_request(client,'cancel',{'id':s['id']}) is not None:st.rerun()
+    choice=st.radio('How would you like to study?',['Study alone','Study together'],horizontal=True)
+    together=choice=='Study together'
+    decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
+    if not together:decks.extend(dict(d,shared=True) for d in data['shared'])
+    if not decks:
+        st.info('Create a Study deck in Decks, or set the language of an existing deck first.');return
+    courses=sorted({d['course'] for d in decks});course=st.selectbox('Study course',courses)
+    choices=[d for d in decks if d['course']==course]
+    selected_id=st.selectbox('Select quiz deck',[d['id'] for d in choices],format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
+    deck=next(d for d in choices if d['id']==selected_id)
+    request={'deck_id':selected_id,'shared':deck['shared']}
+    valid=True
+    if not together:
+        full=study_request(client,'deck',{'id':selected_id,'shared':deck['shared']})
+        if full is None:return
+        study_progress_summary(full['cards'])
+        chapters=st.multiselect('Chapters / lectures (leave empty for full deck)',sorted({c.get('chapter','') for c in full['cards']}),format_func=lambda x:x or 'General')
+        levels=st.multiselect('Learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:STUDY_LEVELS[x])
+        eligible=filter_study_cards(full['cards'],chapters,levels);st.caption(f'{len(eligible)} matching questions. No repeats within this session.')
+        length=st.radio('Session length',['Choose a number','All matching questions'],horizontal=True)
+        count=st.number_input('Number of questions',1,100,min(10,max(1,len(eligible)))) if length=='Choose a number' else 0
+        valid=bool(eligible) and (count==0 or count<=len(eligible))
+        request.update(mode='solo',count=count,chapters=chapters,levels=levels)
+    else:
+        st.caption('Answer your own half first, then your partner’s. No timer per question. After matching, both players have 24 hours to finish.')
+        opponent=st.radio('Study partner',['Random player','Friend'],horizontal=True)
+        mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
+        offers=[s for s in data['open' if mode=='random' else 'invites'] if s['course'].casefold()==course.casefold() and s['language']==deck['language']]
+        options={'new':'Start a new search' if mode=='random' else 'Invite a friend'}
+        for s in offers:options[s['id']]=f"{s['count']} questions · "+(s.get('username','Open study session'))
+        join=st.selectbox('Open study sessions' if mode=='random' else 'Accept an invitation or invite',list(options),format_func=options.get)
+        if join!='new':
+            offer=next(s for s in offers if s['id']==join);count=offer['count'];request['join_id']=join
+            st.info(f'Join this {count}-question session. Your partner is reserved immediately. You will answer your own questions first.')
+            if mode=='friend' and st.button('Decline invitation'):
+                if study_request(client,'decline',{'id':join}) is not None:st.rerun()
+        else:
+            count=st.selectbox('Total questions',[20,40,60,80,100])
+            if mode=='friend':
+                if not data['friends']:st.info('Add a friend first.');valid=False
+                else:
+                    friend=st.selectbox('Friend',[f['id'] for f in data['friends']],format_func=lambda x:next(f['username'] for f in data['friends'] if f['id']==x))
+                    request['friend_id']=friend
+                    request['confirm_missing_course']=st.checkbox('Invite even if my friend has not added this course')
+                st.caption('Your friend receives the invitation after you finish your own half and must accept it.')
+            else:st.caption('Only students who also choose random study can match. Your search lasts 24 hours after your own half.')
+        request['count']=count
+        if deck['count']<count//2:st.warning(f"This session needs at least {count//2} questions in your deck; it currently has {deck['count']}.");valid=False
+        consent=st.checkbox('I agree to share this version of my full deck with a partner who finishes, even if I do not finish.')
+        st.caption('Finish to receive their full deck. Later edits are never shared with the received copy. Learning progress and private notes stay private.')
+        request['consent']=consent;valid=valid and consent
+    if st.button('Start studying',type='primary',disabled=not valid):
+        if 'study_request_id' not in st.session_state:st.session_state.study_request_id=str(uuid4())
+        request['request_id']=st.session_state.study_request_id
+        r=study_request(client,'start',request)
+        if r is not None:
+            st.session_state.study_session=r['id'];st.session_state.pop('study_request_id',None);st.rerun()
+
+
 def play_screen(client,profile):
     from db import PlayRepository
     st.title('Play')
+    if st.session_state.get('study_active'):
+        study_screen(client,profile);return
     if st.session_state.get('play_duel'):
         if st.button('Exit round'):
             st.session_state.play_exit_to='Play';st.rerun()
@@ -464,12 +721,10 @@ def play_screen(client,profile):
                 st.subheader('Study Mode')
                 st.caption('Practise together and focus on learning.')
                 if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
-                    st.session_state.play_mode_preview='Study'
-                st.caption('Coming next')
+                    st.session_state.study_active=True;st.rerun()
+                st.caption('Solo practice · Study together')
         selected=st.session_state.get('play_mode_preview')
-        if selected=='Study':
-            st.info('Study Mode is coming next. Its learning workflow is not available yet.')
-        elif selected=='Battle':
+        if selected=='Battle':
             st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')
         with st.expander('Current 30-question duels'):
             st.caption('The existing duel format is still available here, including invitations, random search and saved results.')

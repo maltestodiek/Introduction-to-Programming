@@ -247,3 +247,29 @@ def delete_card(draft,index):
     result=deepcopy(draft);result['cards'].pop(index)
     if not result['cards']:result['cards']=[new_card()]
     return result
+
+# Study decks are flexible; published legacy decks retain their 15-card contract.
+def validate_study_deck(draft):
+    if not isinstance(draft,dict) or not isinstance(draft.get('cards'),list) or not draft['cards']:
+        raise ValueError('Add at least one complete question.')
+    cards=[];identities=[]
+    for original in draft['cards']:
+        card=validate_card(original)
+        card['chapter']=str(original.get('chapter','')).strip()
+        cards.append(card);identities.extend([card['id']]+[a['id'] for a in card['answers']])
+    if len(set(identities))!=len(identities):raise ValueError('Question and answer identities must be unique.')
+    if draft.get('language') not in LANGUAGES:raise ValueError('Select a deck language.')
+    return {'id':_deck_id(draft.get('id')),'name':_deck_text(draft.get('name'),'a deck name'),'course':_deck_text(draft.get('course'),'a course'),'language':draft['language'],'cards':cards}
+
+
+def study_level(current,correct):
+    return max(0,min(3,(current or 0)+(1 if correct else -1)))
+
+
+def study_card_version(card):
+    content={k:card[k] for k in ('question','answers','correct_answer_id')}
+    return hashlib.sha256(json.dumps(content,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+
+
+def filter_study_cards(cards,chapters,levels):
+    return [c for c in cards if (not chapters or c.get('chapter','') in chapters) and ('new' if c.get('level') is None else str(c['level'])) in levels]
