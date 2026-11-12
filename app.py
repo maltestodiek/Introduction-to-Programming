@@ -614,12 +614,12 @@ def study_design():
 
 
 def study_avatar(kind):
-    if kind=='random':
-        st.markdown((Path(__file__).parent/'assets'/'study-random.svg').read_text().replace('\n',''),unsafe_allow_html=True)
-        return
-    settings={**DEFAULT_AVATAR,'skin':'Green','hair':'Side swept','clothing':'Indigo','accessory':'None'}
-    encoded=base64.b64encode(render_avatar(settings)).decode()
-    st.html(f'<div class="study-avatar"><img src="data:image/png;base64,{encoded}" alt="Study partner avatar"/></div>')
+    anonymous=kind=='random'
+    settings={**DEFAULT_AVATAR,'skin':'Purple' if anonymous else 'Green','hair':'Side swept','clothing':'Indigo','accessory':'None'}
+    encoded=base64.b64encode(render_avatar(settings,anonymous=anonymous)).decode()
+    label='Anonymous random partner' if anonymous else 'Study partner avatar'
+    question='<span class="study-avatar-question" aria-hidden="true">?</span>' if anonymous else ''
+    st.html(f'<div class="study-avatar"><img src="data:image/png;base64,{encoded}" alt="{label}"/>{question}</div>')
 
 
 def study_choice_cards(key,choices,locked=False):

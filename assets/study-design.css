@@ -20,3 +20,5 @@
 .study-avatar-badge{position:absolute;right:-3px;bottom:0;width:28px;height:28px;border-radius:50%;background:#4f46e5;border:3px solid var(--sd-surface);color:white;display:grid;place-items:center;font-size:18px;font-weight:750}
 [class*="st-key-study_partner_"]:hover .study-avatar{transform:translateY(-3px)}
 @media(prefers-reduced-motion:reduce){.study-avatar{transition:none!important;transform:none!important}}
+
+.study-avatar-question{position:absolute;top:19px;left:0;width:80px;text-align:center;font:bold 32px/36px Arial,sans-serif;color:white;pointer-events:none}

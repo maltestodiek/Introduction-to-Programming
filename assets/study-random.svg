@@ -1,6 +1,0 @@
-<svg class="study-avatar" width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Anonymous random partner">
-<circle cx="40" cy="40" r="40" style="fill:var(--sd-avatar)"/>
-<path d="M12 68c1-17 12-24 28-24s27 7 28 24a40 40 0 0 1-56 0" fill="#6370DB"/>
-<circle cx="40" cy="28" r="17" fill="#A79ADC"/>
-<text x="40" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="700" fill="#FFFFFF">?</text>
-</svg>

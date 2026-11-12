@@ -62,13 +62,13 @@ def _tint(color,target,amount):
     base=ImageColor.getrgb(color);other=ImageColor.getrgb(target)
     return tuple(round(a+(b-a)*amount) for a,b in zip(base,other))
 
-def render_avatar(settings):
+def render_avatar(settings, *, anonymous=False):
     if set(settings)!=set(OPTIONS) or any(v not in OPTIONS[k] for k,v in settings.items()):
         raise ValueError("Invalid avatar settings.")
     # Keep the character separate from its theme-aware CSS backdrop.
     im=Image.new("RGBA",(1024,1024),(0,0,0,0)); d=_SmoothDraw(im)
     skin=SKIN[settings["skin"]]; hair=HAIR_COLORS[settings["hair_color"]]
-    style=settings["hair"]
+    style="Bald" if anonymous else settings["hair"]
     if style=="Long": d.rounded_rectangle((61,40,195,206),radius=54,fill=hair)
     if style=="Bob": d.rounded_rectangle((60,43,196,163),radius=38,fill=hair)
     if style=="Ponytail": d.ellipse((171,71,223,193),fill=hair)
@@ -82,6 +82,10 @@ def render_avatar(settings):
         d.ellipse((x,104,x+14,135),fill=skin)
         d.arc((x+4,111,x+11,129),90,270,fill=_tint(skin,"#50382F",.18),width=1)
     d.ellipse((69,47,187,181),fill=skin)
+    if anonymous:
+        # Same head, ears, neck and clothing as profiles; no hair or facial features.
+        im=im.resize((512,512),Image.Resampling.LANCZOS)
+        out=io.BytesIO();im.save(out,format="PNG");return out.getvalue()
     if style in ("Short","Long","Bob","Ponytail","Bun"):
         d.pieslice((64,37,191,120),180,360,fill=hair)
         d.polygon([(66,82),(124,49),(181,80),(160,56),(110,45)],fill=hair)
