@@ -1,7 +1,18 @@
 [theme]
-base = "light"
+font = "sans serif"
+
+[theme.light]
 primaryColor = "#4F46E5"
 backgroundColor = "#F7F8FC"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#17223B"
-font = "sans serif"
+linkColor = "#4338CA"
+borderColor = "#CDD5E5"
+
+[theme.dark]
+primaryColor = "#6554D9"
+backgroundColor = "#0D1322"
+secondaryBackgroundColor = "#182237"
+textColor = "#EEF2FF"
+linkColor = "#B8B1FF"
+borderColor = "#384560"

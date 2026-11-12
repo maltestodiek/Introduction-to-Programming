@@ -70,3 +70,6 @@ Manual walkthrough with two group accounts:
 3. Start a round, answer a question and reload. Resume must retain progress. Let a question expire; it scores zero. Try leaving through Profile and cancel the abandonment prompt.
 4. Finish all 30 questions and rate the decks on both accounts. Check score comparison and XP, then reload to confirm XP is not awarded twice.
 5. Stop and restart the app process. Sign in again if necessary, open Play, and verify the same saved match/progress/results. Refresh alone is not a process restart.
+
+### Appearance
+Open the top-right three-dot menu and select System, Light or Dark. Streamlit remembers the selection in that browser; System follows the device appearance. Both themes are configured in `.streamlit/config.toml`. Custom branding, navigation, mode cards, profile metrics, welcome content, avatar editor and sharing controls adapt to the selected theme. Theme preference is independent of accounts and Supabase data; it is not synced between devices. `appearance.py` provides trusted colour tokens for custom elements, while native widgets use Streamlit's theme system.

@@ -13,16 +13,19 @@ from auth import AuthService
 from recovery import recovery_callback
 from db import ProfileRepository, FriendsRepository
 from launch import browser_bridge, welcome
+from appearance import apply_appearance
 from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username
 
 LOGO_PATH=Path(__file__).parent / "assets" / "studyduel-icon.png"
 st.set_page_config(page_title="StudyDuel",page_icon=Image.open(LOGO_PATH),layout="centered")
+apply_appearance()
 st.markdown("""<style>
 .block-container{max-width:940px;padding-top:2.5rem}
-h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:18px;padding:24px}
-.stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
+[data-testid="stCaptionContainer"]{opacity:1!important;color:var(--sd-muted)!important}
+h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:18px;padding:24px}
+.stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 </style>""",unsafe_allow_html=True)
 st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
 logo_data=base64.b64encode(LOGO_PATH.read_bytes()).decode()
@@ -576,7 +579,7 @@ if not auth.user and not st.session_state.get("started") and not st.session_stat
         st.rerun()
     st.stop()
 if not auth.user:
-    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
+    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Study<span style="color:var(--sd-accent)">Duel</span></span></div>')
     st.caption("A little competition. A lot of learning.")
 notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
@@ -644,7 +647,7 @@ if profile:
     except Exception:pass
 brand,avatar_slot,profile_slot=st.columns([5,.65,1.35],vertical_alignment="center")
 with brand:
-    st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:#17223B">Study<span style="color:#4F46E5">Duel</span></span></div>')
+    st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--sd-text)">Study<span style="color:var(--sd-accent)">Duel</span></span></div>')
 with avatar_slot:portrait(picture or render_avatar(DEFAULT_AVATAR),44)
 with profile_slot:
     if st.button('Profile',use_container_width=True,key='open_profile'):
@@ -703,7 +706,7 @@ if not editing:
     with left:portrait(picture or render_avatar(DEFAULT_AVATAR),176)
     with right:
         code_label=("#"+friend_state["code"]) if friend_state else ""
-        st.html(f'<h1 style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;color:#17223B"><span>{escape(profile["username"])}</span><span aria-label="Your friend code" style="font-size:16px;font-weight:400;letter-spacing:.03em;color:#667085">{escape(code_label)}</span></h1>')
+        st.html(f'<h1 style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;color:var(--sd-text)"><span>{escape(profile["username"])}</span><span aria-label="Your friend code" style="font-size:16px;font-weight:400;letter-spacing:.03em;color:var(--sd-muted)">{escape(code_label)}</span></h1>')
         st.write(profile["university"])
         degree_labels={"Bachelor's":"Bachelor","Master's":"Master","Doctorate":"Doctorate","Associate":"Associate degree","Diploma / certificate":"Diploma / certificate"}
         degree=degree_labels.get(profile.get("degree"),"")

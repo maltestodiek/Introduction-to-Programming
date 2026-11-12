@@ -49,3 +49,9 @@ Per the user's narrowed request, Play now shows Battle Mode and Study Mode butto
 
 The mode cards now use local vector book/sword artwork, indigo/mint gradients, and hover/focus animations. Keyboard focus triggers the same decoration; reduced-motion preferences disable movement. Buttons remain native Streamlit controls and both upcoming statuses are retained. No gameplay or data changes.
 The same visual style extends to Decks, Play, Friends, Leaderboard, Study Plan and Profile with colour-inheriting vector icons and brief hover/focus animations. Labels remain visible, compact tablet layouts place icons above labels, and reduced-motion support also covers navigation.
+
+## Dark mode — 12 November 2026
+Added switchable native System/Light/Dark themes in the top-right app menu. Browser preference is managed by Streamlit, independently of authentication. Custom surfaces, brand text, mode cards, navigation, welcome screen, profile metrics, avatar editor and sharing controls adapt to the selected palette. Native inputs, dropdowns, dialogs and alerts inherit the configured theme. Captions use explicit readable colours without an additional opacity reduction. No database migration or gameplay changes.
+
+Validation includes the existing application suite plus contrast checks for primary text, secondary text and links on both card palettes, native text on both configured backgrounds, and safe fallback for unknown appearance values. Manual browser checks cover switching, visible text, controls and restart persistence.
+Custom colour tokens use CSS light-dark() with Streamlit's native color-scheme for immediate switching; the Python theme value is a fallback. Battle and Study icon circles use darker indigo/green backgrounds in dark mode. Browser checks confirmed both directions update immediately and that Dark remains selected after a full preview-process restart.
