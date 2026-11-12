@@ -440,7 +440,31 @@ def play_screen(client,profile):
                         label=a['text']+(' — Your answer' if response and response['answer_id']==a['id'] else '')
                         if a['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
                         else:st.write(label)
-    else:play_lobby(client,profile)
+    else:
+        st.write('Choose how you want to play.')
+        battle,study=st.columns(2)
+        with battle:
+            with st.container(border=True):
+                st.subheader('Battle Mode')
+                st.caption('Compete, test your knowledge and earn XP.')
+                if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
+                    st.session_state.play_mode_preview='Battle'
+                st.caption('Coming soon')
+        with study:
+            with st.container(border=True):
+                st.subheader('Study Mode')
+                st.caption('Practise together and focus on learning.')
+                if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
+                    st.session_state.play_mode_preview='Study'
+                st.caption('Coming next')
+        selected=st.session_state.get('play_mode_preview')
+        if selected=='Study':
+            st.info('Study Mode is coming next. Its learning workflow is not available yet.')
+        elif selected=='Battle':
+            st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')
+        with st.expander('Current 30-question duels'):
+            st.caption('The existing duel format is still available here, including invitations, random search and saved results.')
+            play_lobby(client,profile)
 
 
 def config(key):

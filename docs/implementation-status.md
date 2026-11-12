@@ -43,3 +43,6 @@ Verification: 108 Python tests passed; 21 isolated PostgreSQL-compatible checks 
 Browser preview used fictional users and verified the missing-course confirmation, one-hour search and cancellation. The production migration was applied successfully without creating synthetic accounts, invitations or duels. A two-real-account walkthrough is still needed for acceptance by the group. Expired matches settle on the next participant request, not a background job. Search eligibility is opt-in; no external invitation messages are sent automatically.
 
 Changed application files: app.py, logic.py, db.py, supabase/play-schema.sql. Acceptance checks: tests/test_play.py, tests/test_play_ui.py, tests/play_database.mjs, updated tests/test_deck_rules.py and tests/test_navigation.py. Documentation: specs/fourth-feature.md, README.md, docs/product-brief.md, this status file.
+
+## Play mode selection — 12 November 2026
+Per the user's narrowed request, Play now shows Battle Mode and Study Mode buttons only; neither new ruleset is implemented yet. Clicking either shows its upcoming status. Study Mode is the next planned feature. The existing 30-question lobby remains available under Current 30-question duels, and active rounds and reviews keep their existing screens. No database migration or change to saved duels is part of this update.
