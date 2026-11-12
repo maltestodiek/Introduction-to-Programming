@@ -46,3 +46,6 @@ Changed application files: app.py, logic.py, db.py, supabase/play-schema.sql. Ac
 
 ## Play mode selection — 12 November 2026
 Per the user's narrowed request, Play now shows Battle Mode and Study Mode buttons only; neither new ruleset is implemented yet. Clicking either shows its upcoming status. Study Mode is the next planned feature. The existing 30-question lobby remains available under Current 30-question duels, and active rounds and reviews keep their existing screens. No database migration or change to saved duels is part of this update.
+
+The mode cards now use local vector book/sword artwork, indigo/mint gradients, and hover/focus animations. Keyboard focus triggers the same decoration; reduced-motion preferences disable movement. Buttons remain native Streamlit controls and both upcoming statuses are retained. No gameplay or data changes.
+The same visual style extends to Decks, Play, Friends, Leaderboard, Study Plan and Profile with colour-inheriting vector icons and brief hover/focus animations. Labels remain visible, compact tablet layouts place icons above labels, and reduced-motion support also covers navigation.

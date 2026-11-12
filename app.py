@@ -24,6 +24,7 @@ st.markdown("""<style>
 h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:18px;padding:24px}
 .stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:#FFFFFF;color:#17223B;border:1px solid #CDD5E5;border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 </style>""",unsafe_allow_html=True)
+st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
 logo_data=base64.b64encode(LOGO_PATH.read_bytes()).decode()
 # The invitation remains in the URL across signup, email confirmation and login.
 if "invite" in st.query_params:
@@ -441,17 +442,21 @@ def play_screen(client,profile):
                         if a['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
                         else:st.write(label)
     else:
+        assets=Path(__file__).parent/'assets'
+        st.html('<style>'+ (assets/'play-modes.css').read_text()+'</style>')
         st.write('Choose how you want to play.')
         battle,study=st.columns(2)
         with battle:
-            with st.container(border=True):
+            with st.container(border=True,key='battle_mode_card'):
+                st.markdown((assets/'battle-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
                 st.subheader('Battle Mode')
                 st.caption('Compete, test your knowledge and earn XP.')
                 if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
                     st.session_state.play_mode_preview='Battle'
                 st.caption('Coming soon')
         with study:
-            with st.container(border=True):
+            with st.container(border=True,key='study_mode_card'):
+                st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
                 st.subheader('Study Mode')
                 st.caption('Practise together and focus on learning.')
                 if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
