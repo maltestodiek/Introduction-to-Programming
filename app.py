@@ -24,7 +24,8 @@ apply_appearance()
 st.markdown("""<style>
 .block-container{max-width:940px;padding-top:2.5rem}
 [data-testid="stCaptionContainer"]{opacity:1!important;color:var(--sd-muted)!important}
-h1{letter-spacing:-.04em}div[data-testid="stForm"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:18px;padding:24px}
+[data-testid="stPopoverBody"] [data-testid="stCaptionContainer"]{color:inherit!important}
+h1{letter-spacing:-.04em}div[data-testid="stForm"]{border-radius:18px;padding:24px}
 .stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 </style>""",unsafe_allow_html=True)
 st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
