@@ -1,28 +1,45 @@
 # StudyDuel
 
-A class project for creating course quiz decks and playing asynchronous study duels.
+StudyDuel is a Python/Streamlit app for creating course decks, studying alone or together, and connecting with classmates. Supabase provides authentication, shared PostgreSQL data and private image storage. The live app is [studyduel-nova.streamlit.app](https://studyduel-nova.streamlit.app/).
 
-## Current status
+## Start here
 
-Planning only. The English product brief is in docs/product-brief.md, the proposed first workflow in specs/first-feature.md, and proposed tests in docs/verification-proposal.md. The feature checklist is in docs/features.md. The original concept is retained in docs/source/. There is no running app yet.
+- [Feature index and current status](docs/features.md)
+- [Topic-based specifications](specs/README.md)
+- [Current product brief](docs/product-brief.md)
+- [Team branch workflow](docs/team-workflow.md)
+- [Deployment and storage](docs/deployment.md)
+- [Project instructions](AGENTS.md)
 
-The first proposed feature lets a demo student create exactly 15 complete questions, review and confirm the deck, and reopen it after restarting the app. Review the plan and expected outcomes before implementation.
+## Run and test
 
-## Structure
+Use `uv sync`, `uv run pytest -q` and `uv run streamlit run app.py`. Open http://localhost:8501.
 
-- app.py — Streamlit screens
-- logic.py — business rules
-- db.py — SQLite persistence
-- tests/ — pytest tests
-- docs/ — product brief, source, and verification proposal
-- specs/ — task specifications
-- AGENTS.md — class workflow and verification rules
+On this Mac, `sh run-app.sh` and `sh run-tests.sh` use the locked dependencies with an environment/cache under `~/Library/Caches/StudyDuel`, avoiding the stalled Desktop environment. Teammates copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and configure their approved Supabase URL and publishable key. Never commit the filled secrets file.
 
-## Planned commands
+## Lecture structure
 
-Use Python, Streamlit, SQLite, pytest, and uv. Dependencies and application code are not implemented yet.
+- `app.py`: Streamlit screens and UI orchestration.
+- `logic.py`: validation, learning rules, image processing and safe calculator arithmetic.
+- `db.py`: authenticated database repositories. Supabase SQL also enforces server-side authorization and transactional multiplayer rules.
+- `tests/`: pytest checks, isolated PostgreSQL-compatible checks and SQL acceptance scenarios.
+- `specs/`: named feature specifications using Why / What / Out of scope / Done when.
+- `docs/`: product, privacy, verification, deployment and team guidance; old proposals are explicitly archived.
+- `supabase/`: versioned schema/update scripts. Applied SQL files must not be renamed or blindly rerun.
+- `assets/`: images, vector icons and styles.
 
-Once implemented:
-- uv sync
-- uv run pytest -q
-- uv run streamlit run app.py
+Focused helpers remain at the root: `auth.py` and `recovery.py` for account access; `launch.py` for welcome/restoration; `appearance.py` for themes; `avatar_picker.py`, `universities.py` and `sharing.py` for their respective UI/services. They support the lecture's separation without introducing React or another frontend framework.
+
+## What works now
+
+Accounts and profiles, friends and invitations, private chat, flexible reviewed decks with subsections/calculator permissions, solo and asynchronous Together Study, learning progress, fixed shared deck copies, session history and light/dark appearance. AI and Anki import, Leaderboard, Study Plan and the redesigned Battle Mode are placeholders. Saved classic duels can still be resumed/reviewed; they are distinct from the future Battle Pool design.
+
+## Data and verification
+
+Supabase stores durable user data; Streamlit's local disk is not the shared production database. SQLite was the lecture starting point, but the group chose Supabase for shared accounts and multiplayer. Browser storage retains verified session tokens and minimal navigation state, never passwords. See [restoration](docs/launch-and-resume.md) and [profile privacy](docs/profile-requirements.md).
+
+Python tests use temporary files/databases or fake providers. The `tests/*_database.mjs` scripts run actual SQL in isolated PGlite instances, with `PGLITE_MODULE` pointing to an installation of `@electric-sql/pglite@0.5.16`. Node is test tooling only. Never run acceptance tests against real students or production conversations. For features that store data, check an allowed action, a rejected action and a full process restart; browser refresh alone is insufficient.
+
+## Branches
+
+`main` is the shared stable baseline. Start each change on a descriptive short-lived branch such as `feature/study-session-filters` or `fix/appearance-contrast`, review it and merge it into `main`. The existing hosted app still watches `first-feature`, now a deployment compatibility branch, not the place to develop features. Release only reviewed `main` commits to that branch. See [workflow](docs/team-workflow.md) for the transition and [deployment](docs/deployment.md) before changing the hosted branch.

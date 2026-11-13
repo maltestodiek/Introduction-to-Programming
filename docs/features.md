@@ -1,36 +1,27 @@
-# StudyDuel feature checklist
+# StudyDuel feature index
 
-Planned features, not implemented. Use English and the class stack: Python, Streamlit, SQLite, pytest, and uv. Use demo users and simulated opponents for the local prototype.
+Current organization as of 13 November 2026. This is the current product map; the [implementation journal](archive/implementation-journal.md) is chronological history.
 
-## Core features in proposed build order
+## Authentication and student profiles — implemented
+Email/password signup and confirmation, sign-in/out, recovery, verified session restoration; username, university lookup/manual entry, courses, languages, degree/field, graduation year and photo/avatar. [Specification](../specs/authentication-and-profiles.md).
 
-- [ ] Navigation: Decks, Play, Leaderboard, Profile, active-page indication, and back navigation.
-- [ ] Courses and browsing: Financial Modeling, Corporate Finance, Investments; deck names, creators, ratings, and visible questions and solutions.
-- [ ] Manual deck creation: course and name, exactly 15 questions, four answers per question, and exactly one correct answer.
-- [ ] Draft editing: edit or delete any card before confirmation; validate completeness and card count.
-- [ ] Mandatory review and confirmation: inspect all solutions before saving; confirmed decks cannot be edited or deleted by users.
-- [ ] Persistent decks: save to SQLite and reopen after a full process restart.
-- [ ] Quiz round: 30 seconds per question, shuffled answer choices, immediate feedback, symbols and progress, one point per correct answer.
-- [ ] Exit confirmation: cancel stays in the round; confirmed abandonment counts as a loss.
-- [ ] Mandatory rating: up, neutral, or down after every completed round; display aggregate ratings only.
-- [ ] New duel: friend or random opponent, course, and random or top-rated deck.
-- [ ] Duel dashboard: Ongoing, Pending, Completed; decline received challenges; show remaining time; reveal opponent results only when completed.
-- [ ] Deadline: apply the 24-hour rule, with deterministic simulation controls for the prototype.
-- [ ] Results and XP: compare correct answers; draws explicit; 40 XP for a win, 80 from the fourth consecutive win; loss deducts 10 with a floor of zero.
-- [ ] Streaks: loss or draw resets the streak; declining preserves XP and streak.
-- [ ] Profile and history: name, image, XP, streak, newest duels first, scores, dates, and percentages.
-- [ ] Learning review and reports: own and correct answers for all questions; report confirmation; one report per person per question.
-- [ ] Friends: search and friendship management; settle request/removal rules before building.
-- [ ] Leaderboard: rank by XP; settle ranking and tie rules before building.
+## Social connections — implemented
+Friend codes and invitation links, requests and acceptance, private chat and unread previews. Participant menus work in ongoing/history cards; chat offers friendship controls. [Specification](../specs/social-connections.md).
 
-## Optional extensions
+## Deck authoring and question tools — implemented
+Flexible Study decks, four-answer questions, subsection/lecture names, mandatory review, revision-safe edits and optional per-question calculator. The separate classic editor retains 15-question immutable decks. AI and Anki import are placeholders. [Specification](../specs/deck-authoring.md).
 
-- [ ] Admin review of reported decks; resolve report threshold aggregation.
-- [ ] Calendar reminders or downloadable calendar entries.
-- [ ] AI-generated draft questions from lecture uploads, using the same mandatory review.
+## Study Mode and learning progress — implemented
+Solo/together settings, chapter/level preferences, friend/random/open-session matching, shared question sets, 24-hour deadlines, feedback and notes, progress colours, results without XP and immutable earned copies. [Specification](../specs/study-mode.md).
 
-## Verification for each workflow
+## Battle Mode — planned redesign; classic engine retained
+The new Battle Mode entry is Coming soon. The previous 30-question engine and saved rounds/reviews remain. The team's Battle Pool proposal is preserved for review and is not the current Study specification. [Specification](../specs/battle-mode.md).
 
-Accepted changes survive a restart. Rejected actions leave saved data unchanged. Review expected test outcomes before implementation. Keep player progress separate from deck content.
+## Appearance and navigation — implemented
+One topic for logo/branding, welcome design, dark/light/system themes, backgrounds, icons, hover effects, responsive layouts, menu cards, progress legend, ongoing/history sections and chat/calculator layout. [Specification](../specs/appearance-and-navigation.md).
 
-First implementation scope: specs/first-feature.md. Full rules and unresolved decisions: docs/product-brief.md and docs/verification-proposal.md. Real login and online multiplayer are outside the local class prototype.
+## Future work
+Leaderboard, Study Plan, shared university course discovery, AI slide import and Anki import need their own reviewed task specs before implementation. Historical proposals do not authorize them automatically.
+
+## Definition of done
+Use the lecture's Why / What / Out of scope / Done when task format. For stateful workflows, identify state, durable storage, allowed/rejected actions and a full process restart check. Current verification evidence and limitations are in [implementation status](implementation-status.md).

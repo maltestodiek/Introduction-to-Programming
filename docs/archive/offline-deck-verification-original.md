@@ -20,7 +20,7 @@ A restart test must open the same SQLite file from a fresh process/connection. E
 - tests/test_deck_storage.py: atomicity, confirmation retries, and reload.
 - tests/test_deck_ui.py: Streamlit AppTest interactions where supported; manual checks cover the full visual workflow.
 - pyproject.toml and uv.lock: add dependencies during implementation.
-- docs/product-brief.md and specs/first-feature.md: reviewed source of expected outcomes.
+- docs/product-brief.md and specs/authentication-and-profiles.md: reviewed source of expected outcomes.
 
 Do not create application code, dependencies, or tests until the planning review is complete.
 
