@@ -23,3 +23,9 @@
 [data-testid="stDialog"]:has(.sd-chat-marker) {padding:12px 0 !important;overflow:hidden;}
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stElementContainer"]:has(.sd-chat-marker) {display:none;}
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stCaptionContainer"] {color:#aeb9cd !important;}
+[role="dialog"]:has(.sd-chat-marker) [data-testid="stLayoutWrapper"]:has(> .st-key-chat_messages) {
+  height:auto !important; min-height:0 !important; overflow:hidden;
+}
+[data-testid="stDialog"]:has(.sd-chat-marker) > div {
+  width:min(760px, calc(100vw - 24px)); margin:0 auto;
+}
