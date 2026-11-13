@@ -52,3 +52,29 @@ def test_study_partner_opens_the_right_chat_without_answering(monkeypatch):
     assert at.session_state.chat_open=='thread'
     assert not any(k=='answer' for k,_ in study_calls)
     assert not at.exception
+
+
+def test_chat_friend_controls_follow_relationship_state(monkeypatch):
+    status={'friends':[],'incoming':[],'sent':[]};calls=[]
+    def chat(self,kind,data=None):
+        if kind=='list':return {'threads':[]}
+        if kind=='read':return {'partner':{'id':'other','username':'Alex','image_path':None},'messages':[],'has_older':False}
+        return {}
+    def friends(self,kind,value=''):
+        if kind=='list':return status
+        calls.append((kind,value))
+        status['sent']=[{'id':'edge','person':{'id':'other'}}]
+        return {'message':'Friend request sent.'}
+    monkeypatch.setattr('db.ChatRepository.action',chat)
+    monkeypatch.setattr('db.FriendsRepository.action',friends)
+    at=deck_app(monkeypatch);at.session_state.chat_open='thread';at.run()
+    button(at,'Send friend request').click().run()
+    assert calls==[('request_user','other')]
+    assert any(c.value=='Friend request sent' for c in at.caption)
+    assert not any(b.label=='Send friend request' for b in at.button)
+    status['sent']=[];status['incoming']=[{'id':'incoming','person':{'id':'other'}}];at.run()
+    assert button(at,'Accept friend request')
+    status['incoming']=[];status['friends']=[{'id':'edge','person':{'id':'other'}}];at.run()
+    assert any(c.value=='Friends' for c in at.caption)
+    assert not any(b.label in ('Send friend request','Accept friend request') for b in at.button)
+    assert not at.exception

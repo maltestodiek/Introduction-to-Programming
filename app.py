@@ -119,7 +119,24 @@ def chat_conversation(client,thread_id,own_picture=None):
     data=chat_call(client,'read',{'id':thread_id})
     if data is None:return
     image_repo=ProfileRepository(client,st.session_state.auth.user.id)
-    public_person(data['partner'],image_repo)
+    identity,friend_controls=st.columns([3,2],vertical_alignment='center')
+    with identity:public_person(data['partner'],image_repo)
+    with friend_controls:
+        friends=FriendsRepository(client)
+        try:relationships=friends.action('list')
+        except ValueError:relationships=None
+        peer=data['partner']['id']
+        if relationships is None:st.caption('Friend status unavailable.')
+        elif any(e['person']['id']==peer for e in relationships.get('friends',[])):
+            st.caption('Friends')
+        elif any(e['person']['id']==peer for e in relationships.get('sent',[])):
+            st.caption('Friend request sent')
+        else:
+            incoming=next((e for e in relationships.get('incoming',[]) if e['person']['id']==peer),None)
+            label='Accept friend request' if incoming else 'Send friend request'
+            if st.button(label,icon=':material/person_add:',key='chat_friend_'+thread_id):
+                result=friend_action(friends,'accept' if incoming else 'request_user',incoming['id'] if incoming else peer)
+                if result:st.rerun()
     try:partner_picture=image_repo.image(data['partner'].get('image_path'))
     except Exception:partner_picture=None
     def avatar_url(raw):

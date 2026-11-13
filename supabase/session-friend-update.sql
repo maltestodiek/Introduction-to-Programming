@@ -41,9 +41,10 @@ begin
  begin other_id:=p_value::uuid;
  exception when invalid_text_representation then return jsonb_build_object('error','Session partner unavailable.'); end;
  if other_id is null or other_id=me or (
+ not exists(select 1 from public.chat_threads where low_id=least(me,other_id) and high_id=greatest(me,other_id)) and
  not exists(select 1 from public.play_duels where me in(p1,p2) and other_id in(p1,p2)) and
  not exists(select 1 from public.study_sessions own join public.study_sessions partner on partner.id=own.partner_id and partner.partner_id=own.id where own.user_id=me and partner.user_id=other_id)
- ) then return jsonb_build_object('error','Choose a matched session partner.'); end if;
+ ) then return jsonb_build_object('error','Choose a conversation or matched session partner.'); end if;
  elsif p_action in ('lookup','request') then
  code_value:=upper(trim(leading '#' from btrim(p_value)));
  if code_value !~ '^[A-HJ-NP-Z2-9]{8}$' then return jsonb_build_object('error','Enter a valid eight-character friend code.'); end if;

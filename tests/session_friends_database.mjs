@@ -10,6 +10,7 @@ try {
  create table auth.users(id uuid primary key);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  create table profiles(id uuid primary key,username text,image_path text);
+ create table chat_threads(low_id uuid,high_id uuid);
  create table play_duels(id uuid,p1 uuid,p2 uuid);
  create table study_sessions(id uuid,user_id uuid,partner_id uuid,finished_at timestamptz);`);
  for(const u of [a,b,c]){await db.query('insert into auth.users values($1)',[u]);await db.query("insert into profiles values($1,'student',null)",[u]);}
@@ -30,5 +31,8 @@ try {
  assert.equal((await action(b,'request_user',c)).message,'Friend request sent.');
  assert.ok((await action(a,'request_user',b)).error);
  assert.match((await action(a,'request_user',b)).error,/Too many/);
+ await db.exec('reset role');
+ await db.query('insert into chat_threads values(least($1::uuid,$2::uuid),greatest($1::uuid,$2::uuid))',[a,c]);
+ assert.equal((await action(c,'request_user',a)).message,'Friend request sent.');
  console.log('PASS historical Study and Battle partner requests, consent, duplicates, stranger rejection and shared rate limit');
 } finally {await db.close();}
