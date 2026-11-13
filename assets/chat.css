@@ -1,13 +1,14 @@
 /* Keep the composer and header visible; only message history scrolls. */
 [role="dialog"]:has(.sd-chat-marker) {
   max-height:calc(100dvh - 24px); overflow:hidden;
-  margin-top:12px; margin-bottom:12px;
+  margin:0 auto; width:min(760px, calc(100vw - 24px));
 }
 [role="dialog"]:has(.sd-chat-marker) > div {
   overflow:hidden; padding-top:0; padding-bottom:12px;
 }
 [role="dialog"]:has(.sd-chat-marker) .st-key-chat_messages {
-  height:clamp(80px, calc(100dvh - 390px), 340px) !important;
+  height:clamp(60px, calc(100dvh - 440px), 340px) !important;
+  min-height:0 !important; max-height:clamp(60px, calc(100dvh - 440px), 340px) !important;
   overflow-y:auto; overscroll-behavior:contain;
 }
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stForm"] {
@@ -18,3 +19,7 @@
   background:var(--sd-avatar);
 }
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stChatMessage"] {padding:10px;gap:12px;}
+
+[data-testid="stDialog"]:has(.sd-chat-marker) {padding:12px 0 !important;overflow:hidden;}
+[role="dialog"]:has(.sd-chat-marker) [data-testid="stElementContainer"]:has(.sd-chat-marker) {display:none;}
+[role="dialog"]:has(.sd-chat-marker) [data-testid="stCaptionContainer"] {color:#aeb9cd !important;}
