@@ -153,12 +153,23 @@ def calculator_key(key,token):
     elif len(value)<120:st.session_state[key]=value+('sqrt(' if token=='√' else token)
 
 
+def calculator_launcher(identity):
+    opened='calculator_open_'+identity
+    if st.button('Close calculator' if st.session_state.get(opened) else 'Calculator',icon=':material/calculate:',key=opened+'_toggle'):
+        st.session_state[opened]=not st.session_state.get(opened,False);st.rerun()
+    if st.session_state.get(opened):question_calculator(identity)
+
+
 @st.fragment
 def question_calculator(identity):
     key='calculator_'+identity
-    with st.popover('Calculator',icon=':material/calculate:'):
-        st.caption('Arithmetic · brackets · powers · square root')
-        st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4',on_change=calculator_input_changed,args=(key,))
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'calculator.css').read_text()+'</style>')
+    with st.container(border=True,key='calculator_panel'):
+        title,close=st.columns([3,1])
+        title.markdown('**:material/calculate: Calculator**')
+        if close.button('Close',icon=':material/close:',key=key+'_close'):
+            st.session_state['calculator_open_'+identity]=False;st.rerun()
+        st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4',label_visibility='collapsed',on_change=calculator_input_changed,args=(key,))
         result=st.session_state.get(key+'_result','—')
         st.html(f'<div style="text-align:right;padding:4px 0 12px;font-size:1.8rem;font-weight:700"><span style="display:block;font-size:.8rem;font-weight:400;opacity:.7">Result</span>{escape(result)}</div>')
         for row in [('Clear','⌫','(',')'),('7','8','9','÷'),('4','5','6','×'),('1','2','3','−'),('0','.','√','^'),('+','=')]:
@@ -385,7 +396,7 @@ def play_round_screen(client,duel_id):
     st.progress(result['index']/30,text=f"Question {result['index']+1} of 30")
     st.caption(f":material/timer: {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
     st.subheader(result['question'])
-    if result.get('allow_calculator') is True:question_calculator(f'play_{duel_id}_{result["index"]}')
+    if result.get('allow_calculator') is True:calculator_launcher(f'play_{duel_id}_{result["index"]}')
     cols=st.columns(2)
     for i,option in enumerate(result['options']):
         if cols[i%2].button(option['text'],key=f"play_answer_{duel_id}_{result['index']}_{option['id']}",use_container_width=True):
@@ -649,7 +660,7 @@ def study_round_screen(client,sid):
             st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
             if r.get('deadline'):st.caption('Finish by '+r['deadline'])
             st.subheader(r['question'])
-            if r.get('allow_calculator') is True:question_calculator(f'study_{sid}_{r["index"]}')
+            if r.get('allow_calculator') is True:calculator_launcher(f'study_{sid}_{r["index"]}')
             cols=st.columns(2)
             for i,a in enumerate(r['options']):
                 if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):
@@ -718,6 +729,9 @@ def study_screen(client,profile):
     from uuid import uuid4
     from logic import filter_study_cards
     study_design()
+    if st.session_state.get('study_session'):
+        st.caption(':material/menu_book: Study Mode · '+st.session_state.get('study_choice','Study alone'))
+        study_round_screen(client,st.session_state.study_session);return
     st.html('<style>'+(Path(__file__).parent/'assets'/'play-modes.css').read_text()+'</style>')
     st.markdown((Path(__file__).parent/'assets'/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
     st.header('Study Mode')
@@ -878,7 +892,6 @@ def ongoing_sessions(client):
                     if session.get('deadline'):st.caption('Finish by '+session['deadline'])
                     if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id']):
                         st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together';st.session_state.study_session=session['id'];st.rerun()
-    st.divider()
 
 
 def play_screen(client,profile):
@@ -904,7 +917,6 @@ def play_screen(client,profile):
                         if a['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
                         else:st.write(label)
     else:
-        ongoing_sessions(client)
         st.subheader('Create new session')
         assets=Path(__file__).parent/'assets'
         st.html('<style>'+ (assets/'play-modes.css').read_text()+'</style>')
@@ -936,9 +948,8 @@ def play_screen(client,profile):
         selected=st.session_state.get('play_mode_preview')
         if selected=='Battle':
             st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')
-        with st.expander('Current 30-question duels'):
-            st.caption('The existing duel format is still available here, including invitations, random search and saved results.')
-            play_lobby(client,profile)
+        st.divider()
+        ongoing_sessions(client)
 
 
 def config(key):

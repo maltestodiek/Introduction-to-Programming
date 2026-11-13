@@ -71,6 +71,8 @@ Per-question calculator: both editors support an optional calculator flag; basic
 
 The main Create New Deck entry now uses flexible Study decks with no fixed question count. Subsections can be selected or typed, and new questions inherit the current subsection. The original 15-question editor remains under Classic 30-question duels. Learning-level selectors use coloured markers in solo and together settings.
 
-Play now shows active Battle and Study sessions before Create new session. Completed/cancelled/expired Study sessions stay out of the active list; pending Battle rounds show their waiting status. Resume opens the saved round without creating a new session.
+Play now shows active Battle and Study sessions below Create new session. Completed/cancelled/expired Study sessions stay out of the active list; pending Battle rounds show their waiting status. Resume opens the saved round without creating a new session.
 
 Calculator refinement: expression and right-aligned result are separate, number/function buttons use different colours, and square root plus integer powers (−12 to 12) are supported. App-owned emoji icons were replaced with Material icons or text. Learning levels use an accessible checkbox dropdown with real coloured swatches and selected-level chips.
+
+Latest layout: the calculator opens in a fixed right-hand desktop panel, with a compact round heading and no internal scrolling. Current 30-question duels was removed from Play; existing rounds remain resumable. Avatar shoulders were lowered to reveal the neck and separate the head from the body.

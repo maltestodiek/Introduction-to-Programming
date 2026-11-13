@@ -115,7 +115,8 @@ def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeyp
     at,calls,d=setup(monkeypatch)
     d['cards'][0]['allow_calculator']=True
     button(at,'Start studying').click().run()
-    assert any(p.proto.popover.label=='Calculator' for p in at.get('popover'))
+    button(at,'Calculator').click().run()
+    assert button(at,'Close calculator')
     next(w for w in at.text_input if w.label=='Calculation').set_value('(10+5)/3').run()
     button(at,'=').click().run()
     assert next(w for w in at.text_input if w.label=='Calculation').value=='(10+5)/3'
@@ -128,7 +129,7 @@ def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeyp
     assert next(w for w in at.text_input if w.label=='Calculation').value==''
     d['cards'][0]['allow_calculator']=False
     at.run()
-    assert not any(p.proto.popover.label=='Calculator' for p in at.get('popover'))
+    assert not any(b.label in ('Calculator','Close calculator') for b in at.button)
     assert not at.exception
 
 
@@ -154,7 +155,7 @@ def test_main_creation_supports_more_than_fifteen_and_reuses_subsections(monkeyp
     assert not at.exception
 
 
-def test_play_lists_active_study_before_creation_and_resumes(monkeypatch):
+def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
     import db
     at,calls,d=setup(monkeypatch)
     original=db.StudyRepository.action
@@ -165,7 +166,7 @@ def test_play_lists_active_study_before_creation_and_resumes(monkeypatch):
     monkeypatch.setattr('db.StudyRepository.action',ongoing)
     button(at,'Play').click().run()
     headings=[w.value for w in at.subheader]
-    assert headings.index('Ongoing sessions')<headings.index('Create new session')
+    assert headings.index('Create new session')<headings.index('Ongoing sessions')
     assert any('Saved finance' in w.value for w in at.markdown)
     assert not any('Finished finance' in w.value for w in at.markdown)
     button(at,'Resume Study').click().run()
