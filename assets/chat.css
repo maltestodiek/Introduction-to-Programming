@@ -24,7 +24,9 @@
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stElementContainer"]:has(.sd-chat-marker) {display:none;}
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stCaptionContainer"] {color:#aeb9cd !important;}
 [role="dialog"]:has(.sd-chat-marker) [data-testid="stLayoutWrapper"]:has(> .st-key-chat_messages) {
-  height:auto !important; min-height:0 !important; overflow:hidden;
+  height:clamp(60px, calc(100dvh - 440px), 340px) !important;
+  max-height:clamp(60px, calc(100dvh - 440px), 340px) !important;
+  flex:none !important; min-height:0 !important; overflow:hidden;
 }
 [data-testid="stDialog"]:has(.sd-chat-marker) > div {
   width:min(760px, calc(100vw - 24px)); margin:0 auto;
