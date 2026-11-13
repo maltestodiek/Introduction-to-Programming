@@ -75,6 +75,10 @@ def session_partner_chat(client,kind,session_id,location='round'):
 
 @st.fragment(run_every='5s')
 def chat_dropdown(client):
+    # Unmount the inbox popover so its portal cannot cover the conversation.
+    if st.session_state.get('chat_open'):
+        st.button('Chats',icon=':material/chat:',disabled=True,use_container_width=True)
+        return
     data=chat_call(client,'list',quiet=True)
     threads=data['threads'] if data else []
     unread=sum(t['unread'] for t in threads)
@@ -101,16 +105,24 @@ def dismiss_chat():
 
 
 @st.dialog('Chat',width='large',on_dismiss=dismiss_chat,icon=':material/chat:')
-def private_chat_dialog(client,thread_id):
-    chat_conversation(client,thread_id)
+def private_chat_dialog(client,thread_id,own_picture=None):
+    st.html('<span class="sd-chat-marker"></span><style>'+(Path(__file__).parent/'assets'/'chat.css').read_text()+'</style>')
+    chat_conversation(client,thread_id,own_picture)
 
 
 @st.fragment(run_every='3s')
-def chat_conversation(client,thread_id):
+def chat_conversation(client,thread_id,own_picture=None):
     from uuid import uuid4
     data=chat_call(client,'read',{'id':thread_id})
     if data is None:return
-    public_person(data['partner'],ProfileRepository(client,st.session_state.auth.user.id))
+    image_repo=ProfileRepository(client,st.session_state.auth.user.id)
+    public_person(data['partner'],image_repo)
+    try:partner_picture=image_repo.image(data['partner'].get('image_path'))
+    except Exception:partner_picture=None
+    def avatar_url(raw):
+        return 'data:image/png;base64,'+base64.b64encode(raw or render_avatar(DEFAULT_AVATAR)).decode()
+    own_avatar=avatar_url(own_picture)
+    partner_avatar=avatar_url(partner_picture)
     st.caption('Private conversation · Updates every few seconds. A Battle timer keeps running while you chat.')
     history_key='chat_history_'+thread_id
     history={m['id']:m for m in st.session_state.get(history_key,[])}
@@ -125,10 +137,10 @@ def chat_conversation(client,thread_id):
             history.update({m['id']:m for m in older['messages']})
             st.session_state[history_key]=sorted(history.values(),key=lambda m:m['id'])
             st.session_state[older_key]=older['has_older'];st.rerun()
-    with st.container(height=340,border=True,autoscroll=True):
+    with st.container(height=340,border=True,autoscroll=True,key="chat_messages"):
         if not messages:st.caption('Start the conversation. Only you and this person can read it.')
         for message in messages:
-            with st.chat_message('You' if message['from_me'] else data['partner']['username'],avatar=':material/person:'):
+            with st.chat_message('You' if message['from_me'] else data['partner']['username'],avatar=own_avatar if message['from_me'] else partner_avatar):
                 st.text(message['body']);st.caption(('You' if message['from_me'] else data['partner']['username'])+' · '+message['created_at'][:16].replace('T',' ')+' UTC')
     if data['messages']:
         latest=data['messages'][-1]['id'];seen_key='chat_seen_'+thread_id
@@ -1237,7 +1249,7 @@ with profile_slot:
 with chats_slot:
     if profile:chat_dropdown(auth.client)
 if profile and st.session_state.get('chat_open'):
-    private_chat_dialog(auth.client,st.session_state.chat_open)
+    private_chat_dialog(auth.client,st.session_state.chat_open,picture)
 if profile:
     tabs=['Decks','Play','Friends','Leaderboard','Study Plan']
     columns=st.columns(len(tabs))

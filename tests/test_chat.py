@@ -17,6 +17,8 @@ def test_dropdown_opens_private_chat_and_failed_send_keeps_draft(monkeypatch):
     assert any(p.proto.popover.label=='Chats (1)' for p in at.get('popover'))
     button(at,'Open chat with Demo Alex').click().run()
     assert any(t.value=='Ready to study?' for t in at.text)
+    assert not any(p.proto.popover.label.startswith('Chats') for p in at.get('popover'))
+    assert all(m.proto.avatar and m.proto.avatar != ':material/person:' for m in at.get('chat_message'))
     next(w for w in at.text_area if w.label=='Message').set_value('Hello Alex')
     button(at,'Send message').click().run()
     assert next(w for w in at.text_area if w.label=='Message').value=='Hello Alex'
