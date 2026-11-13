@@ -9,7 +9,7 @@ Email/password signup and confirmation, sign-in/out, recovery, verified session 
 Friend codes and invitation links, requests and acceptance, private chat and unread previews. Participant menus work in ongoing/history cards; chat offers friendship controls. [Specification](../specs/social-connections.md).
 
 ## Deck authoring and question tools — implemented
-Flexible Study decks, four-answer questions, subsection/lecture names, mandatory review, revision-safe edits and optional per-question calculator. The separate classic editor retains 15-question immutable decks. AI and Anki import are placeholders. [Specification](../specs/deck-authoring.md).
+Flexible Study decks of up to 100 questions, four-answer questions, subsection/lecture names, mandatory review, revision-safe edits and optional per-question calculator. The separate classic editor retains 15-question immutable decks. Basic text-only Anki import stores private source cards; AI generation remains a placeholder. [Specification](../specs/deck-authoring.md).
 
 ## Study Mode and learning progress — implemented
 Solo/together settings, chapter/level preferences, friend/random/open-session matching, shared question sets, 24-hour deadlines, feedback and notes, progress colours, results without XP and immutable earned copies. [Specification](../specs/study-mode.md).
@@ -21,7 +21,7 @@ The new Battle Mode entry is Coming soon. The previous 30-question engine and sa
 One topic for logo/branding, welcome design, dark/light/system themes, backgrounds, icons, hover effects, responsive layouts, menu cards, progress legend, ongoing/history sections and chat/calculator layout. [Specification](../specs/appearance-and-navigation.md).
 
 ## Future work
-Leaderboard, Study Plan, shared university course discovery, AI slide import and Anki import need their own reviewed task specs before implementation. Historical proposals do not authorize them automatically.
+Leaderboard, Study Plan, shared university course discovery and AI slide import need their own reviewed task specs before implementation. Historical proposals do not authorize them automatically.
 
 ## Definition of done
 Use the lecture's Why / What / Out of scope / Done when task format. For stateful workflows, identify state, durable storage, allowed/rejected actions and a full process restart check. Current verification evidence and limitations are in [implementation status](implementation-status.md).
