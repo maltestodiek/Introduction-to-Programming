@@ -118,7 +118,11 @@ def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeyp
     assert any(p.proto.popover.label=='Calculator' for p in at.get('popover'))
     next(w for w in at.text_input if w.label=='Calculation').set_value('(10+5)/3').run()
     button(at,'=').click().run()
-    assert next(w for w in at.text_input if w.label=='Calculation').value=='5'
+    assert next(w for w in at.text_input if w.label=='Calculation').value=='(10+5)/3'
+    assert at.session_state['calculator_study_session_0_result']=='5'
+    next(w for w in at.text_input if w.label=='Calculation').set_value('sqrt(81)+2^3').run()
+    button(at,'=').click().run()
+    assert at.session_state['calculator_study_session_0_result']=='17'
     assert not any(a=='answer' for a,_ in calls)
     button(at,'C').click().run()
     assert next(w for w in at.text_input if w.label=='Calculation').value==''
@@ -167,4 +171,14 @@ def test_play_lists_active_study_before_creation_and_resumes(monkeypatch):
     button(at,'Resume Study').click().run()
     assert ('round',{'id':'active'}) in calls
     assert at.session_state.study_session=='active'
+    assert not at.exception
+
+
+def test_colour_dropdown_keeps_combined_learning_levels(monkeypatch):
+    at,calls,d=setup(monkeypatch)
+    for label in ['Building confidence','Getting stronger','Well practised']:
+        next(w for w in at.checkbox if w.label==label).uncheck()
+    at.run()
+    button(at,'Start studying').click().run()
+    assert any(action=='start' and data['levels']==['new','0'] for action,data in calls)
     assert not at.exception

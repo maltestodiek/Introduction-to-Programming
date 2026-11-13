@@ -135,27 +135,36 @@ def friends_screen(friends,repo,state):
                     elif st.button(label,key=action+"_"+item["id"]):
                         if friend_action(friends,action,item["id"]):st.rerun()
 
+def calculator_input_changed(key):
+    st.session_state.pop(key+'_result',None)
+    st.session_state.pop(key+'_error',None)
+
+
 def calculator_key(key,token):
     from logic import calculate
-    st.session_state.pop(key+'_error',None)
+    calculator_input_changed(key)
     value=st.session_state.get(key,'')
-    if token=='Clear':st.session_state[key]=''
+    if token=='Clear':
+        st.session_state[key]='';st.session_state.pop(key+'_result',None)
     elif token=='⌫':st.session_state[key]=value[:-1]
     elif token=='=':
-        try:st.session_state[key]=calculate(value)
+        try:st.session_state[key+'_result']=calculate(value)
         except ValueError as exc:st.session_state[key+'_error']=str(exc)
-    elif len(value)<120:st.session_state[key]=value+token
+    elif len(value)<120:st.session_state[key]=value+('sqrt(' if token=='√' else token)
 
 
 @st.fragment
 def question_calculator(identity):
     key='calculator_'+identity
     with st.popover('Calculator',icon=':material/calculate:'):
-        st.caption('Basic arithmetic · +, −, ×, ÷ and brackets')
-        st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4')
-        for row in [('7','8','9','÷'),('4','5','6','×'),('1','2','3','−'),('0','.','(',')'),('Clear','⌫','+','=')]:
-            for col,token in zip(st.columns(4),row):
-                col.button('C' if token=='Clear' else token,key=key+'_'+token,help='Clear calculation' if token=='Clear' else None,on_click=calculator_key,args=(key,token),use_container_width=True)
+        st.caption('Arithmetic · brackets · powers · square root')
+        st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4',on_change=calculator_input_changed,args=(key,))
+        result=st.session_state.get(key+'_result','—')
+        st.html(f'<div style="text-align:right;padding:4px 0 12px;font-size:1.8rem;font-weight:700"><span style="display:block;font-size:.8rem;font-weight:400;opacity:.7">Result</span>{escape(result)}</div>')
+        for row in [('Clear','⌫','(',')'),('7','8','9','÷'),('4','5','6','×'),('1','2','3','−'),('0','.','√','^'),('+','=')]:
+            for col,token in zip(st.columns(len(row)),row):
+                label={'Clear':'C','^':'xʸ'}.get(token,token)
+                col.button(label,key=key+'_'+token,help={'Clear':'Clear calculation','√':'Square root: √ inserts sqrt(. Close the bracket before calculating.','^':'Power: enter a whole-number exponent from −12 to 12.'}.get(token),type='secondary' if token.isdigit() or token=='.' else 'primary',on_click=calculator_key,args=(key,token),use_container_width=True)
         if st.session_state.get(key+'_error'):st.error(st.session_state[key+'_error'])
 
 
@@ -247,11 +256,11 @@ def decks_screen(client,profile):
             try:validate_card(c);completed.append(True)
             except ValueError:completed.append(False)
         st.progress(sum(completed)/15,text=f'{sum(completed)} of 15 cards complete')
-        st.caption('Choose any card to edit it. ✓ means complete; ○ means incomplete.')
+        st.caption('Choose any card to edit it. Completed cards show a check icon.')
         for row in range(0,len(draft['cards']),5):
             columns=st.columns(5)
             for j in range(row,min(row+5,len(draft['cards']))):
-                columns[j-row].button(f"{j+1} {'✓' if completed[j] else '○'}",key='choose_'+draft['cards'][j]['id'],on_click=deck_select_card,args=(j,),use_container_width=True)
+                columns[j-row].button(str(j+1),icon=':material/check_circle:' if completed[j] else ':material/radio_button_unchecked:',key='choose_'+draft['cards'][j]['id'],on_click=deck_select_card,args=(j,),use_container_width=True)
         index=min(st.session_state.get('deck_index',0),len(draft['cards'])-1)
         card=draft['cards'][index];prefix='deck_card_'+card['id']
         st.subheader(f'Card {index+1} of 15')
@@ -344,7 +353,7 @@ def play_round_screen(client,duel_id):
         elif response['correct']:st.success('Correct!')
         else:st.error('That answer was incorrect.')
         for a in card['answers']:
-            if a['id']==card['correct_answer_id']:st.success('✓ '+a['text'])
+            if a['id']==card['correct_answer_id']:st.success(a['text'])
             elif a['id']==response['answer_id']:st.error('Your answer: '+a['text'])
             else:st.write(a['text'])
         if st.button('Continue',type='primary'):
@@ -368,13 +377,13 @@ def play_round_screen(client,duel_id):
         st.write('Rate each deck to save your completed round. Your individual ratings are private.')
         ratings={}
         for deck in result['decks']:
-            ratings[deck['id']]=st.radio(deck['name'],['up','neutral','down'],index=None,format_func=lambda v:{'up':'👍 Helpful','neutral':'— Neutral','down':'👎 Needs work'}[v],horizontal=True,key='rating_'+duel_id+deck['id'])
+            ratings[deck['id']]=st.radio(deck['name'],['up','neutral','down'],index=None,format_func=lambda v:{'up':'Helpful','neutral':'Neutral','down':'Needs work'}[v],horizontal=True,key='rating_'+duel_id+deck['id'])
         if st.button('Finish round',type='primary',disabled=not all(ratings.values())):
             if play_request(repository,'finish',{'duel_id':duel_id,'ratings':ratings}) is not None:
                 st.session_state.play_in_round=False;st.session_state.pop('play_duel',None);st.rerun()
         return
     st.progress(result['index']/30,text=f"Question {result['index']+1} of 30")
-    st.caption(f"⏱ {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
+    st.caption(f":material/timer: {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
     st.subheader(result['question'])
     if result.get('allow_calculator') is True:question_calculator(f'play_{duel_id}_{result["index"]}')
     cols=st.columns(2)
@@ -478,8 +487,22 @@ def study_request(client,action,data=None):
     return play_request(StudyRepository(client),action,data)
 
 
-STUDY_LEVEL_MARKERS={'new':'⬜','0':'🟥','1':'🟧','2':'🟨','3':'🟩'}
+STUDY_LEVEL_COLORS={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
 STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
+
+
+def study_level_selector(label,key):
+    selected=[]
+    with st.popover(label,icon=':material/filter_alt:',use_container_width=True):
+        st.caption('Select one or more learning levels.')
+        for level,name in STUDY_LEVELS.items():
+            swatch,option=st.columns([1,10],vertical_alignment='center')
+            with swatch:st.html(f'<span aria-hidden="true" style="display:block;width:16px;height:16px;border-radius:5px;background:{STUDY_LEVEL_COLORS[level]}"></span>')
+            if option.checkbox(name,value=True,key=key+'_'+level):selected.append(level)
+    chips=''.join(f'<span style="display:inline-flex;align-items:center;gap:7px;border:1px solid #80808055;border-radius:8px;padding:5px 8px"><span aria-hidden="true" style="width:12px;height:12px;border-radius:4px;background:{STUDY_LEVEL_COLORS[level]}"></span>{escape(STUDY_LEVELS[level])}</span>' for level in selected)
+    if selected:st.html('<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:14px;margin-bottom:10px">'+chips+'</div>')
+    else:st.caption('No learning levels selected.')
+    return selected
 
 
 def study_progress_summary(cards):
@@ -755,7 +778,7 @@ def study_screen(client,profile):
         st.subheader('What do you want to focus on?')
         st.caption('Choose chapters and learning levels to decide which questions you practise. Leave chapters empty to include the full deck; select multiple levels to combine them.')
         chapters=st.multiselect('Chapters / lectures (leave empty for full deck)',sorted({c.get('chapter','') for c in full['cards']}),format_func=lambda x:x or 'General')
-        levels=st.multiselect('Learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:f'{STUDY_LEVEL_MARKERS[x]} {STUDY_LEVELS[x]}')
+        levels=study_level_selector('Learning levels','study_solo_levels')
         eligible=filter_study_cards(full['cards'],chapters,levels);st.caption(f'{len(eligible)} matching questions. No repeats within this session.')
         length=st.radio('Session length',['Choose a number','All matching questions'],horizontal=True)
         count=st.number_input('Number of questions',1,100,min(10,max(1,len(eligible)))) if length=='Choose a number' else 0
@@ -804,7 +827,7 @@ def study_screen(client,profile):
         if full is None:return
         st.subheader('What do you want to focus on?')
         st.caption('Choose the learning levels to prioritise in your half of the session. If there are not enough, we fill the remaining places with other questions from your deck, without repeats.')
-        levels=st.multiselect('Preferred learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:f'{STUDY_LEVEL_MARKERS[x]} {STUDY_LEVELS[x]}',key='study_together_levels')
+        levels=study_level_selector('Preferred learning levels','study_together_levels')
         request['levels']=levels
         preferred=len(filter_study_cards(full['cards'],[],levels))
         needed=max(0,count//2-preferred)
@@ -829,7 +852,7 @@ def ongoing_sessions(client):
     st.subheader('Ongoing sessions')
     battle,study=st.columns(2)
     with battle:
-        st.markdown('**⚔️ Battle**')
+        st.markdown('**:material/swords: Battle**')
         data=play_request(PlayRepository(client),'list')
         if data is not None:
             active=[d for d in data['duels'] if d['status'] in ('Ongoing','Pending')]
@@ -842,7 +865,7 @@ def ongoing_sessions(client):
                     elif st.button('Resume Battle' if duel['started'] else 'Start Battle',key='home_battle_'+duel['id']):
                         st.session_state.play_duel=duel['id'];st.session_state.pop('play_feedback',None);st.rerun()
     with study:
-        st.markdown('**📖 Study**')
+        st.markdown('**:material/menu_book: Study**')
         data=study_request(client,'list')
         if data is not None:
             active=[s for s in data['sessions'] if s['state'] in ('own','waiting','paired')]
@@ -1164,7 +1187,7 @@ if not editing:
     a.metric("XP",profile.get("xp",0));b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
-    for course in profile["courses"]:st.write("📚 "+course)
+    for course in profile["courses"]:st.write(":material/school: "+course)
     if st.session_state.get("pending_invite"):
         st.info("You have a friend invitation. Open Friends to review and accept it.")
     if st.button("Open friends"):

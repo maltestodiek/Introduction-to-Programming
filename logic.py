@@ -286,7 +286,7 @@ def calculate(expression):
     from decimal import Decimal, DecimalException, localcontext
     if not isinstance(expression,str) or not expression.strip() or len(expression)>120:
         raise ValueError('Enter a calculation of up to 120 characters.')
-    source=expression.strip().replace('×','*').replace('÷','/').replace('−','-')
+    source=expression.strip().replace('×','*').replace('÷','/').replace('−','-').replace('^','**')
     try:
         tree=ast.parse(source,mode='eval')
         if len(list(ast.walk(tree)))>80:raise ValueError('Please use a shorter calculation.')
@@ -295,15 +295,23 @@ def calculate(expression):
                 result=Decimal(ast.get_source_segment(source,node))
             elif isinstance(node,ast.UnaryOp) and isinstance(node.op,(ast.UAdd,ast.USub)):
                 result=number(node.operand)*(-1 if isinstance(node.op,ast.USub) else 1)
-            elif isinstance(node,ast.BinOp) and isinstance(node.op,(ast.Add,ast.Sub,ast.Mult,ast.Div)):
+            elif isinstance(node,ast.Call) and isinstance(node.func,ast.Name) and node.func.id=='sqrt' and len(node.args)==1 and not node.keywords:
+                operand=number(node.args[0])
+                if operand<0:raise ValueError('Square root needs a non-negative number.')
+                result=operand.sqrt()
+            elif isinstance(node,ast.BinOp) and isinstance(node.op,(ast.Add,ast.Sub,ast.Mult,ast.Div,ast.Pow)):
                 left,right=number(node.left),number(node.right)
                 if isinstance(node.op,ast.Add):result=left+right
                 elif isinstance(node.op,ast.Sub):result=left-right
                 elif isinstance(node.op,ast.Mult):result=left*right
+                elif isinstance(node.op,ast.Pow):
+                    if right!=right.to_integral_value() or abs(right)>12:raise ValueError('Use a whole-number power between −12 and 12.')
+                    if left==0 and right<=0:raise ValueError('Zero needs a positive power.')
+                    result=left**int(right)
                 else:
                     if right==0:raise ValueError('Cannot divide by zero.')
                     result=left/right
-            else:raise ValueError('Use numbers, brackets and +, −, × or ÷ only.')
+            else:raise ValueError('Use numbers, brackets, +, −, ×, ÷, powers or sqrt().')
             if not result.is_finite() or abs(result)>Decimal('1e15') or (result and result.adjusted() < -100):
                 raise ValueError('This number is too large for the simple calculator.')
             return result
