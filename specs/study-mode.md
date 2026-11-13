@@ -1,4 +1,4 @@
-# Study Mode — approved 12 November 2026
+# Study Mode and learning progress
 
 ## Why
 Practise alone, or discover another student's course material asynchronously, without XP or rankings.
@@ -25,3 +25,6 @@ Learning levels are preferences for selecting the contributor's own half, not ma
 
 
 Creation update: the main Create New Deck button opens the flexible deck editor. Authors can type new subsection/lecture names or reuse existing ones; the next question inherits the current subsection. No fixed deck question limit. Classic 30-question duels retain a separately labelled 15-question editor. Display coloured markers alongside learning-level names in both session settings dropdowns.
+
+## Related feature ownership
+Deck creation, subsection authoring and calculator permissions belong to [Deck Authoring](deck-authoring.md). Session cards, mode selection and the shared colour legend presentation belong to [Appearance and Navigation](appearance-and-navigation.md). Friend requests and messages belong to [Social Connections](social-connections.md). This specification owns sampling, matching, answer feedback, learning levels, notes, copies and Study results.

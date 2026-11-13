@@ -1,6 +1,6 @@
 # Study Mode verification
 
-Approved rules: specs/study-mode.md. This supersedes the Study portion of specs/fifth-feature-battle-and-study-modes.md; that document's future competitive Battle design remains unimplemented.
+Approved rules: specs/study-mode.md. This supersedes the Study portion of docs/archive/specifications/battle-pool-and-study-proposal.md; that document's future competitive Battle design remains unimplemented.
 
 ## Storage and deployment
 Apply supabase/study-schema.sql once after play-schema.sql. It creates private Study tables and authenticated study_action operations, plus a trigger that records future legacy duel answers in the same learning progress. The migration does not delete or rewrite existing decks, users, duels or XP. New Study decks are private; legacy published decks retain their existing university visibility. Editable Study copies do not change the legacy originals. All production storage is Supabase PostgreSQL, not local files or browser memory. No additional service, AI API or credentials are needed.
