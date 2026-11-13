@@ -75,4 +75,4 @@ Play now shows active Battle and Study sessions below Create new session. Comple
 
 Calculator refinement: expression and right-aligned result are separate, number/function buttons use different colours, and square root plus integer powers (−12 to 12) are supported. App-owned emoji icons were replaced with Material icons or text. Learning levels use an accessible checkbox dropdown with real coloured swatches and selected-level chips.
 
-Latest layout: the calculator opens in a fixed right-hand desktop panel, with a compact round heading and no internal scrolling. Current 30-question duels was removed from Play; existing rounds remain resumable. Avatar shoulders were lowered to reveal the neck and separate the head from the body.
+Latest layout: the calculator opens in a fixed right-hand desktop panel, with a compact round heading and no internal scrolling. Current 30-question duels was removed from Play; existing rounds remain resumable. The Profile button silhouette now separates the head and shoulders; the avatar artwork is unchanged.

@@ -100,7 +100,7 @@ def clean_selection(value,default):
 def _cached_avatar(settings,render_version):
     return "data:image/png;base64,"+base64.b64encode(render_avatar(dict(settings))).decode()
 
-def avatar_data_url(settings,render_version=4):
+def avatar_data_url(settings,render_version=3):
     return _cached_avatar(tuple(sorted(settings.items())),render_version)
 
 def avatar_picker(default=None,key="avatar_carousel"):
@@ -110,7 +110,7 @@ def avatar_picker(default=None,key="avatar_carousel"):
     current=clean_selection(value,default)
     category=value.get("_category","hair")
     if category not in OPTIONS:category="hair"
-    previews={field:[avatar_data_url(dict(current,**{field:choice}),render_version=4) for choice in choices]
+    previews={field:[avatar_data_url(dict(current,**{field:choice}),render_version=3) for choice in choices]
               for field,choices in OPTIONS.items()}
     _picker(data={"current":current,"category":category,"options":OPTIONS,"labels":LABELS,"skinLabels":SKIN_LABELS,"previews":previews},
             default={"value":dict(current,_category=category)},key=key,on_value_change=lambda:None)

@@ -73,11 +73,11 @@ def render_avatar(settings, *, anonymous=False):
     if style=="Bob": d.rounded_rectangle((60,43,196,163),radius=38,fill=hair)
     if style=="Ponytail": d.ellipse((171,71,223,193),fill=hair)
     if style=="Bun": d.ellipse((101,12,155,66),fill=hair)
-    d.ellipse((40,201,216,358),fill=CLOTHES[settings["clothing"]])
-    d.arc((51,209,205,321),192,348,fill=_tint(CLOTHES[settings["clothing"]],"#FFFFFF",.25),width=2)
-    d.rectangle((109,156,147,219),fill=skin)
-    d.ellipse((109,187,147,209),fill=_tint(skin,"#50382F",.15))
-    d.arc((104,200,152,226),0,180,fill=_tint(CLOTHES[settings["clothing"]],"#FFFFFF",.5),width=3)
+    d.ellipse((40,173,216,330),fill=CLOTHES[settings["clothing"]])
+    d.arc((51,181,205,293),192,348,fill=_tint(CLOTHES[settings["clothing"]],"#FFFFFF",.25),width=2)
+    d.rectangle((109,156,147,195),fill=skin)
+    d.ellipse((109,169,147,191),fill=_tint(skin,"#50382F",.15))
+    d.arc((104,176,152,202),0,180,fill=_tint(CLOTHES[settings["clothing"]],"#FFFFFF",.5),width=3)
     for x in (65,177):
         d.ellipse((x,104,x+14,135),fill=skin)
         d.arc((x+4,111,x+11,129),90,270,fill=_tint(skin,"#50382F",.18),width=1)
@@ -142,8 +142,8 @@ def render_avatar(settings, *, anonymous=False):
         d.polygon([(83,62),(78,26),(106,43),(127,15),(150,42),(177,26),(173,62)],fill="#EDC85B")
         for x in (103,127,151):d.ellipse((x-3,49,x+3,55),fill="#8E6AD5")
     elif accessory=="Scarf":
-        d.rounded_rectangle((95,193,162,215),radius=8,fill="#E47964")
-        d.polygon([(139,207),(163,208),(168,247),(146,240)],fill="#E47964")
+        d.rounded_rectangle((95,169,162,191),radius=8,fill="#E47964")
+        d.polygon([(139,183),(163,184),(168,223),(146,216)],fill="#E47964")
     elif accessory=="Monocle":
         d.ellipse((142,99,173,131),outline="#AD8B38",width=3)
         d.arc((159,118,191,181),270,100,fill="#AD8B38",width=2)
