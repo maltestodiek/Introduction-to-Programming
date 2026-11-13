@@ -16,6 +16,8 @@ import sqlite3
 import tempfile
 import zipfile
 
+import zstandard as zstd
+
 
 MAX_IMPORTED_CARDS = 100
 _MEDIA = re.compile(r"<(?:img|audio|video)\b|\[sound:[^\]]+\]", re.IGNORECASE)
@@ -50,7 +52,18 @@ def _database_bytes(package: bytes) -> bytes:
     try:
         with zipfile.ZipFile(io.BytesIO(package)) as archive:
             names = set(archive.namelist())
-            name = next((candidate for candidate in ("collection.anki21", "collection.anki2") if candidate in names), None)
+            if "collection.anki21b" in names:
+                try:
+                    with zstd.ZstdDecompressor().stream_reader(
+                        io.BytesIO(archive.read("collection.anki21b"))
+                    ) as reader:
+                        return reader.read()
+                except zstd.ZstdError as exc:
+                    raise AnkiImportError("This Anki package's collection could not be decompressed.") from exc
+            name = next(
+                (candidate for candidate in ("collection.anki21", "collection.anki2") if candidate in names),
+                None,
+            )
             if not name:
                 raise AnkiImportError("This is not a valid Anki package with a collection database.")
             return archive.read(name)
@@ -68,7 +81,16 @@ def _read_notes(database: bytes):
             row = connection.execute("select models from col limit 1").fetchone()
             if not row:
                 raise AnkiImportError("This Anki package has no card models.")
-            models = json.loads(row[0])
+            if row[0]:
+                models = json.loads(row[0])
+            else:
+                models = {
+                    str(model_id): {
+                        "name": name,
+                        "type": 1 if name.casefold().startswith("cloze") else 0 if name.casefold().startswith("basic") else -1,
+                    }
+                    for model_id, name in connection.execute("select id, name from notetypes").fetchall()
+                }
             notes = connection.execute("select id, mid, flds from notes order by id").fetchall()
             return models, notes
     except (sqlite3.DatabaseError, json.JSONDecodeError) as exc:
