@@ -337,10 +337,13 @@ def show_deck_cards(cards):
 
 
 def decks_screen(client,profile):
-    from db import DeckRepository
+    from db import DeckRepository,AnkiImportRepository
     from logic import new_deck,validate_card,validate_deck,add_card,delete_card
     repository=DeckRepository(client)
     st.title('Decks')
+    if st.session_state.get('anki_import_open'):
+        anki_import_screen(client,profile)
+        return
     if st.session_state.get('study_library'):
         if st.button('Back to course decks'):
             st.session_state.pop('study_library');st.rerun()
@@ -446,8 +449,9 @@ def decks_screen(client,profile):
                 st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
             st.session_state.pop('study_deck_open',None);st.rerun()
     with anki:
-        st.write('**Anki import**');st.caption('Coming soon')
-        st.button('Import from Anki',disabled=True,use_container_width=True)
+        st.write('**Anki import**');st.caption('Import up to 100 Basic text cards. Cloze and image cards are reported, not imported.')
+        if st.button('Import from Anki',use_container_width=True):
+            st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
     with ai:
         st.write('**AI from lecture slides**');st.caption('Coming soon')
         st.button('Generate with AI',disabled=True,use_container_width=True)
@@ -467,6 +471,39 @@ def decks_screen(client,profile):
             st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
             if st.button('Open deck',key='open_'+deck['id']):
                 st.session_state.deck_open=deck['id'];st.rerun()
+
+
+def anki_import_screen(client,profile):
+    from anki_import import AnkiImportError,parse_basic_apkg
+    from db import AnkiImportRepository
+    st.caption('Decks › Import from Anki')
+    st.header('Import Basic Anki cards')
+    st.info('Only two-field Basic text cards are accepted. Cloze, image and media cards stay in your Anki file and are not imported.')
+    if st.button('Back to Decks'):
+        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.rerun()
+    upload=st.file_uploader('Anki package (.apkg)',type=['apkg'])
+    if upload and st.button('Check Anki package',type='primary'):
+        try:st.session_state.anki_import_result=parse_basic_apkg(upload.getvalue())
+        except AnkiImportError as exc:st.error(str(exc));st.session_state.pop('anki_import_result',None)
+    result=st.session_state.get('anki_import_result')
+    if not result:return
+    cards=result['cards'];skipped=result['skipped']
+    reasons={'cloze':'Cloze cards are not supported yet.','image':'Image or media cards are not supported yet.','incomplete':'Cards without text on both sides were skipped.','unsupported':'Only two-field Basic cards are supported.','limit':'Only the first 100 valid Basic cards can be imported.'}
+    st.success(f'{len(cards)} Basic text cards are ready to import.')
+    for reason,text in reasons.items():
+        count=sum(item['reason']==reason for item in skipped)
+        if count:st.warning(f'{count}: {text}')
+    if not cards:
+        st.error('No importable Basic text cards were found.');return
+    name=st.text_input('Import name',placeholder='For example: Corporate Finance Anki notes')
+    course=st.selectbox('Course',profile['courses'],key='anki_import_course')
+    language=st.selectbox('Deck language',profile['languages'],key='anki_import_language')
+    if st.button(f'Save {len(cards)} source cards',type='primary'):
+        try: saved=AnkiImportRepository(client).save(name=name,course=course,language=language,cards=cards)
+        except ValueError as exc:st.error(str(exc))
+        else:
+            st.success(f"Saved {saved['count']} private source cards. You can turn selected cards into reviewed questions in the upcoming generation flow.")
+            st.session_state.pop('anki_import_result',None)
 
 def play_request(repository,action,data=None):
     try:return repository.action(action,data)
@@ -682,7 +719,7 @@ def study_editor(client,profile):
     from logic import new_card,validate_card,validate_study_deck
     d=st.session_state.study_draft;revision=st.session_state.get('study_revision',0)
     st.subheader('Edit Study deck')
-    st.caption('Add as many questions as you need—there is no fixed question limit. Your deck stays private until a together session shares a fixed copy with a partner who finishes.')
+    st.caption('Add up to 100 questions. Your deck stays private until a together session shares a fixed copy with a partner who finishes.')
     if st.session_state.get('study_review'):
         st.warning('Review every question and correct answer before saving. Edits affect future sessions; received copies stay unchanged.')
         show_deck_cards(d['cards'])
@@ -716,14 +753,14 @@ def study_editor(client,profile):
     key=prefix+'calculator'
     st.checkbox('Allow calculator for this question',value=c.get('allow_calculator',False),key=key,on_change=study_edit_change,args=('allow_calculator',key,index))
     add,delete=st.columns(2)
-    if add.button('Add Study question'):
+    if add.button('Add Study question',disabled=len(d['cards'])>=100):
         try:validate_card(c)
         except ValueError as exc:st.error(str(exc))
         else:
             added=new_card();added['chapter']=c.get('chapter','');d['cards'].append(added);st.rerun()
     if delete.button('Remove Study question',disabled=len(d['cards'])<=1):
         d['cards'].pop(index);st.rerun()
-    st.caption(f"{len(d['cards'])} questions. Changing question content resets its learning level; changing a chapter label does not.")
+    st.caption(f"{len(d['cards'])} of 100 questions. Changing question content resets its learning level; changing a chapter label does not.")
     if st.button('Review Study deck',type='primary'):
         try:clean=validate_study_deck(d)
         except ValueError as exc:st.error(str(exc))
