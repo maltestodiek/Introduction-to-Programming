@@ -92,6 +92,17 @@ class DeckRepository:
         return rows[0]
 
 
+class AnkiImportRepository:
+    """Saves normalized source cards through an authenticated Supabase RPC only."""
+    def __init__(self,client): self.client=client
+
+    def save(self, *, name, course, language, cards):
+        try:
+            return self.client.rpc('import_basic_anki',{'p_name':name,'p_course':course,'p_language':language,'p_cards':cards}).execute().data
+        except Exception as exc:
+            raise ValueError('The Anki import could not be saved. Your file and imported cards are unchanged; try again.') from exc
+
+
 class PlayRepository:
     """Server-authoritative matchmaking and rounds under the current user's JWT."""
     def __init__(self,client):self.client=client
