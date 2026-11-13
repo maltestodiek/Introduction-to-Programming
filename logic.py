@@ -257,6 +257,8 @@ def delete_card(draft,index):
 def validate_study_deck(draft):
     if not isinstance(draft,dict) or not isinstance(draft.get('cards'),list) or not draft['cards']:
         raise ValueError('Add at least one complete question.')
+    if len(draft['cards'])>100:
+        raise ValueError('A StudyDuel deck can contain at most 100 questions.')
     cards=[];identities=[]
     for original in draft['cards']:
         card=validate_card(original)

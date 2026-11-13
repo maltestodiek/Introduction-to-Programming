@@ -11,6 +11,18 @@ def test_variable_decks_and_chapters():
     with pytest.raises(ValueError):validate_study_deck(d)
 
 
+def test_study_deck_allows_up_to_one_hundred_questions_only():
+    d=complete_deck()
+    while len(d['cards'])<100:
+        from logic import new_card
+        c=new_card();c['question']=f'Question {len(d["cards"])+1}'
+        for i,answer in enumerate(c['answers']):answer['text']=f'Answer {i+1}'
+        c['correct_answer_id']=c['answers'][0]['id'];d['cards'].append(c)
+    assert len(validate_study_deck(d)['cards'])==100
+    d['cards'].append(d['cards'][0].copy())
+    with pytest.raises(ValueError,match='100'):validate_study_deck(d)
+
+
 def test_progress_steps_and_wrong_first():
     assert study_level(None,False)==0
     assert study_level(None,True)==1
