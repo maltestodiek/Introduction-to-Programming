@@ -1,0 +1,6 @@
+# Production configuration is managed in the dashboard.
+# No [remotes] block: do not overwrite Auth, API or Storage settings.
+project_id = "studyduel"
+
+[db.seed]
+enabled = false
