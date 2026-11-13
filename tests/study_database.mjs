@@ -22,6 +22,19 @@ try{
  for(const [u,name,uni] of [[A,'Alice','Uni'],[B,'Bob','Uni'],[C,'Chris','Other']]){await db.query("insert into profiles values($1,$2,$3,array['English'],123,2)",[u,name,uni]);await db.query("insert into profile_private values($1,array['Finance'])",[u]);}
  await db.query("insert into friend_edges values(least($1::uuid,$2::uuid),greatest($1::uuid,$2::uuid),'accepted')",[A,B]);
  for(const f of ['decks-schema.sql','play-schema.sql','study-schema.sql'])await db.exec((await fs.readFile(new URL('../supabase/'+f,import.meta.url),'utf8')).replace("else 'Study action could not be saved. Check your selections and refresh.'","else sqlerrm"));
+ await db.exec(await fs.readFile(new URL('../supabase/calculator-update.sql',import.meta.url),'utf8'));
+ await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
+  const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
+  assert.equal((await ok(A,'deck',{id:d.id})).cards[0].allow_calculator,true);
+  const first=await start(A,d,'solo',{count:1});
+  assert.equal((await ok(A,'round',{id:first.id})).allow_calculator,true);
+  d.cards[0].allow_calculator=false;await save(A,d,1);
+  assert.equal((await ok(A,'round',{id:first.id})).allow_calculator,true);
+  const second=await start(A,d,'solo',{count:1});assert.equal((await ok(A,'round',{id:second.id})).allow_calculator,false);
+  const old=draft(1);await save(A,old);const third=await start(A,old,'solo',{count:1});
+  assert.equal((await ok(A,'round',{id:third.id})).allow_calculator,false);
+  d.cards[0].allow_calculator='true';await bad(A,'review_deck',{draft:d,revision:2});
+ });
  const da=draft(),dbb=draft(),dc=draft();await save(A,da);await save(B,dbb);await save(C,dc);
  await test('Study friends must share the course; old override cannot bypass eligibility',async()=>{
   assert.equal((await ok(A,'friend_options',{deck_id:da.id})).friends.length,1);

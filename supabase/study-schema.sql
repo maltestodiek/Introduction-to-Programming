@@ -94,6 +94,7 @@ begin
   if jsonb_array_length(d->'cards')<1 then raise exception 'Add at least one question';end if;
   ids:='{}';
   for c in select value from jsonb_array_elements(d->'cards') loop
+   if c?'allow_calculator' and jsonb_typeof(c->'allow_calculator') is distinct from 'boolean' then raise exception 'Calculator permission must be true or false';end if;
    perform (c->>'id')::uuid;
    if c->>'id' is null or c->>'id'=any(ids) or coalesce(length(trim(c->>'question')),0)=0 then raise exception 'Complete each unique question';end if;ids:=array_append(ids,c->>'id');
    if jsonb_typeof(c->'answers') is distinct from 'array' then raise exception 'Four answers required';end if;
@@ -263,7 +264,7 @@ begin
   end if;
   if s.state in ('waiting','cancelled','expired') or s.deadline<=now() then return jsonb_build_object('state',case when s.deadline<=now() then 'expired' else s.state end,'expires_at',s.expires_at,'deadline',s.deadline,'score',score);end if;
   c:=s.cards->s.cursor;
-  return jsonb_build_object('state','question','index',s.cursor,'total',s.total,'question',c->>'question','chapter',c->>'chapter','options',c->'answers','part',case when s.mode='solo' then 'Solo study' when s.cursor<s.total/2 then 'Your questions' else 'Your partner’s questions' end,'deadline',s.deadline);
+  return jsonb_build_object('state','question','index',s.cursor,'total',s.total,'question',c->>'question','chapter',c->>'chapter','allow_calculator',coalesce(c->'allow_calculator','false'::jsonb),'options',c->'answers','part',case when s.mode='solo' then 'Solo study' when s.cursor<s.total/2 then 'Your questions' else 'Your partner’s questions' end,'deadline',s.deadline);
  end if;
  raise exception 'Unknown Study action';
 exception when others then

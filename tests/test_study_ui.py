@@ -16,7 +16,7 @@ def setup(monkeypatch):
         if a=='round':
             answered=any(k=='answer' for k,_ in calls)
             if answered:return {'state':'feedback','index':0,'total':10,'card':d['cards'][0],'correct':True,'answer_id':d['cards'][0]['correct_answer_id']}
-            return {'state':'question','index':0,'total':10,'question':d['cards'][0]['question'],'chapter':'Lecture 1','options':d['cards'][0]['answers'],'part':'Solo study'}
+            return {'state':'question','index':0,'total':10,'question':d['cards'][0]['question'],'chapter':'Lecture 1','options':d['cards'][0]['answers'],'part':'Solo study','allow_calculator':d['cards'][0].get('allow_calculator',False)}
         return {}
     monkeypatch.setattr('db.StudyRepository.action',action)
     at=deck_app(monkeypatch);button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
@@ -107,4 +107,21 @@ def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
     button(at,'Play').click().run()
     assert button(at,'Study Mode')
     assert not any(b.label in ('Study alone','Study together') for b in at.button)
+    assert not at.exception
+
+
+def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeypatch):
+    at,calls,d=setup(monkeypatch)
+    d['cards'][0]['allow_calculator']=True
+    button(at,'Start studying').click().run()
+    assert any(p.proto.popover.label=='Calculator' for p in at.get('popover'))
+    next(w for w in at.text_input if w.label=='Calculation').set_value('(10+5)/3').run()
+    button(at,'=').click().run()
+    assert next(w for w in at.text_input if w.label=='Calculation').value=='5'
+    assert not any(a=='answer' for a,_ in calls)
+    button(at,'Clear').click().run()
+    assert next(w for w in at.text_input if w.label=='Calculation').value==''
+    d['cards'][0]['allow_calculator']=False
+    at.run()
+    assert not any(p.proto.popover.label=='Calculator' for p in at.get('popover'))
     assert not at.exception

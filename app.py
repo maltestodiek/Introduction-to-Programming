@@ -135,6 +135,30 @@ def friends_screen(friends,repo,state):
                     elif st.button(label,key=action+"_"+item["id"]):
                         if friend_action(friends,action,item["id"]):st.rerun()
 
+def calculator_key(key,token):
+    from logic import calculate
+    st.session_state.pop(key+'_error',None)
+    value=st.session_state.get(key,'')
+    if token=='Clear':st.session_state[key]=''
+    elif token=='⌫':st.session_state[key]=value[:-1]
+    elif token=='=':
+        try:st.session_state[key]=calculate(value)
+        except ValueError as exc:st.session_state[key+'_error']=str(exc)
+    elif len(value)<120:st.session_state[key]=value+token
+
+
+@st.fragment
+def question_calculator(identity):
+    key='calculator_'+identity
+    with st.popover('Calculator',icon=':material/calculate:'):
+        st.caption('Basic arithmetic · +, −, ×, ÷ and brackets')
+        st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4')
+        for row in [('7','8','9','÷'),('4','5','6','×'),('1','2','3','−'),('0','.','(',')'),('Clear','⌫','+','=')]:
+            for col,token in zip(st.columns(4),row):
+                col.button(token,key=key+'_'+token,on_click=calculator_key,args=(key,token),use_container_width=True)
+        if st.session_state.get(key+'_error'):st.error(st.session_state[key+'_error'])
+
+
 def deck_input_changed(card_id,field,key,answer_index=None):
     draft=st.session_state.deck_draft
     st.session_state.pop('deck_review',None)
@@ -153,6 +177,7 @@ def show_deck_cards(cards):
         with st.container(border=True):
             st.subheader(f"Question {i+1}")
             st.write(card['question'])
+            st.caption('Calculator allowed' if card.get('allow_calculator',False) else 'Calculator not allowed')
             for n,a in enumerate(card['answers']):
                 if a['id']==card['correct_answer_id']:st.success(f"{chr(65+n)}. {a['text']} — Correct answer")
                 else:st.write(f"{chr(65+n)}. {a['text']}")
@@ -236,6 +261,7 @@ def decks_screen(client,profile):
             st.text_input(f'Answer {i+1}',value=a['text'],key=key,on_change=deck_input_changed,args=(card['id'],'answers',key,i))
         answer_ids=[a['id'] for a in card['answers']]
         st.radio('Correct answer',answer_ids,index=answer_ids.index(card['correct_answer_id']) if card['correct_answer_id'] in answer_ids else None,format_func=lambda value:f'Answer {answer_ids.index(value)+1}',horizontal=True,key=prefix+'_correct',on_change=deck_input_changed,args=(card['id'],'correct_answer_id',prefix+'_correct'))
+        st.checkbox('Allow calculator for this question',value=card.get('allow_calculator',False),key=prefix+'_calculator',on_change=deck_input_changed,args=(card['id'],'allow_calculator',prefix+'_calculator'))
         a,b=st.columns(2)
         if a.button('+ Add Flashcard',disabled=len(draft['cards'])>=15,use_container_width=True):
             try:st.session_state.deck_draft=add_card(draft,index)
@@ -343,6 +369,7 @@ def play_round_screen(client,duel_id):
     st.progress(result['index']/30,text=f"Question {result['index']+1} of 30")
     st.caption(f"⏱ {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
     st.subheader(result['question'])
+    if result.get('allow_calculator') is True:question_calculator(f'play_{duel_id}_{result["index"]}')
     cols=st.columns(2)
     for i,option in enumerate(result['options']):
         if cols[i%2].button(option['text'],key=f"play_answer_{duel_id}_{result['index']}_{option['id']}",use_container_width=True):
@@ -505,6 +532,8 @@ def study_editor(client,profile):
         key=prefix+a['id'];st.text_input(f'Answer {i+1}',value=a['text'],key=key,on_change=study_edit_change,args=('answers',key,index,i))
     ids=[a['id'] for a in c['answers']];key=prefix+'correct'
     st.radio('Correct answer',ids,index=ids.index(c['correct_answer_id']) if c['correct_answer_id'] in ids else None,format_func=lambda x:f'Answer {ids.index(x)+1}',key=key,on_change=study_edit_change,args=('correct_answer_id',key,index))
+    key=prefix+'calculator'
+    st.checkbox('Allow calculator for this question',value=c.get('allow_calculator',False),key=key,on_change=study_edit_change,args=('allow_calculator',key,index))
     add,delete=st.columns(2)
     if add.button('Add Study question'):
         try:validate_card(c)
@@ -584,6 +613,7 @@ def study_round_screen(client,sid):
             st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
             if r.get('deadline'):st.caption('Finish by '+r['deadline'])
             st.subheader(r['question'])
+            if r.get('allow_calculator') is True:question_calculator(f'study_{sid}_{r["index"]}')
             cols=st.columns(2)
             for i,a in enumerate(r['options']):
                 if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):

@@ -195,7 +195,7 @@ import hashlib
 import json
 
 def new_card():
-    return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None}
+    return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None,'allow_calculator':False}
 
 def new_deck(course='',language=''):
     return {'id':str(uuid4()),'course':course,'language':language,'name':'','cards':[new_card()]}
@@ -212,6 +212,7 @@ def _deck_text(value,label):
 
 def validate_card(card):
     if not isinstance(card,dict):raise ValueError('Complete this card.')
+    if type(card.get('allow_calculator',False)) is not bool:raise ValueError('Choose whether this question allows a calculator.')
     answers=card.get('answers')
     if not isinstance(answers,list) or len(answers)!=4:raise ValueError('Each card needs exactly four answers.')
     clean=[]
@@ -222,7 +223,7 @@ def validate_card(card):
     if len(set(ids))!=4:raise ValueError('Answer identities must be unique.')
     correct=card.get('correct_answer_id')
     if not isinstance(correct,str) or correct not in ids:raise ValueError('Select exactly one correct answer.')
-    return {'id':_deck_id(card.get('id')),'question':_deck_text(card.get('question'),'a question'),'answers':clean,'correct_answer_id':correct}
+    return {'id':_deck_id(card.get('id')),'question':_deck_text(card.get('question'),'a question'),'answers':clean,'correct_answer_id':correct,'allow_calculator':card.get('allow_calculator',False)}
 
 def validate_deck(draft):
     if not isinstance(draft,dict):raise ValueError('Create a deck first.')
@@ -277,3 +278,39 @@ def study_card_version(card):
 
 def filter_study_cards(cards,chapters,levels):
     return [c for c in cards if (not chapters or c.get('chapter','') in chapters) and ('new' if c.get('level') is None else str(c['level'])) in levels]
+
+
+def calculate(expression):
+    """Evaluate bounded arithmetic only, without executing Python expressions."""
+    import ast
+    from decimal import Decimal, DecimalException, localcontext
+    if not isinstance(expression,str) or not expression.strip() or len(expression)>120:
+        raise ValueError('Enter a calculation of up to 120 characters.')
+    source=expression.strip().replace('×','*').replace('÷','/').replace('−','-')
+    try:
+        tree=ast.parse(source,mode='eval')
+        if len(list(ast.walk(tree)))>80:raise ValueError('Please use a shorter calculation.')
+        def number(node):
+            if isinstance(node,ast.Constant) and type(node.value) in (int,float):
+                result=Decimal(ast.get_source_segment(source,node))
+            elif isinstance(node,ast.UnaryOp) and isinstance(node.op,(ast.UAdd,ast.USub)):
+                result=number(node.operand)*(-1 if isinstance(node.op,ast.USub) else 1)
+            elif isinstance(node,ast.BinOp) and isinstance(node.op,(ast.Add,ast.Sub,ast.Mult,ast.Div)):
+                left,right=number(node.left),number(node.right)
+                if isinstance(node.op,ast.Add):result=left+right
+                elif isinstance(node.op,ast.Sub):result=left-right
+                elif isinstance(node.op,ast.Mult):result=left*right
+                else:
+                    if right==0:raise ValueError('Cannot divide by zero.')
+                    result=left/right
+            else:raise ValueError('Use numbers, brackets and +, −, × or ÷ only.')
+            if not result.is_finite() or abs(result)>Decimal('1e15') or (result and result.adjusted() < -100):
+                raise ValueError('This number is too large for the simple calculator.')
+            return result
+        with localcontext() as context:
+            context.prec=28
+            value=number(tree.body)
+            if value==0:return '0'
+            return format(value.normalize(),'f')
+    except (SyntaxError,DecimalException,RecursionError) as exc:
+        raise ValueError('Check your calculation and brackets.') from exc

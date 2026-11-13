@@ -38,6 +38,7 @@ begin
  if jsonb_typeof(p_draft->'cards') is distinct from 'array' then raise exception 'Exactly 15 cards required';end if;
  if jsonb_array_length(p_draft->'cards')<>15 then raise exception 'Exactly 15 cards required';end if;
  for c in select value from jsonb_array_elements(p_draft->'cards') loop
+   if c?'allow_calculator' and jsonb_typeof(c->'allow_calculator') is distinct from 'boolean' then raise exception 'Calculator permission must be true or false';end if;
   if jsonb_typeof(c->'id') is distinct from 'string' or jsonb_typeof(c->'question') is distinct from 'string' or length(trim(c->>'question'))=0 then raise exception 'Complete the question';end if;
   perform (c->>'id')::uuid;
   if c->>'id'=any(ids) then raise exception 'Duplicate identity';end if; ids:=array_append(ids,c->>'id');
