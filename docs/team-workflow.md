@@ -13,12 +13,10 @@ Use `main` for the reviewed shared application. It was already GitHub's default 
 4. Review expected outcomes; write behavioral acceptance tests before implementation. Keep allowed/rejected/restart expectations fixed.
 5. Build the task, run relevant checks, inspect the diff and manually verify the workflow.
 6. Open a pull request into main, review it, then merge. Do not overwrite other students' commits or force-push shared branches.
-7. Release reviewed main to the hosted branch as described below. Begin the next task on a new branch from main.
+7. Streamlit deploys the merged main commit automatically. Check the live app, then begin the next task on a new branch from main.
 
-## Temporary hosting exception
-Streamlit currently deploys `app.py` from `first-feature`. Keep this branch as a deployment compatibility pointer only; no new feature work starts there. After main is reviewed, fast-forward the deployment branch to that main commit. If it has diverged, stop and inspect the difference rather than forcing it.
-
-Moving the existing app to main requires a planned Streamlit redeployment; see [deployment](deployment.md). Once migrated, main can deploy directly and the old branch can be retired after checking team dependencies.
+## Hosting from main
+Streamlit deploys `app.py` directly from `main` at https://studyduel-nova.streamlit.app/. The migration on 13 November 2026 preserved the public URL and Supabase connection. There is no deployment dependency on `first-feature` and no extra release push to it.
 
 ## Existing branch names
 Old branches such as dark-mode, dark-avatar-background and fix-dark-university-lookup are historical steps within Appearance and Navigation, not three different product features. The same applies to play-mode-buttons/play-mode-design and improve-study-design. Keep their commits and names for now to avoid disrupting teammates' checkouts and open reviews; they do not define the current feature catalogue. Do not squash or rewrite shared history just to rename a feature.
