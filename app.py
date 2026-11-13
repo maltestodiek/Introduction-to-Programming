@@ -49,6 +49,107 @@ def public_person(person,repo):
         portrait(data or render_avatar(DEFAULT_AVATAR),56)
     with right:st.write(person["username"])
 
+def chat_call(client,action,data=None,quiet=False):
+    from db import ChatRepository
+    try:return ChatRepository(client).action(action,data)
+    except ValueError as exc:
+        if not quiet:st.error(str(exc))
+        return None
+
+
+def open_private_chat(client,user_id):
+    result=chat_call(client,'open',{'user_id':user_id})
+    if result is not None:
+        st.session_state.chat_open=result['id'];st.rerun()
+
+
+def session_partner_chat(client,kind,session_id,location='round'):
+    data=chat_call(client,'partner',{'kind':kind,'id':session_id},quiet=True)
+    if not data or not data.get('partner'):return
+    person=data['partner']
+    with st.popover(person['username'],icon=':material/person:'):
+        public_person(person,ProfileRepository(client,st.session_state.auth.user.id))
+        if st.button('Send message',icon=':material/chat:',key=f'chat_partner_{location}_{kind}_{session_id}'):
+            open_private_chat(client,person['id'])
+
+
+@st.fragment(run_every='5s')
+def chat_dropdown(client):
+    data=chat_call(client,'list',quiet=True)
+    threads=data['threads'] if data else []
+    unread=sum(t['unread'] for t in threads)
+    with st.popover('Chats'+(f' ({unread})' if unread else ''),icon=':material/chat:',use_container_width=True):
+        if data is None:st.caption('Chats are temporarily unavailable. Please try again.')
+        elif not threads:st.caption('No conversations yet. Click a Battle or Study partner’s name to send a message.')
+        for thread in threads:
+            with st.container(border=True):
+                pic,details=st.columns([1,5])
+                with pic:
+                    try:photo=ProfileRepository(client,st.session_state.auth.user.id).image(thread.get('image_path'))
+                    except Exception:photo=None
+                    portrait(photo or render_avatar(DEFAULT_AVATAR),40)
+                with details:
+                    st.text(thread['username'])
+                    st.text(('You: ' if thread.get('from_me') else '')+thread['preview'])
+                    if thread['unread']:st.caption(f"{thread['unread']} unread")
+                if st.button('Open chat with '+thread['username'],key='chat_open_'+thread['id'],icon=':material/forum:'):
+                    st.session_state.chat_open=thread['id'];st.rerun()
+
+
+def dismiss_chat():
+    st.session_state.pop('chat_open',None)
+
+
+@st.dialog('Chat',width='large',on_dismiss=dismiss_chat,icon=':material/chat:')
+def private_chat_dialog(client,thread_id):
+    chat_conversation(client,thread_id)
+
+
+@st.fragment(run_every='3s')
+def chat_conversation(client,thread_id):
+    from uuid import uuid4
+    data=chat_call(client,'read',{'id':thread_id})
+    if data is None:return
+    public_person(data['partner'],ProfileRepository(client,st.session_state.auth.user.id))
+    st.caption('Private conversation · Updates every few seconds. A Battle timer keeps running while you chat.')
+    history_key='chat_history_'+thread_id
+    history={m['id']:m for m in st.session_state.get(history_key,[])}
+    history.update({m['id']:m for m in data['messages']})
+    messages=sorted(history.values(),key=lambda m:m['id'])
+    st.session_state[history_key]=messages
+    older_key='chat_older_'+thread_id
+    if older_key not in st.session_state:st.session_state[older_key]=data['has_older']
+    if st.session_state[older_key] and messages and st.button('Load earlier messages',key='chat_earlier_'+thread_id):
+        older=chat_call(client,'read',{'id':thread_id,'before':messages[0]['id']})
+        if older is not None:
+            history.update({m['id']:m for m in older['messages']})
+            st.session_state[history_key]=sorted(history.values(),key=lambda m:m['id'])
+            st.session_state[older_key]=older['has_older'];st.rerun()
+    with st.container(height=340,border=True,autoscroll=True):
+        if not messages:st.caption('Start the conversation. Only you and this person can read it.')
+        for message in messages:
+            with st.chat_message('You' if message['from_me'] else data['partner']['username'],avatar=':material/person:'):
+                st.text(message['body']);st.caption(('You' if message['from_me'] else data['partner']['username'])+' · '+message['created_at'][:16].replace('T',' ')+' UTC')
+    if data['messages']:
+        latest=data['messages'][-1]['id'];seen_key='chat_seen_'+thread_id
+        if st.session_state.get(seen_key)!=latest and chat_call(client,'seen',{'id':thread_id,'through':latest},quiet=True) is not None:st.session_state[seen_key]=latest
+    text_key='chat_text_'+thread_id
+    if st.session_state.pop('chat_clear_'+thread_id,False):st.session_state[text_key]=''
+    with st.form('chat_send_'+thread_id):
+        text=st.text_area('Message',key=text_key,max_chars=2000,height=80,placeholder='Write a message…')
+        send=st.form_submit_button('Send message',icon=':material/send:',type='primary')
+    if send:
+        body=text.strip()
+        if not body:st.warning('Write a message before sending.');return
+        pending_key='chat_pending_'+thread_id
+        pending=st.session_state.get(pending_key)
+        if not pending or pending['body']!=body:
+            pending={'id':thread_id,'body':body,'request_id':str(uuid4())};st.session_state[pending_key]=pending
+        result=chat_call(client,'send',pending)
+        if result is not None:
+            st.session_state.pop(pending_key,None);st.session_state['chat_clear_'+thread_id]=True;st.rerun()
+
+
 def friend_action(friends,action,value=""):
     try:
         result=friends.action(action,value)
@@ -355,6 +456,7 @@ def navigate(page):
 def play_round_screen(client,duel_id):
     from db import PlayRepository
     repository=PlayRepository(client)
+    session_partner_chat(client,'battle',duel_id)
     feedback=st.session_state.get('play_feedback')
     if feedback and feedback.get('duel_id')==duel_id:
         card=feedback['card'];response=feedback['feedback']
@@ -651,6 +753,7 @@ def study_library(client,profile):
 def study_round_screen(client,sid):
     r=study_request(client,'round',{'id':sid})
     if r is None:return
+    session_partner_chat(client,'study',sid)
     if st.button('Save and leave Study session'):
         st.session_state.pop('study_session',None);st.rerun()
     state=r['state']
@@ -874,6 +977,7 @@ def ongoing_sessions(client):
             for duel in active:
                 with st.container(border=True):
                     st.write(f"**{duel['course']}** · vs {duel['username']}")
+                    session_partner_chat(client,'battle',duel['id'],'home')
                     st.caption('Finish by '+duel['deadline'])
                     if duel['status']=='Pending':st.caption('Your answers are saved. Waiting for your opponent.')
                     elif st.button('Resume Battle' if duel['started'] else 'Start Battle',key='home_battle_'+duel['id']):
@@ -887,6 +991,7 @@ def ongoing_sessions(client):
             for session in active:
                 with st.container(border=True):
                     st.write('**'+session['name']+'**')
+                    if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'home')
                     st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
                     if session['state']=='waiting':st.caption('Waiting for a study partner.')
                     if session.get('deadline'):st.caption('Finish by '+session['deadline'])
@@ -1122,13 +1227,17 @@ picture=None
 if profile:
     try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
     except Exception:pass
-brand,avatar_slot,profile_slot=st.columns([5,.65,1.35],vertical_alignment="center")
+brand,avatar_slot,profile_slot,chats_slot=st.columns([4,.55,1.2,1.2],vertical_alignment="center")
 with brand:
     st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--sd-text)">Study<span style="color:var(--sd-accent)">Duel</span></span></div>')
 with avatar_slot:portrait(picture or render_avatar(DEFAULT_AVATAR),44)
 with profile_slot:
     if st.button('Profile',use_container_width=True,key='open_profile'):
         navigate('Profile')
+with chats_slot:
+    if profile:chat_dropdown(auth.client)
+if profile and st.session_state.get('chat_open'):
+    private_chat_dialog(auth.client,st.session_state.chat_open)
 if profile:
     tabs=['Decks','Play','Friends','Leaderboard','Study Plan']
     columns=st.columns(len(tabs))

@@ -116,3 +116,15 @@ class StudyRepository:
         if not isinstance(result,dict):raise ValueError('Could not load Study Mode.')
         if result.get('error'):raise ValueError(result['error'])
         return result
+
+
+class ChatRepository:
+    """Participant-only chat through the existing authenticated Supabase client."""
+    def __init__(self,client):self.client=client
+
+    def action(self,action,data=None):
+        try:result=self.client.rpc('chat_action',{'p_action':action,'p_data':data or {}}).execute().data
+        except Exception as exc:raise ValueError('Chat could not be reached. Your message is kept so you can retry.') from exc
+        if not isinstance(result,dict):raise ValueError('Chat is temporarily unavailable.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
