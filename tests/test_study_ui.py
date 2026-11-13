@@ -168,7 +168,9 @@ def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
     headings=[w.value for w in at.subheader]
     assert headings.index('Create new session')<headings.index('Ongoing sessions')
     assert any('Saved finance' in w.value for w in at.markdown)
-    assert not any('Finished finance' in w.value for w in at.markdown)
+    assert any('Finished finance' in w.value for w in at.markdown)
+    assert 'Session history' in headings
+    assert button(at,'View Study session')
     button(at,'Resume Study').click().run()
     assert ('round',{'id':'active'}) in calls
     assert at.session_state.study_session=='active'

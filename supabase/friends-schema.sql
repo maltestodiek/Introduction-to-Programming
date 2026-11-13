@@ -39,10 +39,12 @@ language plpgsql security definer set search_path='' as $$
 declare
  me uuid:=auth.uid(); other_id uuid; lo uuid; hi uuid; edge public.friend_edges;
  code_value text; token_value text; invite public.friend_invites; n integer; i integer;
+ direct_request boolean:=p_action='request_user';
  alphabet text:='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; raw bytea;
 begin
  if me is null then raise exception 'Sign in required'; end if;
  if not exists(select 1 from public.profiles where id=me) then return jsonb_build_object('error','Complete your profile first.'); end if;
+ if direct_request then p_action:='request'; end if;
  if p_action not in ('list','lookup','request','accept','decline','cancel','remove','create_invite','revoke_invite','preview_invite','accept_invite') then
  return jsonb_build_object('error','Unknown friend action.'); end if;
  -- Failed attempts consume a bounded rate counter, but never alter relationships.
@@ -69,7 +71,14 @@ begin
  'sent',coalesce((select jsonb_agg(jsonb_build_object('id',e.id,'person',public.friend_person(case when e.low_id=me then e.high_id else e.low_id end)) order by e.created_at desc) from public.friend_edges e where e.sender=me and e.state='pending'),'[]'::jsonb),
  'invite_expires',(select expires_at from public.friend_invites where owner_id=me and expires_at>now()));
  end if;
- if p_action in ('lookup','request') then
+ if direct_request then
+ begin other_id:=p_value::uuid;
+ exception when invalid_text_representation then return jsonb_build_object('error','Session partner unavailable.'); end;
+ if other_id is null or other_id=me or (
+ not exists(select 1 from public.play_duels where me in(p1,p2) and other_id in(p1,p2)) and
+ not exists(select 1 from public.study_sessions own join public.study_sessions partner on partner.id=own.partner_id and partner.partner_id=own.id where own.user_id=me and partner.user_id=other_id)
+ ) then return jsonb_build_object('error','Choose a matched session partner.'); end if;
+ elsif p_action in ('lookup','request') then
  code_value:=upper(trim(leading '#' from btrim(p_value)));
  if code_value !~ '^[A-HJ-NP-Z2-9]{8}$' then return jsonb_build_object('error','Enter a valid eight-character friend code.'); end if;
  select user_id into other_id from public.friend_codes where code=code_value;

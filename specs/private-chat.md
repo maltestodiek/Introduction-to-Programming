@@ -13,3 +13,6 @@ Group chat, attachments, calls, typing indicators, read receipts, and push/email
 
 ## Done when
 Two eligible users can exchange messages and resume after a restart; an unrelated third user and anonymous callers cannot access the conversation. Retries do not duplicate messages. Empty/oversized messages do not write data. Unread counts are per recipient. The dropdown shows name, image and preview; clicking a matched partner opens the correct private chat. A clearly labelled dummy conversation demonstrates the feature without contacting real users.
+
+## Session history and friendship extension
+Play shows ongoing sessions followed by historical Battle and Study sessions, including completed and expired Study sessions. Solo sessions have no partner menu. Both ongoing and historical matched participants offer Send message and Send friend request. A request uses the existing pending/acceptance flow and rate limit; it never automatically creates an accepted friendship. Unrelated users cannot request friendship by guessing an ID through this shortcut.

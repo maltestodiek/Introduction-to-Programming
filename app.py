@@ -69,6 +69,9 @@ def session_partner_chat(client,kind,session_id,location='round'):
     person=data['partner']
     with st.popover(person['username'],icon=':material/person:'):
         public_person(person,ProfileRepository(client,st.session_state.auth.user.id))
+        if st.button('Send friend request',icon=':material/person_add:',key=f'friend_partner_{location}_{kind}_{session_id}'):
+            result=friend_action(FriendsRepository(client),'request_user',person['id'])
+            if result:st.success(result.get('message','Friend request sent.'))
         if st.button('Send message',icon=':material/chat:',key=f'chat_partner_{location}_{kind}_{session_id}'):
             open_private_chat(client,person['id'])
 
@@ -875,6 +878,7 @@ def study_screen(client,profile):
         if st.button('Refresh study sessions'):st.rerun()
         for s in data['sessions']:
             cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {s['state']} · {s['count']} questions")
+            if s['mode']!='solo':session_partner_chat(client,'study',s['id'],'saved')
             if cols[1].button('Open',key='study_resume_'+s['id']):st.session_state.study_session=s['id'];st.rerun()
             if s['state'] in ('own','waiting') and s['mode']!='solo':
                 if st.button('Cancel search / invitation',key='study_cancel_'+s['id']):
@@ -978,11 +982,13 @@ def study_screen(client,profile):
 
 def ongoing_sessions(client):
     from db import PlayRepository
+    battle_data=play_request(PlayRepository(client),'list')
+    study_data=study_request(client,'list')
     st.subheader('Ongoing sessions')
     battle,study=st.columns(2)
     with battle:
         st.markdown('**:material/swords: Battle**')
-        data=play_request(PlayRepository(client),'list')
+        data=battle_data
         if data is not None:
             active=[d for d in data['duels'] if d['status'] in ('Ongoing','Pending')]
             if not active:st.caption('No ongoing Battle sessions.')
@@ -996,7 +1002,7 @@ def ongoing_sessions(client):
                         st.session_state.play_duel=duel['id'];st.session_state.pop('play_feedback',None);st.rerun()
     with study:
         st.markdown('**:material/menu_book: Study**')
-        data=study_request(client,'list')
+        data=study_data
         if data is not None:
             active=[s for s in data['sessions'] if s['state'] in ('own','waiting','paired')]
             if not active:st.caption('No ongoing Study sessions.')
@@ -1009,6 +1015,31 @@ def ongoing_sessions(client):
                     if session.get('deadline'):st.caption('Finish by '+session['deadline'])
                     if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id']):
                         st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together';st.session_state.study_session=session['id'];st.rerun()
+
+    st.subheader('Session history')
+    battle_history,study_history=st.columns(2)
+    with battle_history:
+        st.markdown('**:material/swords: Battle**')
+        finished=[d for d in (battle_data or {}).get('duels',[]) if d['status']=='Completed']
+        if not finished:st.caption('No past Battle sessions yet.')
+        for duel in finished:
+            with st.container(border=True):
+                st.write(f"**{duel['course']}** · vs {duel['username']}")
+                session_partner_chat(client,'battle',duel['id'],'history')
+                st.caption('Completed')
+                if st.button('View Battle session',key='history_battle_'+duel['id']):
+                    st.session_state.play_review=duel['id'];st.rerun()
+    with study_history:
+        st.markdown('**:material/menu_book: Study**')
+        finished=[s for s in (study_data or {}).get('sessions',[]) if s['state'] not in ('own','waiting','paired')]
+        if not finished:st.caption('No past Study sessions yet.')
+        for session in finished:
+            with st.container(border=True):
+                st.write('**'+session['name']+'**')
+                if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'history')
+                st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+' · '+session['state'].capitalize()+f" · {session['cursor']} / {session['count']} answered")
+                if st.button('View Study session',key='history_study_'+session['id']):
+                    st.session_state.study_active=True;st.session_state.study_session=session['id'];st.rerun()
 
 
 def play_screen(client,profile):

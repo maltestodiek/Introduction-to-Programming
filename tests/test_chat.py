@@ -40,8 +40,13 @@ def test_study_partner_opens_the_right_chat_without_answering(monkeypatch):
         if kind=='read':return {'partner':{'id':'partner','username':'StudyPartner','image_path':None},'messages':[],'has_older':False}
         return {}
     monkeypatch.setattr('db.ChatRepository.action',action)
+    friend_calls=[]
+    monkeypatch.setattr('db.FriendsRepository.action',lambda self,kind,value='':friend_calls.append((kind,value)) or {'message':'Friend request sent.'})
     at,study_calls,d=setup(monkeypatch);button(at,'Start studying').click().run()
     assert any(p.proto.popover.label=='StudyPartner' for p in at.get('popover'))
+    button(at,'Send friend request').click().run()
+    assert ('request_user','partner') in friend_calls
+    assert any(s.value=='Friend request sent.' for s in at.success)
     button(at,'Send message').click().run()
     assert ('open',{'user_id':'partner'}) in calls
     assert at.session_state.chat_open=='thread'
