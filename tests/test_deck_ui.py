@@ -23,7 +23,7 @@ def test_placeholders_disabled_and_incomplete_card_rejected(monkeypatch):
     at=deck_app(monkeypatch)
     assert button(at,'Import from Anki').disabled
     assert button(at,'Generate with AI').disabled
-    button(at,'+ Create New Deck').click().run()
+    button(at,'Create 15-question duel deck').click().run()
     assert button(at,'Save Deck').disabled
     button(at,'+ Add Flashcard').click().run()
     assert at.error and len(at.session_state['deck_draft']['cards'])==1
@@ -39,7 +39,7 @@ def test_fifteen_card_manual_review_and_publish(monkeypatch):
     monkeypatch.setattr('db.DeckRepository.review',review)
     monkeypatch.setattr('db.DeckRepository.publish',publish)
     monkeypatch.setattr('db.DeckRepository.get',lambda self,id:{**published[-1],'profiles':{'username':'student_a'}})
-    at=deck_app(monkeypatch);button(at,'+ Create New Deck').click().run()
+    at=deck_app(monkeypatch);button(at,'Create 15-question duel deck').click().run()
     next(w for w in at.text_input if w.label=='Deck name').set_value('Finance foundations')
     for i in range(15):
         at.text_area[0].set_value(f'Question {i+1}?')

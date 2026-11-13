@@ -22,3 +22,6 @@ Tests verify variable deck sizes and review, optimistic edit rejection, correct 
 
 ## Together sampling refinement — 13 November 2026
 Learning levels are preferences for selecting the contributor's own half, not matching constraints. Prefer all available questions in the chosen levels, then fill a shortage randomly from other questions in that same deck without replacement. Both students still receive the identical combined question set. No chapter filter is offered in Together. A 40-question session requires 20 questions from each deck even if fewer than 20 match the preferred levels. The UI explains both the split and any fallback.
+
+
+Creation update: the main Create New Deck button opens the flexible deck editor. Authors can type new subsection/lecture names or reuse existing ones; the next question inherits the current subsection. No fixed deck question limit. Classic 30-question duels retain a separately labelled 15-question editor. Display coloured markers alongside learning-level names in both session settings dropdowns.

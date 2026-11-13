@@ -286,15 +286,22 @@ def decks_screen(client,profile):
     st.subheader('Create a deck')
     manual,anki,ai=st.columns(3)
     with manual:
-        st.write('**Manual**');st.caption('Write your own questions and answers.')
+        st.write('**Manual**');st.caption('Add as many questions as you need and organise them into subsections or lectures.')
         if st.button('+ Create New Deck',type='primary',use_container_width=True):
-            st.session_state.deck_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.deck_index=0;st.rerun()
+            st.session_state.study_library=True
+            if not st.session_state.get('study_draft'):
+                st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
+            st.session_state.pop('study_deck_open',None);st.rerun()
     with anki:
         st.write('**Anki import**');st.caption('Coming soon')
         st.button('Import from Anki',disabled=True,use_container_width=True)
     with ai:
         st.write('**AI from lecture slides**');st.caption('Coming soon')
         st.button('Generate with AI',disabled=True,use_container_width=True)
+    with st.expander('Classic 30-question duels'):
+        st.caption('The original duel format uses exactly 15 questions from each player. Create a separate deck for this format here.')
+        if st.button('Create 15-question duel deck'):
+            st.session_state.deck_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.deck_index=0;st.rerun()
     st.subheader('Your courses')
     st.caption('Decks are shared with signed-in students at your university. Add courses in Edit profile.')
     course=st.selectbox('Browse course',profile['courses'],key='deck_browse_course')
@@ -471,6 +478,7 @@ def study_request(client,action,data=None):
     return play_request(StudyRepository(client),action,data)
 
 
+STUDY_LEVEL_MARKERS={'new':'⬜','0':'🟥','1':'🟧','2':'🟨','3':'🟩'}
 STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
 
 
@@ -498,7 +506,7 @@ def study_edit_change(field,key,index=None,answer=None):
     draft=st.session_state.study_draft
     st.session_state.pop('study_review',None)
     if index is None:draft[field]=st.session_state[key]
-    elif answer is None:draft['cards'][index][field]=st.session_state[key]
+    elif answer is None:draft['cards'][index][field]=(st.session_state[key] or '') if field=='chapter' else st.session_state[key]
     else:draft['cards'][index]['answers'][answer]['text']=st.session_state[key]
 
 
@@ -506,7 +514,7 @@ def study_editor(client,profile):
     from logic import new_card,validate_card,validate_study_deck
     d=st.session_state.study_draft;revision=st.session_state.get('study_revision',0)
     st.subheader('Edit Study deck')
-    st.caption('Study decks are private. A together session shares a fixed copy only with a partner who finishes.')
+    st.caption('Add as many questions as you need—there is no fixed question limit. Your deck stays private until a together session shares a fixed copy with a partner who finishes.')
     if st.session_state.get('study_review'):
         st.warning('Review every question and correct answer before saving. Edits affect future sessions; received copies stay unchanged.')
         show_deck_cards(d['cards'])
@@ -524,10 +532,15 @@ def study_editor(client,profile):
     st.text_input('Study deck name',value=d['name'],key=key,on_change=study_edit_change,args=('name',key))
     index=st.selectbox('Question to edit',range(len(d['cards'])),format_func=lambda i:f"{i+1}. {d['cards'][i]['question'][:60] or 'New question'}",index=len(d['cards'])-1,key='study_edit_index_'+d['id']+'_'+str(len(d['cards'])))
     c=d['cards'][index];prefix='study_edit_'+c['id']
-    for label,field in [('Chapter / lecture (optional)','chapter'),('Question','question')]:
-        key=prefix+field
-        st.text_input(label,value=c.get(field,''),key=key,on_change=study_edit_change,args=(field,key,index))
-    st.caption('Use a topic label that does not reveal the answer.')
+    st.subheader('Organise your questions')
+    st.caption('Subsections group questions by topic or lecture. You can focus on these sections when studying alone. Choose an existing section or type a new one; leave it empty for General. Use a topic name that does not reveal the answer.')
+    chapters=sorted({card.get('chapter','').strip() for card in d['cards'] if card.get('chapter','').strip()})
+    current=c.get('chapter','').strip();key=prefix+'chapter'
+    st.selectbox('Subsection / lecture',chapters,index=chapters.index(current) if current in chapters else None,accept_new_options=True,placeholder='Choose or type a subsection',key=key,on_change=study_edit_change,args=('chapter',key,index))
+    if chapters:
+        st.caption(' · '.join(f"{chapter}: {sum(card.get('chapter','').strip()==chapter for card in d['cards'])} questions" for chapter in chapters))
+    key=prefix+'question'
+    st.text_input('Question',value=c.get('question',''),key=key,on_change=study_edit_change,args=('question',key,index))
     for i,a in enumerate(c['answers']):
         key=prefix+a['id'];st.text_input(f'Answer {i+1}',value=a['text'],key=key,on_change=study_edit_change,args=('answers',key,index,i))
     ids=[a['id'] for a in c['answers']];key=prefix+'correct'
@@ -539,7 +552,7 @@ def study_editor(client,profile):
         try:validate_card(c)
         except ValueError as exc:st.error(str(exc))
         else:
-            d['cards'].append(new_card());st.rerun()
+            added=new_card();added['chapter']=c.get('chapter','');d['cards'].append(added);st.rerun()
     if delete.button('Remove Study question',disabled=len(d['cards'])<=1):
         d['cards'].pop(index);st.rerun()
     st.caption(f"{len(d['cards'])} questions. Changing question content resets its learning level; changing a chapter label does not.")
@@ -742,7 +755,7 @@ def study_screen(client,profile):
         st.subheader('What do you want to focus on?')
         st.caption('Choose chapters and learning levels to decide which questions you practise. Leave chapters empty to include the full deck; select multiple levels to combine them.')
         chapters=st.multiselect('Chapters / lectures (leave empty for full deck)',sorted({c.get('chapter','') for c in full['cards']}),format_func=lambda x:x or 'General')
-        levels=st.multiselect('Learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:STUDY_LEVELS[x])
+        levels=st.multiselect('Learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:f'{STUDY_LEVEL_MARKERS[x]} {STUDY_LEVELS[x]}')
         eligible=filter_study_cards(full['cards'],chapters,levels);st.caption(f'{len(eligible)} matching questions. No repeats within this session.')
         length=st.radio('Session length',['Choose a number','All matching questions'],horizontal=True)
         count=st.number_input('Number of questions',1,100,min(10,max(1,len(eligible)))) if length=='Choose a number' else 0
@@ -791,7 +804,7 @@ def study_screen(client,profile):
         if full is None:return
         st.subheader('What do you want to focus on?')
         st.caption('Choose the learning levels to prioritise in your half of the session. If there are not enough, we fill the remaining places with other questions from your deck, without repeats.')
-        levels=st.multiselect('Preferred learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:STUDY_LEVELS[x],key='study_together_levels')
+        levels=st.multiselect('Preferred learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:f'{STUDY_LEVEL_MARKERS[x]} {STUDY_LEVELS[x]}',key='study_together_levels')
         request['levels']=levels
         preferred=len(filter_study_cards(full['cards'],[],levels))
         needed=max(0,count//2-preferred)
