@@ -1,14 +1,14 @@
 # Hosting, durable storage and releases
 
 ## Current deployment
-The app is https://studyduel-nova.streamlit.app/. Streamlit Community Cloud runs `app.py` from `maltestodiek/Introduction-to-Programming`, branch `first-feature`, with Python 3.13 and dependencies from pyproject.toml/uv.lock.
+The app is https://studyduel-nova.streamlit.app/. Streamlit Community Cloud runs `app.py` from `maltestodiek/Introduction-to-Programming`, branch `main`, with Python 3.13 and dependencies from pyproject.toml/uv.lock.
 
-`main` is the development team's stable baseline. `first-feature` is retained only as the current host connection. Release reviewed main commits to that branch by fast-forward; never develop new features there or force-push over team work.
+Merge reviewed and verified task branches into main to deploy. The previous first-feature branch is no longer a hosting dependency. Do not push releases there.
 
-## Moving hosting to main
-Streamlit identifies an app by repository, branch and entrypoint. Its [official instructions](https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app/rename-your-app) require deleting and redeploying an app to change those coordinates. Do not rename/delete the connected branch while the current app depends on it.
+## Migration record — 13 November 2026
+A replacement app was deployed from main and started at a temporary preview URL. After startup, the previous deployment moved to a temporary fallback URL and the main deployment took over studyduel-nova.streamlit.app. The same Supabase URL/publishable key and public APP_URL were configured. No database migration or data reset was performed. Existing production redirect URLs remain valid because the public URL is unchanged.
 
-A separate migration should record current settings privately, confirm the public URL and Supabase redirect requirements, deploy main, restore approved secrets and verify sign-in, recovery, invitations, stored decks, sessions and chat. Obtain approval before deleting the existing hosted app. This organization cleanup does not delete or recreate the hosted application.
+For future source-coordinate changes, see Streamlit's [official instructions](https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app/rename-your-app). Prepare and verify a replacement before retiring a running deployment. Obtain explicit confirmation before permanently deleting a hosted app.
 
 ## Secrets and persistence
 Configure SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and APP_URL in Streamlit secrets; APP_URL must be the assigned HTTPS URL. Supabase Auth Site URL and allowed redirects must match the deployed app and approved local development URL. Never commit secrets.toml, database passwords, service-role keys, private student data or local databases.

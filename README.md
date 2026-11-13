@@ -42,4 +42,4 @@ Python tests use temporary files/databases or fake providers. The `tests/*_datab
 
 ## Branches
 
-`main` is the shared stable baseline. Start each change on a descriptive short-lived branch such as `feature/study-session-filters` or `fix/appearance-contrast`, review it and merge it into `main`. The existing hosted app still watches `first-feature`, now a deployment compatibility branch, not the place to develop features. Release only reviewed `main` commits to that branch. See [workflow](docs/team-workflow.md) for the transition and [deployment](docs/deployment.md) before changing the hosted branch.
+`main` is the shared stable baseline. Start each change on a descriptive short-lived branch such as `feature/study-session-filters` or `fix/appearance-contrast`, review it and merge it into `main`. Streamlit deploys `app.py` directly from `main`. Merging a reviewed change into `main` updates the live app; no push to `first-feature` is needed. See [workflow](docs/team-workflow.md) and [deployment](docs/deployment.md).
