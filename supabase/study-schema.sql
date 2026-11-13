@@ -154,6 +154,7 @@ begin
   select * into s from public.study_sessions where id=target;
   if found then if s.user_id<>me then raise exception 'Session unavailable';end if;return jsonb_build_object('id',s.id);end if;
   mode:=p_data->>'mode';cnt:=(p_data->>'count')::integer;
+  if p_data?'levels' and (jsonb_typeof(p_data->'levels') is distinct from 'array' or jsonb_array_length(p_data->'levels')=0) then raise exception 'Choose at least one learning level';end if;
   if mode is null or mode not in ('solo','random','friend') then raise exception 'Choose a study mode';end if;
   if not coalesce((d->>'language')=any(langs),false) then raise exception 'Add this deck language to your profile';end if;
   if mode<>'solo' then
@@ -169,7 +170,7 @@ begin
    select x.c from jsonb_array_elements(d->'cards') x(c)
    left join public.study_progress p on p.user_id=me and p.deck_id=(x.c->>'source_deck')::uuid and p.card_id=(x.c->>'id')::uuid and p.version=x.c->>'version'
    where mode<>'solo' or ((coalesce(jsonb_array_length(p_data->'chapters'),0)=0 or coalesce(x.c->>'chapter','') in(select jsonb_array_elements_text(p_data->'chapters'))) and (not(p_data?'levels') or coalesce(p.level::text,'new') in(select jsonb_array_elements_text(p_data->'levels'))))
-   order by random() limit case when mode<>'solo' then cnt/2 when cnt=0 then null else cnt end) q;
+   order by case when mode<>'solo' and p_data?'levels' and coalesce(p.level::text,'new') not in(select jsonb_array_elements_text(p_data->'levels')) then 1 else 0 end, random() limit case when mode<>'solo' then cnt/2 when cnt=0 then null else cnt end) q;
   if jsonb_array_length(selected)=0 or (cnt>0 and jsonb_array_length(selected)<case when mode='solo' then cnt else cnt/2 end) then raise exception 'Not enough eligible questions. Choose fewer questions or broader filters';end if;
   if mode='solo' then cnt:=jsonb_array_length(selected);end if;
   if mode='friend' and not(p_data?'join_id') then

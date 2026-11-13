@@ -59,6 +59,10 @@ def friend_action(friends,action,value=""):
         return None
 
 def friends_screen(friends,repo,state):
+    if st.session_state.get('study_return_after_friends'):
+        if st.button('Back to Study Together',icon=':material/arrow_back:'):
+            st.session_state.pop('study_return_after_friends',None)
+            st.session_state.main_page='Play';st.session_state.study_active=True;st.session_state.study_choice='Study together';st.rerun()
     st.caption("Your friend code")
     st.code("#"+state["code"],language=None)
     st.caption("Share this code so another student can send you a request. It is not a login code.")
@@ -728,7 +732,9 @@ def study_screen(client,profile):
                 if not friends:
                     if not data['friends']:
                         st.info('You don’t have any friends yet. Add a friend to study together.')
-                        if st.button('Add friends',icon=':material/person_add:'):
+                        st.caption('This opens the Friends menu. Use Back to Study Together there to return to these settings.')
+                        if st.button('Go to Friends',icon=':material/person_add:'):
+                            st.session_state.study_return_after_friends=True
                             navigate('Friends');st.rerun()
                     else:st.info('None of your friends have this course and deck language in their profile yet. Ask a friend to add them to study together.')
                     valid=False
@@ -747,6 +753,17 @@ def study_screen(client,profile):
                         if cols[1].button('Join',key='study_join_'+available['id']):
                             st.session_state.study_join=available['id'];st.rerun()
         if not offer:count=st.selectbox('Total questions',[20,40,60,80,100])
+        st.info(f'{count} questions = {count//2} from your deck + {count//2} from your partner’s deck.')
+        st.caption(f'First, answer {count//2} questions from your own deck. Once a partner is matched or your friend accepts, answer their {count//2} questions. Both of you answer the same combined set, starting with your own half. You can leave and return while waiting.')
+        full=study_request(client,'deck',{'id':selected_id})
+        if full is None:return
+        levels=st.multiselect('Preferred learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:STUDY_LEVELS[x],key='study_together_levels')
+        request['levels']=levels
+        preferred=len(filter_study_cards(full['cards'],[],levels))
+        needed=max(0,count//2-preferred)
+        st.caption('These preferences choose your half only. They do not restrict who you can match with. Your partner chooses their half separately; both players then answer exactly the same combined questions.')
+        if not levels:st.warning('Choose at least one preferred learning level.');valid=False
+        elif needed and deck['count']>=count//2:st.info(f'{preferred} questions match your preferred levels. The remaining {needed} in your half will be randomly selected from your other questions, without repeats.')
         request['count']=count
         if deck['count']<count//2:st.warning(f"This session needs at least {count//2} questions in your deck; it currently has {deck['count']}.");valid=False
         consent=st.checkbox('I agree to share this version of my full deck with a partner who finishes, even if I do not finish.')

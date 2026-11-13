@@ -19,3 +19,6 @@ New competitive Battle rules, AI/Anki import, chat, email/push notifications, li
 
 ## Done when
 Tests verify variable deck sizes and review, optimistic edit rejection, correct progress transitions and content identity, chapter/level intersection, no duplicate questions, exact half sizes, immediate locked feedback and explicit Next, restart persistence, mutual random eligibility, reservations, friend acceptance/decline, deadline enforcement, earned immutable copies, private notes and author feedback, score visibility and zero XP/streak changes. Unauthorized/rejected writes leave data unchanged. Run existing regression checks as well.
+
+## Together sampling refinement — 13 November 2026
+Learning levels are preferences for selecting the contributor's own half, not matching constraints. Prefer all available questions in the chosen levels, then fill a shortage randomly from other questions in that same deck without replacement. Both students still receive the identical combined question set. No chapter filter is offered in Together. A 40-question session requires 20 questions from each deck even if fewer than 20 match the preferred levels. The UI explains both the split and any fallback.

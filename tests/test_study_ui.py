@@ -43,11 +43,13 @@ def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
     button(at,'Change study mode').click().run();button(at,'Study Mode').click().run();button(at,'Study together').click().run()
     assert button(at,'Start studying').disabled
+    assert any('20 questions = 10 from your deck + 10' in w.value for w in at.info)
     next(w for w in at.checkbox if w.label.startswith('I agree')).check().run()
     assert not button(at,'Start studying').disabled
     next(w for w in at.selectbox if w.label=='Total questions').set_value(100).run()
     assert button(at,'Start studying').disabled
     assert any('50' in w.value for w in at.warning)
+    assert any('100 questions = 50 from your deck + 50' in w.value for w in at.info)
     assert not at.exception
 
 
@@ -73,7 +75,7 @@ def test_friend_settings_only_request_eligible_friends(monkeypatch):
     assert ('friend_options',{'deck_id':d['id']}) in calls
     assert not any('Invite even' in w.label for w in at.checkbox)
     assert any('don’t have any friends yet' in w.value for w in at.info)
-    assert button(at,'Add friends')
+    assert button(at,'Go to Friends')
     assert not at.exception
 
 

@@ -57,6 +57,20 @@ try{
   const a2=await start(A,da,'friend',{friend_id:B});await half(A,a2.id);const b=await start(B,dbb,'friend',{join_id:a2.id});assert.ok(b.id);
  });
  await test('expired search cannot be joined and cancellation preserves progress',async()=>{await admin("update study_sessions set deadline=now()-interval '1 second' where deadline is not null");const a=await start(A,da,'random');await half(A,a.id);await admin("update study_sessions set expires_at=now()-interval '1 second' where id=$1",[a.id]);await bad(B,'start',{request_id:randomUUID(),deck_id:dbb.id,mode:'random',count:20,consent:true,join_id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'expired');});
+ await test('together prefers learning levels, fills shortages, and matches different preferences',async()=>{
+  const freshA=draft(30),freshB=draft(30);await save(A,freshA);await save(B,freshB);
+  for(const card of freshA.cards.slice(15))await admin('insert into study_progress values($1,$2,$3,study_version($4::jsonb),1)',[A,freshA.id,card.id,JSON.stringify(card)]);
+  const a=await start(A,freshA,'random',{count:40,levels:['new']});
+  const chosen=(await admin('select cards from study_sessions where id=$1',[a.id])).rows[0].cards;
+  assert.equal(chosen.length,20);assert.equal(new Set(chosen.map(c=>c.id)).size,20);
+  assert.equal(chosen.filter(c=>freshA.cards.slice(0,15).some(q=>q.id===c.id)).length,15);
+  await half(A,a.id,20);
+  const b=await start(B,freshB,'random',{count:40,levels:['3']});await half(B,b.id,20);
+  assert.equal((await ok(A,'round',{id:a.id})).state,'question');
+  const both=(await admin('select cards from study_sessions where id in ($1,$2)',[a.id,b.id])).rows;
+  assert.deepEqual(both[0].cards.map(c=>c.id).sort(),both[1].cards.map(c=>c.id).sort());
+  await admin("update study_sessions set deadline=now()-interval '1 second' where id in ($1,$2)",[a.id,b.id]);
+ });
  await test('database progress levels, chapter-only edits and content reset',async()=>{
   const one=draft(1);await save(A,one);
   for(const [wrong,expected] of [[true,0],[false,1],[false,2],[false,3],[false,3],[true,2],[true,1],[true,0]]){
