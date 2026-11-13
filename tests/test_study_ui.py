@@ -172,6 +172,9 @@ def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
     button(at,'Resume Study').click().run()
     assert ('round',{'id':'active'}) in calls
     assert at.session_state.study_session=='active'
+    button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
+    assert button(at,'Start studying')
+    assert 'study_session' not in at.session_state
     assert not at.exception
 
 

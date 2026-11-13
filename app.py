@@ -944,7 +944,7 @@ def play_screen(client,profile):
                     for col,(label,icon,material) in zip(st.columns(2),[('Study alone','solo',':material/person:'),('Study together','together',':material/group:')]):
                         with col:
                             if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
-                                st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_join',None);st.session_state.pop('study_choose',None);st.rerun()
+                                st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_session',None);st.session_state.pop('study_join',None);st.session_state.pop('study_choose',None);st.rerun()
         selected=st.session_state.get('play_mode_preview')
         if selected=='Battle':
             st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')
