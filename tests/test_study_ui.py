@@ -120,7 +120,7 @@ def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeyp
     button(at,'=').click().run()
     assert next(w for w in at.text_input if w.label=='Calculation').value=='5'
     assert not any(a=='answer' for a,_ in calls)
-    button(at,'Clear').click().run()
+    button(at,'C').click().run()
     assert next(w for w in at.text_input if w.label=='Calculation').value==''
     d['cards'][0]['allow_calculator']=False
     at.run()

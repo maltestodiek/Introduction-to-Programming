@@ -155,7 +155,7 @@ def question_calculator(identity):
         st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4')
         for row in [('7','8','9','÷'),('4','5','6','×'),('1','2','3','−'),('0','.','(',')'),('Clear','⌫','+','=')]:
             for col,token in zip(st.columns(4),row):
-                col.button(token,key=key+'_'+token,on_click=calculator_key,args=(key,token),use_container_width=True)
+                col.button('C' if token=='Clear' else token,key=key+'_'+token,help='Clear calculation' if token=='Clear' else None,on_click=calculator_key,args=(key,token),use_container_width=True)
         if st.session_state.get(key+'_error'):st.error(st.session_state[key+'_error'])
 
 
