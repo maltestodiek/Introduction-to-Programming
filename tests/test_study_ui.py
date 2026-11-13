@@ -148,3 +148,23 @@ def test_main_creation_supports_more_than_fifteen_and_reuses_subsections(monkeyp
     next(w for w in at.checkbox if w.label=='Allow calculator for this question').check().run()
     assert at.session_state.study_draft['cards'][-1]['allow_calculator'] is True
     assert not at.exception
+
+
+def test_play_lists_active_study_before_creation_and_resumes(monkeypatch):
+    import db
+    at,calls,d=setup(monkeypatch)
+    original=db.StudyRepository.action
+    def ongoing(self,action,data=None):
+        result=original(self,action,data)
+        if action=='list':result['sessions']=[{'id':'active','name':'Saved finance','mode':'solo','state':'own','count':20,'cursor':4},{'id':'finished','name':'Finished finance','mode':'solo','state':'completed','count':10,'cursor':10}]
+        return result
+    monkeypatch.setattr('db.StudyRepository.action',ongoing)
+    button(at,'Play').click().run()
+    headings=[w.value for w in at.subheader]
+    assert headings.index('Ongoing sessions')<headings.index('Create new session')
+    assert any('Saved finance' in w.value for w in at.markdown)
+    assert not any('Finished finance' in w.value for w in at.markdown)
+    button(at,'Resume Study').click().run()
+    assert ('round',{'id':'active'}) in calls
+    assert at.session_state.study_session=='active'
+    assert not at.exception

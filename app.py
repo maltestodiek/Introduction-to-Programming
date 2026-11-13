@@ -824,6 +824,40 @@ def study_screen(client,profile):
             st.session_state.study_session=r['id'];st.session_state.pop('study_request_id',None);st.rerun()
 
 
+def ongoing_sessions(client):
+    from db import PlayRepository
+    st.subheader('Ongoing sessions')
+    battle,study=st.columns(2)
+    with battle:
+        st.markdown('**⚔️ Battle**')
+        data=play_request(PlayRepository(client),'list')
+        if data is not None:
+            active=[d for d in data['duels'] if d['status'] in ('Ongoing','Pending')]
+            if not active:st.caption('No ongoing Battle sessions.')
+            for duel in active:
+                with st.container(border=True):
+                    st.write(f"**{duel['course']}** · vs {duel['username']}")
+                    st.caption('Finish by '+duel['deadline'])
+                    if duel['status']=='Pending':st.caption('Your answers are saved. Waiting for your opponent.')
+                    elif st.button('Resume Battle' if duel['started'] else 'Start Battle',key='home_battle_'+duel['id']):
+                        st.session_state.play_duel=duel['id'];st.session_state.pop('play_feedback',None);st.rerun()
+    with study:
+        st.markdown('**📖 Study**')
+        data=study_request(client,'list')
+        if data is not None:
+            active=[s for s in data['sessions'] if s['state'] in ('own','waiting','paired')]
+            if not active:st.caption('No ongoing Study sessions.')
+            for session in active:
+                with st.container(border=True):
+                    st.write('**'+session['name']+'**')
+                    st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
+                    if session['state']=='waiting':st.caption('Waiting for a study partner.')
+                    if session.get('deadline'):st.caption('Finish by '+session['deadline'])
+                    if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id']):
+                        st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together';st.session_state.study_session=session['id'];st.rerun()
+    st.divider()
+
+
 def play_screen(client,profile):
     from db import PlayRepository
     st.title('Play')
@@ -847,6 +881,8 @@ def play_screen(client,profile):
                         if a['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
                         else:st.write(label)
     else:
+        ongoing_sessions(client)
+        st.subheader('Create new session')
         assets=Path(__file__).parent/'assets'
         st.html('<style>'+ (assets/'play-modes.css').read_text()+'</style>')
         st.write('Choose how you want to play.')

@@ -70,3 +70,5 @@ Study Together now explicitly explains N/2 questions from each deck and the shar
 Per-question calculator: both editors support an optional calculator flag; basic arithmetic popover is available only for enabled Study/Play questions. Apply `supabase/calculator-update.sql` to existing databases. Existing snapshots keep their permissions; legacy questions default off. No external calculator API.
 
 The main Create New Deck entry now uses flexible Study decks with no fixed question count. Subsections can be selected or typed, and new questions inherit the current subsection. The original 15-question editor remains under Classic 30-question duels. Learning-level selectors use coloured markers in solo and together settings.
+
+Play now shows active Battle and Study sessions before Create new session. Completed/cancelled/expired Study sessions stay out of the active list; pending Battle rounds show their waiting status. Resume opens the saved round without creating a new session.
