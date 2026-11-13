@@ -4,6 +4,8 @@ import sqlite3
 import tempfile
 import zipfile
 
+import zstandard as zstd
+
 import pytest
 
 from anki_import import AnkiImportError, parse_basic_apkg
@@ -60,3 +62,35 @@ def test_only_first_hundred_valid_cards_are_accepted():
     result = parse_basic_apkg(apkg(notes, BASIC))
     assert len(result["cards"]) == 100
     assert result["skipped"][-1]["reason"] == "limit"
+
+
+def modern_apkg(notes):
+    """Build a current Anki archive with a compressed .anki21b collection."""
+    with tempfile.NamedTemporaryFile(suffix=".anki") as database:
+        with sqlite3.connect(database.name) as connection:
+            connection.execute("create table col (models text)")
+            connection.execute("create table notes (id integer, mid integer, flds text)")
+            connection.execute("create table notetypes (id integer, name text)")
+            connection.execute("insert into col values ('')")
+            connection.execute("insert into notetypes values (1, 'Basic+')")
+            connection.executemany("insert into notes values (?, ?, ?)", notes)
+        database.seek(0)
+        modern_collection = database.read()
+
+    with zipfile.ZipFile(io.BytesIO(apkg([(99, 1, "Upgrade Anki\\x1f")], BASIC))) as legacy:
+        legacy_collection = legacy.read("collection.anki2")
+
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("collection.anki21b", zstd.ZstdCompressor().compress(modern_collection))
+        bundle.writestr("collection.anki2", legacy_collection)
+    return archive.getvalue()
+
+
+def test_imports_current_anki21b_basic_cards_instead_of_legacy_placeholder():
+    data = modern_apkg([(1, 1, "What is WACC?\\x1fWeighted average cost of capital")])
+    result = parse_basic_apkg(data)
+    assert result["cards"] == [
+        {"front": "What is WACC?", "back": "Weighted average cost of capital"}
+    ]
+    assert result["skipped"] == []
