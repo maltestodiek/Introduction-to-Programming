@@ -1,6 +1,6 @@
 # StudyDuel
 
-StudyDuel is a Python/Streamlit app for creating course decks, studying alone or together, and connecting with classmates. Supabase provides authentication, shared PostgreSQL data and private image storage. The live app is [studyduel-nova.streamlit.app](https://studyduel-nova.streamlit.app/).
+StudyDuel is a Python/Streamlit app for creating course decks, studying alone or together, and connecting with classmates. Supabase provides authentication, shared PostgreSQL data and private image storage. The live app is [studyduel-nova-main.streamlit.app](https://studyduel-nova-main.streamlit.app/).
 
 ## Start here
 
