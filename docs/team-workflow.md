@@ -16,7 +16,7 @@ Use `main` for the reviewed shared application. It was already GitHub's default 
 7. Streamlit deploys the merged main commit automatically. Check the live app, then begin the next task on a new branch from main.
 
 ## Hosting from main
-Streamlit deploys `app.py` directly from `main` at https://studyduel-nova.streamlit.app/. The migration on 13 November 2026 preserved the public URL and Supabase connection. There is no deployment dependency on `first-feature` and no extra release push to it.
+Streamlit deploys `app.py` directly from `main` at https://studyduel-nova-main.streamlit.app/. After the hosting-route repair on 13 November 2026, the app uses the new public URL with the same Supabase connection. There is no deployment dependency on `first-feature` and no extra release push to it.
 
 ## Existing branch names
 Old branches such as dark-mode, dark-avatar-background and fix-dark-university-lookup are historical steps within Appearance and Navigation, not three different product features. The same applies to play-mode-buttons/play-mode-design and improve-study-design. Keep their commits and names for now to avoid disrupting teammates' checkouts and open reviews; they do not define the current feature catalogue. Do not squash or rewrite shared history just to rename a feature.
