@@ -1,4 +1,4 @@
-"""Supabase profile repository. All requests use the signed-in user's JWT."""
+"""Supabase repositories. All requests use the signed-in user's JWT."""
 from uuid import uuid4
 from logic import validate_profile
 
