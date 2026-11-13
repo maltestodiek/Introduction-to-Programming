@@ -709,6 +709,8 @@ def study_screen(client,profile):
         full=study_request(client,'deck',{'id':selected_id,'shared':deck['shared']})
         if full is None:return
         study_progress_summary(full['cards'])
+        st.subheader('What do you want to focus on?')
+        st.caption('Choose chapters and learning levels to decide which questions you practise. Leave chapters empty to include the full deck; select multiple levels to combine them.')
         chapters=st.multiselect('Chapters / lectures (leave empty for full deck)',sorted({c.get('chapter','') for c in full['cards']}),format_func=lambda x:x or 'General')
         levels=st.multiselect('Learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:STUDY_LEVELS[x])
         eligible=filter_study_cards(full['cards'],chapters,levels);st.caption(f'{len(eligible)} matching questions. No repeats within this session.')
@@ -757,6 +759,8 @@ def study_screen(client,profile):
         st.caption(f'First, answer {count//2} questions from your own deck. Once a partner is matched or your friend accepts, answer their {count//2} questions. Both of you answer the same combined set, starting with your own half. You can leave and return while waiting.')
         full=study_request(client,'deck',{'id':selected_id})
         if full is None:return
+        st.subheader('What do you want to focus on?')
+        st.caption('Choose the learning levels to prioritise in your half of the session. If there are not enough, we fill the remaining places with other questions from your deck, without repeats.')
         levels=st.multiselect('Preferred learning levels',list(STUDY_LEVELS),default=list(STUDY_LEVELS),format_func=lambda x:STUDY_LEVELS[x],key='study_together_levels')
         request['levels']=levels
         preferred=len(filter_study_cards(full['cards'],[],levels))
