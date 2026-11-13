@@ -165,7 +165,7 @@ def question_calculator(identity):
     key='calculator_'+identity
     st.html('<style>'+ (Path(__file__).parent/'assets'/'calculator.css').read_text()+'</style>')
     with st.container(border=True,key='calculator_panel'):
-        title,close=st.columns([3,1])
+        title,close=st.columns([2,1])
         title.markdown('**:material/calculate: Calculator**')
         if close.button('Close',icon=':material/close:',key=key+'_close'):
             st.session_state['calculator_open_'+identity]=False;st.rerun()

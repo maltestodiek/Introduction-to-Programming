@@ -4,6 +4,6 @@
 .st-key-calculator_panel [data-testid="stTextInput"]{margin-top:0}
 @media(min-width:700px){
  .st-key-calculator_panel{position:fixed;right:16px;top:66px;width:300px;z-index:100;overflow:visible}
- section[data-testid="stMain"] .block-container{max-width:calc(100% - 336px)!important;margin-left:0!important;margin-right:336px!important;padding-left:16px!important;padding-right:16px!important;padding-top:1rem!important}
+ [data-testid="stMain"] .block-container{max-width:calc(100% - 336px)!important;margin-left:0!important;margin-right:336px!important;padding-left:16px!important;padding-right:16px!important;padding-top:1rem!important}
 }
 @media(max-width:699px){.st-key-calculator_panel{width:100%}}
