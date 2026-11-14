@@ -4,3 +4,6 @@ project_id = "studyduel"
 
 [db.seed]
 enabled = false
+
+[functions.generate-questions]
+verify_jwt = true
