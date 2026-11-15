@@ -344,6 +344,9 @@ def decks_screen(client,profile):
     if st.session_state.get('anki_import_open'):
         anki_import_screen(client,profile)
         return
+    if st.session_state.get('lecture_import_open'):
+        lecture_import_screen(client,profile)
+        return
     if st.session_state.get('study_library'):
         if st.button('Back to course decks'):
             st.session_state.pop('study_library');st.rerun()
@@ -453,8 +456,9 @@ def decks_screen(client,profile):
         if st.button('Import from Anki',use_container_width=True):
             st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
     with ai:
-        st.write('**AI from lecture slides**');st.caption('Coming soon')
-        st.button('Generate with AI',disabled=True,use_container_width=True)
+        st.write('**AI from lecture slides**');st.caption('Import PDF lecture text privately. You will select sections before AI generation.')
+        if st.button('Import lecture PDF',use_container_width=True):
+            st.session_state.lecture_import_open=True;st.session_state.pop('lecture_import_result',None);st.rerun()
     with st.expander('Classic 30-question duels'):
         st.caption('The original duel format uses exactly 15 questions from each player. Create a separate deck for this format here.')
         if st.button('Create 15-question duel deck'):
@@ -504,6 +508,39 @@ def anki_import_screen(client,profile):
         else:
             st.success(f"Saved {saved['count']} private source cards. You can turn selected cards into reviewed questions in the upcoming generation flow.")
             st.session_state.pop('anki_import_result',None)
+
+
+def lecture_import_screen(client,profile):
+    from lecture_import import LectureImportError,parse_lecture_pdf
+    from db import LectureImportRepository
+    st.caption('Decks › AI from lecture slides')
+    st.header('Import lecture PDF')
+    st.info('Your PDF is processed only to extract text. The original file is not stored.')
+    if st.button('Back to Decks'):
+        st.session_state.pop('lecture_import_open',None);st.session_state.pop('lecture_import_result',None);st.rerun()
+    upload=st.file_uploader('Lecture PDF',type=['pdf'],key='lecture_pdf_upload')
+    if upload and st.button('Extract lecture text',type='primary'):
+        try:st.session_state.lecture_import_result=parse_lecture_pdf(upload.getvalue())
+        except LectureImportError as exc:st.error(str(exc));st.session_state.pop('lecture_import_result',None)
+    result=st.session_state.get('lecture_import_result')
+    if not result:return
+    sections=result['sections']
+    st.success(f"Extracted text from {len(sections)} of {result['page_count']} pages.")
+    if result['empty_pages']:
+        st.warning('No selectable text on pages: '+', '.join(map(str,result['empty_pages']))+'. Scanned pages need OCR, which is not supported yet.')
+    with st.expander('Preview extracted sections'):
+        for section in sections:
+            st.markdown(f"**{section['title']}**")
+            st.caption(section['content'][:500]+('…' if len(section['content'])>500 else ''))
+    name=st.text_input('Lecture name',placeholder='For example: Corporate Finance – Capital Structure')
+    course=st.selectbox('Course',profile['courses'],key='lecture_import_course')
+    language=st.selectbox('Lecture language',profile['languages'],key='lecture_import_language')
+    if st.button(f'Save {len(sections)} private text sections',type='primary'):
+        try:saved=LectureImportRepository(client).save(name=name,course=course,language=language,page_count=result['page_count'],sections=sections)
+        except ValueError as exc:st.error(str(exc))
+        else:
+            st.success(f"Saved {saved['count']} private text sections. You can select them for AI generation in the upcoming review flow.")
+            st.session_state.pop('lecture_import_result',None)
 
 def play_request(repository,action,data=None):
     try:return repository.action(action,data)
