@@ -139,3 +139,20 @@ class ChatRepository:
         if not isinstance(result,dict):raise ValueError('Chat is temporarily unavailable.')
         if result.get('error'):raise ValueError(result['error'])
         return result
+
+
+class LectureImportRepository:
+    """Saves extracted lecture text only; original PDFs never leave the app session."""
+    def __init__(self,client): self.client=client
+
+    def save(self, *, name, course, language, page_count, sections):
+        try:
+            return self.client.rpc('import_lecture_text',{
+                'p_name':name,
+                'p_course':course,
+                'p_language':language,
+                'p_page_count':page_count,
+                'p_sections':sections,
+            }).execute().data
+        except Exception as exc:
+            raise ValueError('The lecture text could not be saved. Your PDF was not stored; try again.') from exc
