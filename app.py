@@ -290,23 +290,28 @@ def clear_notepads():
     for k in [k for k in st.session_state if str(k).startswith('notepad_') and not str(k).endswith(('_toggle','_close'))]:st.session_state.pop(k,None)
 
 
+def notepad_rules():
+    # A long-running server can still hold logic.py from before a deploy; reload it once instead of failing.
+    import importlib,logic
+    return logic if hasattr(logic,'scratch_note') else importlib.reload(logic)
+
+
 def notepad_changed(key):
-    from logic import scratch_note
-    st.session_state[key+'_text']=scratch_note(st.session_state.get(key,''))
+    st.session_state[key+'_text']=notepad_rules().scratch_note(st.session_state.get(key,''))
 
 
 def question_tools(identity,allow_calculator):
     if st.session_state.get('notepad_question')!=identity:
         clear_notepads();st.session_state['notepad_question']=identity
     calc='calculator_open_'+identity;note='notepad_open_'+identity
-    cols=st.columns(2)
-    if allow_calculator and cols[0].button('Close calculator' if st.session_state.get(calc) else 'Calculator',icon=':material/calculate:',key=calc+'_toggle',use_container_width=True):
-        st.session_state[calc]=not st.session_state.get(calc,False);st.rerun()
-    if cols[1 if allow_calculator else 0].button('Close notepad' if st.session_state.get(note) else 'Notepad',icon=':material/edit_note:',key='notepad_'+identity+'_toggle',use_container_width=True):
-        st.session_state[note]=not st.session_state.get(note,False);st.rerun()
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'question-tools.css').read_text()+'</style>')
+    with st.container(horizontal=True,key='question_tools_bar'):
+        if allow_calculator and st.button('Close calculator' if st.session_state.get(calc) else 'Calculator',icon=':material/calculate:',key=calc+'_toggle'):
+            st.session_state[calc]=not st.session_state.get(calc,False);st.rerun()
+        if st.button('Close notepad' if st.session_state.get(note) else 'Notepad',icon=':material/edit_note:',key='notepad_'+identity+'_toggle'):
+            st.session_state[note]=not st.session_state.get(note,False);st.rerun()
     show_calculator=allow_calculator and st.session_state.get(calc);show_notepad=st.session_state.get(note)
     if show_calculator or show_notepad:
-        st.html('<style>'+ (Path(__file__).parent/'assets'/'question-tools.css').read_text()+'</style>')
         with st.container(key='question_tools_panel'):
             if show_calculator:question_calculator(identity)
             if show_notepad:question_notepad(identity)
@@ -314,7 +319,6 @@ def question_tools(identity,allow_calculator):
 
 @st.fragment
 def question_notepad(identity):
-    from logic import NOTEPAD_LIMIT
     key='notepad_'+identity
     with st.container(border=True,key='notepad_panel'):
         title,close=st.columns([2,1])
@@ -322,7 +326,7 @@ def question_notepad(identity):
         if close.button('Close',icon=':material/close:',key=key+'_close'):
             st.session_state['notepad_open_'+identity]=False;st.rerun()
         if key not in st.session_state:st.session_state[key]=st.session_state.get(key+'_text','')
-        st.text_area('Notes',key=key,max_chars=NOTEPAD_LIMIT,height=96,placeholder='Scratch notes for this question. Not saved.',label_visibility='collapsed',on_change=notepad_changed,args=(key,))
+        st.text_area('Notes',key=key,max_chars=notepad_rules().NOTEPAD_LIMIT,height=96,placeholder='Scratch notes for this question. Not saved.',label_visibility='collapsed',on_change=notepad_changed,args=(key,))
 
 
 @st.fragment
