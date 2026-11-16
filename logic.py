@@ -282,6 +282,14 @@ def filter_study_cards(cards,chapters,levels):
     return [c for c in cards if (not chapters or c.get('chapter','') in chapters) and ('new' if c.get('level') is None else str(c['level'])) in levels]
 
 
+NOTEPAD_LIMIT=500
+
+
+def scratch_note(text):
+    """Unsaved per-question scratch text, never longer than the notepad limit."""
+    return str(text or '')[:NOTEPAD_LIMIT]
+
+
 def calculate(expression):
     """Evaluate bounded arithmetic only, without executing Python expressions."""
     import ast

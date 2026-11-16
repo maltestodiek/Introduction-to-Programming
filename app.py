@@ -286,11 +286,43 @@ def calculator_key(key,token):
     elif len(value)<120:st.session_state[key]=value+('sqrt(' if token=='√' else token)
 
 
-def calculator_launcher(identity):
-    opened='calculator_open_'+identity
-    if st.button('Close calculator' if st.session_state.get(opened) else 'Calculator',icon=':material/calculate:',key=opened+'_toggle'):
-        st.session_state[opened]=not st.session_state.get(opened,False);st.rerun()
-    if st.session_state.get(opened):question_calculator(identity)
+def clear_notepads():
+    for k in [k for k in st.session_state if str(k).startswith('notepad_') and not str(k).endswith(('_toggle','_close'))]:st.session_state.pop(k,None)
+
+
+def notepad_changed(key):
+    from logic import scratch_note
+    st.session_state[key+'_text']=scratch_note(st.session_state.get(key,''))
+
+
+def question_tools(identity,allow_calculator):
+    if st.session_state.get('notepad_question')!=identity:
+        clear_notepads();st.session_state['notepad_question']=identity
+    calc='calculator_open_'+identity;note='notepad_open_'+identity
+    cols=st.columns(2)
+    if allow_calculator and cols[0].button('Close calculator' if st.session_state.get(calc) else 'Calculator',icon=':material/calculate:',key=calc+'_toggle',use_container_width=True):
+        st.session_state[calc]=not st.session_state.get(calc,False);st.rerun()
+    if cols[1 if allow_calculator else 0].button('Close notepad' if st.session_state.get(note) else 'Notepad',icon=':material/edit_note:',key='notepad_'+identity+'_toggle',use_container_width=True):
+        st.session_state[note]=not st.session_state.get(note,False);st.rerun()
+    show_calculator=allow_calculator and st.session_state.get(calc);show_notepad=st.session_state.get(note)
+    if show_calculator or show_notepad:
+        st.html('<style>'+ (Path(__file__).parent/'assets'/'question-tools.css').read_text()+'</style>')
+        with st.container(key='question_tools_panel'):
+            if show_calculator:question_calculator(identity)
+            if show_notepad:question_notepad(identity)
+
+
+@st.fragment
+def question_notepad(identity):
+    from logic import NOTEPAD_LIMIT
+    key='notepad_'+identity
+    with st.container(border=True,key='notepad_panel'):
+        title,close=st.columns([2,1])
+        title.markdown('**:material/edit_note: Notepad**')
+        if close.button('Close',icon=':material/close:',key=key+'_close'):
+            st.session_state['notepad_open_'+identity]=False;st.rerun()
+        if key not in st.session_state:st.session_state[key]=st.session_state.get(key+'_text','')
+        st.text_area('Notes',key=key,max_chars=NOTEPAD_LIMIT,height=96,placeholder='Scratch notes for this question. Not saved.',label_visibility='collapsed',on_change=notepad_changed,args=(key,))
 
 
 @st.fragment
@@ -567,12 +599,13 @@ def play_round_screen(client,duel_id):
     st.progress(result['index']/30,text=f"Question {result['index']+1} of 30")
     st.caption(f":material/timer: {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
     st.subheader(result['question'])
-    if result.get('allow_calculator') is True:calculator_launcher(f'play_{duel_id}_{result["index"]}')
+    question_tools(f'play_{duel_id}_{result["index"]}',result.get('allow_calculator') is True)
     cols=st.columns(2)
     for i,option in enumerate(result['options']):
         if cols[i%2].button(option['text'],key=f"play_answer_{duel_id}_{result['index']}_{option['id']}",use_container_width=True):
             response=play_request(repository,'answer',{'duel_id':duel_id,'index':result['index'],'answer_id':option['id']})
             if response is not None:
+                clear_notepads()
                 if response.get('state')=='feedback':st.session_state.play_feedback={**response,'duel_id':duel_id}
                 st.rerun()
 
@@ -832,11 +865,12 @@ def study_round_screen(client,sid):
             st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
             if r.get('deadline'):st.caption('Finish by '+r['deadline'])
             st.subheader(r['question'])
-            if r.get('allow_calculator') is True:calculator_launcher(f'study_{sid}_{r["index"]}')
+            question_tools(f'study_{sid}_{r["index"]}',r.get('allow_calculator') is True)
             cols=st.columns(2)
             for i,a in enumerate(r['options']):
                 if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):
-                    if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:st.rerun()
+                    if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:
+                        clear_notepads();st.rerun()
         else:
             c=r['card'];st.caption(c.get('chapter') or 'General');st.subheader(c['question'])
             if r['correct']:st.success('Correct!')
