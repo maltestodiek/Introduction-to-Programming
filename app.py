@@ -708,17 +708,20 @@ def study_request(client,action,data=None):
 
 STUDY_LEVEL_COLORS={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
 STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
+STUDY_LEVEL_TITLES={'new':'New','0':'Needs practice','1':'Level 1 · Building confidence','2':'Level 2 · Getting stronger','3':'Level 3 · Well practised'}
+STUDY_LEVEL_MEANINGS={'new':'Not answered yet.','0':'Answered, but no correct answer is counted at the moment.','1':'Answered correctly once.','2':'Answered correctly twice.','3':'Answered correctly three times, the highest level.'}
 
 
 def study_level_selector(label,key):
     selected=[]
     with st.popover(label,icon=':material/filter_alt:',use_container_width=True):
         st.caption('Select one or more learning levels.')
-        for level,name in STUDY_LEVELS.items():
+        for level,name in STUDY_LEVEL_TITLES.items():
             swatch,option=st.columns([1,10],vertical_alignment='center')
             with swatch:st.html(f'<span aria-hidden="true" style="display:block;width:16px;height:16px;border-radius:5px;background:{STUDY_LEVEL_COLORS[level]}"></span>')
-            if option.checkbox(name,value=True,key=key+'_'+level):selected.append(level)
-    chips=''.join(f'<span style="display:inline-flex;align-items:center;gap:7px;border:1px solid #80808055;border-radius:8px;padding:5px 8px"><span aria-hidden="true" style="width:12px;height:12px;border-radius:4px;background:{STUDY_LEVEL_COLORS[level]}"></span>{escape(STUDY_LEVELS[level])}</span>' for level in selected)
+            if option.checkbox(name,value=True,key=key+'_'+level,help=STUDY_LEVEL_MEANINGS[level]):selected.append(level)
+        st.caption('Each correct answer moves a question up one level; each wrong answer moves it down one.')
+    chips=''.join(f'<span style="display:inline-flex;align-items:center;gap:7px;border:1px solid #80808055;border-radius:8px;padding:5px 8px"><span aria-hidden="true" style="width:12px;height:12px;border-radius:4px;background:{STUDY_LEVEL_COLORS[level]}"></span>{escape(STUDY_LEVEL_TITLES[level])}</span>' for level in selected)
     if selected:st.html('<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:14px;margin-bottom:10px">'+chips+'</div>')
     else:st.caption('No learning levels selected.')
     return selected
@@ -728,8 +731,7 @@ def study_progress_summary(cards):
     counts={k:0 for k in STUDY_LEVELS}
     for c in cards:counts['new' if c.get('level') is None else str(c['level'])]+=1
     colors={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
-    descriptions={'new':'Not answered yet','0':'Ready to revisit','1':'Learning level 1 of 3','2':'Learning level 2 of 3','3':'Learning level 3 of 3'}
-    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style><div class="study-legend">'+''.join(f'<div class="study-level"><span class="study-swatch" style="background:{colors[k]}"></span><span><strong>{STUDY_LEVELS[k]}</strong><small>{descriptions[k]}</small></span><b>{v}</b></div>' for k,v in counts.items())+'</div>')
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style><div class="study-legend">'+''.join(f'<div class="study-level"><span class="study-swatch" style="background:{colors[k]}"></span><span><strong>{STUDY_LEVEL_TITLES[k]}</strong><small>{STUDY_LEVEL_MEANINGS[k]}</small></span><b>{v}</b></div>' for k,v in counts.items())+'</div>')
     with st.popover(' ',icon=':material/info:',help='Learning progress legend'):
         explanations=[
             ('new','New','You have not answered this question yet.'),
@@ -832,7 +834,7 @@ def study_library(client,profile):
                 st.session_state.study_draft=d;st.session_state.study_revision=0 if deck.get('legacy') else deck['revision'];st.session_state.pop('study_review',None);st.rerun()
         for i,c in enumerate(deck['cards']):
             level='new' if c.get('level') is None else str(c['level'])
-            with st.expander(f"{i+1}. {c.get('chapter') or 'General'} · {STUDY_LEVELS[level]} · {c['question']}"):
+            with st.expander(f"{i+1}. {c.get('chapter') or 'General'} · {STUDY_LEVEL_TITLES[level]} · {c['question']}"):
                 show_deck_cards([c])
                 if c.get('note'):st.info('Your private note: '+c['note'])
                 for f in c.get('feedback',[]):st.caption('Feedback you sent: '+f)
@@ -908,6 +910,323 @@ def study_round_screen(client,sid):
         if st.button('Cancel this search or invitation'):
             if study_request(client,'cancel',{'id':sid}) is not None:st.rerun()
     else:st.info('This session '+state+'. Your completed practice and notes are saved.')
+
+
+WEEKDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+
+
+def study_plan_request(client,action,data=None):
+    from db import StudyPlanRepository
+    return play_request(StudyPlanRepository(client),action,data)
+
+
+def study_plan_quiet(client,action,data=None):
+    """Study plan request for places where the plan is an extra: problems are not shown."""
+    from db import StudyPlanRepository
+    try:return StudyPlanRepository(client).action(action,data)
+    except ValueError:return None
+
+
+def study_plan_decks(client,data=None):
+    """Decks the student can study, by course: their own and copies earned by studying with friends."""
+    data=data or study_request(client,'list')
+    if data is None:return None
+    grouped={}
+    for key,shared in (('decks',False),('shared',True)):
+        for d in data.get(key,[]):grouped.setdefault(d['course'],[]).append({'id':d['id'],'name':d['name']+(' (shared with me)' if shared else ''),'shared':shared,'count':d.get('count',0)})
+    return grouped
+
+
+def study_plan_levels(client,plan,decks,by_deck=None):
+    """Current learning level of every question in the plan, per course. The plan only reads progress."""
+    lookup={d['id']:d for items in decks.values() for d in items};levels={};by_deck={} if by_deck is None else by_deck
+    for item in plan['courses']:
+        levels[item['course']]=[]
+        for deck_id in item['decks']:
+            if deck_id not in lookup:continue
+            full=study_request(client,'deck',{'id':deck_id,'shared':lookup[deck_id]['shared']})
+            if full is None:return None
+            by_deck[deck_id]=[c.get('level') for c in full.get('cards',[])];levels[item['course']]+=by_deck[deck_id]
+    return levels
+
+
+def study_plan_start(client,plan,course,steps,by_deck,decks):
+    """Start a solo Study session for one course of the plan, from the deck with the most questions below the target."""
+    from uuid import uuid4
+    lookup={d['id']:d for items in decks.values() for d in items};item=next(c for c in plan['courses'] if c['course']==course)
+    waiting={d:sum(1 for level in by_deck.get(d,[]) if (level or 0)<plan['target']) for d in item['decks'] if d in lookup}
+    deck_id=max(waiting,key=waiting.get,default=None)
+    if not deck_id or not waiting[deck_id]:
+        st.info('Every question of this course has reached your target level.');return
+    started=study_request(client,'start',{'deck_id':deck_id,'shared':lookup[deck_id]['shared'],'mode':'solo','count':min(steps,waiting[deck_id],100),'chapters':[],'levels':['new']+[str(level) for level in range(plan['target'])],'request_id':str(uuid4())})
+    if started is not None:
+        st.session_state.study_active=True;st.session_state.study_choice='Study alone';st.session_state.study_session=started['id'];st.session_state.main_page='Play';st.rerun()
+
+
+def study_plan_clock():
+    """The student's current time of day, from the browser's time zone when it is known."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:return datetime.now(ZoneInfo(st.context.timezone)).time()
+    except Exception:return datetime.now().time()
+
+
+def study_plan_today(client,plan,levels,by_deck,decks,today,prefix):
+    """Today's sessions of one plan with a start button for everything still open. The day's amount is fixed once per day."""
+    import study_plan as rules
+    now=study_plan_clock()
+    if (plan.get('day') or {}).get('date')!=today.isoformat():
+        plan['day']=rules.day_snapshot(plan,levels,today)
+        if plan['day']['planned']:study_plan_quiet(client,'save',{'id':plan['id'],'plan':{k:v for k,v in plan.items() if k not in ('id','calendar_events')}})
+    sessions=rules.today_sessions(plan,levels,today)
+    if not sessions:
+        st.caption('No session planned for today.');return
+    st.write("**Today's sessions**")
+    for index,session in enumerate(sessions):
+        if not session['open']:
+            st.caption(f":material/check_circle: {session['name']} session ({session['time']}) is done.");continue
+        for course,steps in session['courses'].items():
+            action='Catch up on' if rules.session_overdue(session['time'],now) else 'Start'
+            if st.button(f"{action} {session['name'].lower()} session · {course} · {steps} questions",key=f"{prefix}_start_{plan['id']}_{index}_{course}",icon=':material/play_arrow:',use_container_width=True,help=f"Planned for {session['time']}. You can do it at any time today."):
+                study_plan_start(client,plan,course,steps,by_deck,decks)
+
+
+def study_plan_play_todos(client,study_data,prefix='todo'):
+    """Open study plan sessions of today, listed with the ongoing Study sessions on Play."""
+    from datetime import date
+    data=study_plan_quiet(client,'list')
+    if not data or not data.get('plans') or not study_data:return
+    decks=study_plan_decks(client,study_data);today=date.today()
+    st.markdown('**:material/event_available: Study plan to-dos**')
+    for stored in data['plans']:
+        plan={**stored['plan'],'id':stored['id']};by_deck={};levels=study_plan_levels(client,plan,decks,by_deck)
+        if levels is None:continue
+        with st.container(border=True):
+            st.write('**'+plan['name']+'**');study_plan_today(client,plan,levels,by_deck,decks,today,prefix)
+
+
+def study_plan_workload_text(rules,plan,item,levels,today,schedule):
+    from datetime import date
+    from math import ceil
+    steps=rules.remaining_steps(levels,plan['target']);end=date.fromisoformat(item['end']);outlook=rules.course_outlook(schedule,item['course'])
+    if not levels:return f"{item['course']}: the selected decks have no questions yet."
+    if steps==0:return f"{item['course']}: every question has reached level {plan['target']}."
+    if end<today:return f"{item['course']}: ended on {end:%d %b %Y} with {steps} answers still open."
+    if not outlook:return f"{item['course']}: there is no study day left before {end:%d %b %Y}."
+    per_session=f", {ceil(outlook['per_day']/plan['sessions'])} per session" if plan['sessions']>1 else ''
+    starting=f" from {outlook['first']:%d %b}" if outlook['first']>today else ''
+    early=(end-outlook['finish']).days
+    hint=f"You will be done on {outlook['finish']:%d %b}, {early} day{'s' if early!=1 else ''} before your target date." if early>0 else f"You will be done on your target date, {outlook['finish']:%d %b}."
+    return f"{item['course']}: **{outlook['per_day']} questions per day**{per_session}, on {outlook['days']} study day{'s' if outlook['days']!=1 else ''}{starting}. {hint}"
+
+
+def study_plan_total_text(schedule):
+    first=min(schedule) if schedule else None
+    return f"All courses together: **{sum(schedule[first].values())} questions** on your next study day, {first:%d %b}." if first else ''
+
+
+def study_plan_close_editor():
+    for k in [k for k in st.session_state if str(k).startswith('plan_')]:st.session_state.pop(k,None)
+
+
+def study_plan_add_day_off(key):
+    extra=st.session_state.get(key+'extra_day')
+    if extra:
+        for part in ('dates_options','dates_off'):st.session_state[key+part]=sorted(set(st.session_state.get(key+part,[]))|{extra.isoformat()})
+
+
+def study_plan_editor(client,profile,decks,user_id=''):
+    from datetime import date,time,timedelta
+    import study_plan as rules
+    draft=st.session_state.plan_draft;today=date.today();key='plan_'+str(draft.get('id','new'))+'_'
+    st.subheader('Edit study plan' if draft.get('id') else 'Create study plan')
+    st.caption('Study plans are for Study Mode. Nothing is saved, and no calendar is changed, until you save.')
+    name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name')
+    courses=st.multiselect('Courses',profile['courses'],default=[c['course'] for c in draft['courses'] if c['course'] in profile['courses']],key=key+'courses',help='Only courses from your profile can be added.')
+    chosen=[]
+    for course in courses:
+        old=next((c for c in draft['courses'] if c['course']==course),None);options=decks.get(course,[]);ids=[d['id'] for d in options]
+        with st.container(border=True):
+            st.write('**'+course+'**')
+            if not options:st.warning('You have no Study decks for this course yet.')
+            first,last=st.columns(2)
+            begin=first.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
+            end=last.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course)
+            start=begin.isoformat() if begin>today else None
+            picked=st.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course)
+            chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
+    level,legend=st.columns([5,1],vertical_alignment='bottom')
+    target=level.radio('Target level for every question',[1,2,3],index=draft['target']-1,format_func=lambda v:{1:'Level 1 · answered correctly once',2:'Level 2 · answered correctly twice',3:'Level 3 · answered correctly three times'}[v],key=key+'target')
+    st.html('<style>'+''.join(f'[class*="st-key-plan_"][class*="_target"] [role="radiogroup"]>:nth-child({v}) [data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] p::before{{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]};box-shadow:inset 0 0 0 1px #00000015}}' for v in (1,2,3))+'</style>')
+    with legend.popover(' ',icon=':material/info:',help='What the learning levels mean'):
+        st.write('**Learning levels**')
+        for v,text in [(1,'One correct answer earned.'),(2,'Two correct answers earned.'),(3,'Three correct answers earned, the highest level.')]:
+            st.html(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:inherit"><span style="flex:0 0 16px;height:16px;margin-top:3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]}"></span><div><strong>Level {v} · {escape(STUDY_LEVELS[str(v)])}</strong><div>{text}</div></div></div>')
+        st.caption('Each correct answer moves a question up one level and each wrong answer moves it down one. The plan counts how many levels every question still has to climb to your target.')
+    fixed=st.radio('Weekly days off',['None','Choose weekdays'],index=1 if draft['weekdays_off'] else 0,horizontal=True,key=key+'weekdays_mode')=='Choose weekdays'
+    weekdays_off=st.multiselect('Weekdays without studying',list(range(7)),default=draft['weekdays_off'],format_func=lambda d:WEEKDAYS[d],key=key+'weekdays') if fixed else []
+    st.caption('Optional: add single dates without studying, such as holidays.')
+    for part in ('dates_options','dates_off'):
+        if key+part not in st.session_state:st.session_state[key+part]=list(draft['dates_off'])
+    pick,add=st.columns([3,1],vertical_alignment='bottom')
+    pick.date_input('Single day without studying',value=None,min_value=today,key=key+'extra_day')
+    add.button('Add day off',on_click=study_plan_add_day_off,args=(key,),key=key+'add_day')
+    dates_off=st.multiselect('Days off',st.session_state[key+'dates_options'],key=key+'dates_off',help='Remove a date to study on it again.') if st.session_state[key+'dates_options'] else []
+    sessions=st.radio('Sessions per study day',[1,2,3],index=draft['sessions']-1,horizontal=True,key=key+'sessions',help='A session is one sitting in Study Mode.')
+    st.caption('A session is one sitting in Study Mode. Splitting a day into 2 or 3 sessions keeps each sitting short; every session gets its own start time and calendar entry.')
+    times=[]
+    for i,col in enumerate(st.columns(sessions)):
+        suggested=draft['times'][i] if i<len(draft['times']) else rules.DEFAULT_TIMES[i]
+        times.append(col.time_input(f'Session {i+1} starts at',value=time.fromisoformat(suggested),step=900,key=key+f'time_{i}').strftime('%H:%M'))
+    plan={'name':name,'target':target,'sessions':sessions,'times':times,'weekdays_off':weekdays_off,'dates_off':dates_off,'courses':chosen};clean=None
+    try:clean=rules.validate_plan(plan,profile['courses'],decks,today)
+    except ValueError as exc:st.info(str(exc))
+    if clean:
+        levels=study_plan_levels(client,clean,decks)
+        if levels is not None:
+            st.write('**Your workload**');schedule=rules.plan_schedule(clean,levels,today)
+            for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
+            if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
+            st.caption('A question counts once for every level it still has to climb, so new questions count more than practised ones. Every study day of the plan has at least 20 questions in total; if fewer are left, they are all planned for one day. The numbers adjust every day to your progress.')
+    save,cancel=st.columns(2)
+    if save.button('Save study plan',type='primary',disabled=clean is None,use_container_width=True):
+        payload={'plan':clean}
+        if draft.get('id'):payload['id']=draft['id']
+        saved=study_plan_request(client,'save',payload)
+        if saved is not None:
+            study_plan_close_editor();st.session_state.study_plan_finish=saved['id'];st.rerun()
+    if cancel.button('Cancel',use_container_width=True):
+        study_plan_close_editor();st.rerun()
+    if draft.get('id'):
+        import google_calendar as google
+        st.divider();st.write('**Calendar**')
+        st.caption('These use the plan as it is saved now. Save your changes first to include them.')
+        saved={k:v for k,v in draft.items() if k!='calendar_events'};recorded=draft.get('calendar_events') or [];saved_levels=study_plan_levels(client,saved,decks)
+        if saved_levels is not None:study_plan_calendar_buttons(saved,recorded,saved_levels,today,user_id)
+        st.divider()
+        if not st.session_state.get(key+'delete'):
+            if st.button('Delete study plan',icon=':material/delete:',key=key+'delete_ask'):
+                st.session_state[key+'delete']=True;st.rerun()
+        else:
+            st.warning(f"Delete the study plan “{draft['name']}”? Your learning progress is kept.")
+            client_id,secret,redirect=study_plan_google_settings()
+            if recorded and client_id and secret:
+                st.caption(f'{len(recorded)} entries of this plan are in your Google Calendar. Remove them first if you no longer want them.')
+                st.link_button('Remove from Google Calendar',google.authorization_url(client_id,redirect,google.sign_state(secret,'clear',draft['id'],user_id)))
+            yes,no=st.columns(2)
+            if yes.button('Confirm deletion',type='primary',key=key+'delete_yes',use_container_width=True):
+                if study_plan_request(client,'delete',{'id':draft['id']}) is not None:
+                    study_plan_close_editor();st.rerun()
+            if no.button('Keep plan',key=key+'delete_no',use_container_width=True):
+                st.session_state.pop(key+'delete',None);st.rerun()
+
+
+def study_plan_google_settings():
+    return config('GOOGLE_CLIENT_ID'),config('GOOGLE_CLIENT_SECRET'),(config('APP_URL') or 'http://localhost:8501').rstrip('/')
+
+
+def study_plan_google_answer(client,decks,user_id):
+    """After Google sends the student back: update the plan's calendar entries once, with a short-lived token."""
+    from datetime import date
+    import httpx
+    import google_calendar as google
+    import study_plan as rules
+    state=str(st.query_params.get('state',''))
+    if not state.startswith(google.STATE_PREFIX):return
+    code=st.query_params.get('code')
+    for name in ('state','code','error','scope','authuser','prompt','hd','iss'):
+        if name in st.query_params:del st.query_params[name]
+    if not code:
+        st.warning('Google Calendar was not changed because the permission was not granted.');return
+    client_id,secret,redirect=study_plan_google_settings()
+    try:
+        request=google.read_state(secret,state,user_id)
+        data=study_plan_request(client,'list')
+        if data is None:return
+        stored=next((p for p in data['plans'] if p['id']==request['plan_id']),None)
+        if stored is None:raise ValueError('This study plan is no longer available. Google Calendar was not changed.')
+        plan={**stored['plan'],'id':stored['id']};created=[];failed=0
+        with httpx.Client(timeout=15) as http:
+            token=google.exchange_code(http,client_id,secret,redirect,code)
+            events=[]
+            if request['kind']=='sync':
+                levels=study_plan_levels(client,plan,decks)
+                if levels is None:return
+                try:timezone=st.context.timezone or 'UTC'
+                except Exception:timezone='UTC'
+                events=[{'uid':rules.session_uid(plan,s),'body':google.event_body(rules.session_title(plan,s),rules.session_details(s),s['date'],s['time'],rules.session_minutes(s['steps']),timezone)} for s in rules.plan_sessions(plan,levels,date.today())]
+            left=google.remove_events(http,token,stored['calendar_events'])
+            if events:created,failed=google.add_events(http,token,events)
+        if study_plan_request(client,'events',{'id':stored['id'],'events':left+created}) is None:return
+        if left or failed:st.warning(f"Google Calendar was only partly updated for {plan['name']}: {len(created)} entries added, {failed} could not be added and {len(left)} old entries could not be removed. Choose Update Google Calendar to try again.")
+        elif request['kind']=='sync':st.success(f"Google Calendar now has {len(created)} entries for {plan['name']}.")
+        else:st.success(f"The Google Calendar entries for {plan['name']} were removed.")
+    except ValueError as exc:st.error(str(exc))
+    except httpx.HTTPError:st.error('Google Calendar could not be reached. Choose Update Google Calendar to try again.')
+
+
+def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
+    """Calendar file download and Google Calendar link for one saved plan."""
+    import google_calendar as google
+    import study_plan as rules
+    client_id,secret,redirect=study_plan_google_settings();download,online=st.columns(2)
+    download.download_button('Calendar file',rules.plan_ics(plan,rules.plan_sessions(plan,levels,today)),file_name='studyduel-'+plan['id'][:8]+'.ics',mime='text/calendar',key='plan_ics_'+plan['id'],icon=':material/download:',use_container_width=True,help='Download the planned sessions and import them into any calendar.')
+    if client_id and secret:
+        online.link_button('Update Google Calendar' if recorded else 'Add to Google Calendar',google.authorization_url(client_id,redirect,google.sign_state(secret,'sync',plan['id'],user_id)),icon=':material/event:',use_container_width=True)
+        st.caption((f'{len(recorded)} entries of this plan are in your Google Calendar. After changing the plan or missing a day, choose Update Google Calendar. ' if recorded else '')+'Google asks for permission each time; StudyDuel only changes the entries it created for this plan.')
+    else:st.caption('Google Calendar is not connected to this app yet. Use the calendar file instead.')
+
+
+def study_plan_finish(client,stored,decks,user_id):
+    """Step after saving: put the sessions into a calendar if wanted, then finish to see the progress overview."""
+    from datetime import date
+    import study_plan as rules
+    plan={**stored['plan'],'id':stored['id']};today=date.today()
+    st.subheader('Study plan saved: '+plan['name'])
+    levels=study_plan_levels(client,plan,decks)
+    if levels is None:return
+    schedule=rules.plan_schedule(plan,levels,today)
+    for item in plan['courses']:st.write(study_plan_workload_text(rules,plan,item,levels[item['course']],today,schedule))
+    if len(plan['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
+    st.write('**Add the sessions to your calendar**')
+    st.caption('Optional. Download a calendar file or add the sessions to Google Calendar, then finish to see your progress.')
+    study_plan_calendar_buttons(plan,stored.get('calendar_events') or [],levels,today,user_id)
+    if st.button('Finish',type='primary',use_container_width=True):
+        st.session_state.pop('study_plan_finish',None);st.rerun()
+
+
+def study_plan_screen(client,profile,user_id=''):
+    from datetime import date
+    import google_calendar as google
+    import study_plan as rules
+    st.title('Study Plan')
+    decks=study_plan_decks(client)
+    if decks is None:return
+    study_plan_google_answer(client,decks,user_id)
+    if 'plan_draft' in st.session_state:return study_plan_editor(client,profile,decks,user_id)
+    data=study_plan_request(client,'list')
+    if data is None:return
+    saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
+    if saved:return study_plan_finish(client,saved,decks,user_id)
+    st.write('Plan your Study Mode sessions until your exams and follow your progress.')
+    if st.button('Create study plan',type='primary',icon=':material/add:'):
+        st.session_state.plan_draft={'name':'','target':2,'sessions':1,'times':rules.DEFAULT_TIMES[:1],'weekdays_off':[],'dates_off':[],'courses':[]};st.rerun()
+    if not data['plans']:st.caption('No study plans yet.')
+    today=date.today()
+    for stored in data['plans']:
+        plan={**stored['plan'],'id':stored['id']}
+        with st.container(border=True):
+            st.subheader(plan['name'])
+            by_deck={};levels=study_plan_levels(client,plan,decks,by_deck)
+            if levels is None:continue
+            if len(plan['courses'])>1:
+                everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
+                st.progress(overall,text=f"Overall progress {overall:.0%}")
+            for item in plan['courses']:
+                share=rules.plan_progress(levels[item['course']],plan['target']);st.progress(share,text=f"{item['course']} {share:.0%} · finish by {date.fromisoformat(item['end']):%d %b}")
+            study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
+            if st.button('Edit',key='plan_edit_'+plan['id'],icon=':material/edit:',use_container_width=True):
+                st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
 
 
 def study_design():
@@ -989,6 +1308,7 @@ def study_screen(client,profile):
         decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
+    if not together:study_plan_play_todos(client,data,'solo')
     st.subheader('Your session settings' if offer else 'Create a new study session')
     courses=sorted({d['course'] for d in decks});course=st.selectbox('Study course',courses)
     choices=[d for d in decks if d['course']==course]
@@ -1107,6 +1427,7 @@ def ongoing_sessions(client):
                     if session.get('deadline'):st.caption('Finish by '+session['deadline'])
                     if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id']):
                         st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together';st.session_state.study_session=session['id'];st.rerun()
+            study_plan_play_todos(client,data)
 
     st.subheader('Session history')
     battle_history,study_history=st.columns(2)
@@ -1377,6 +1698,7 @@ if profile:
     tabs=['Decks','Play','Friends','Leaderboard','Study Plan']
     columns=st.columns(len(tabs))
     page=st.session_state.get('main_page','Profile')
+    if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
     for col,label in zip(columns,tabs):
         if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
             navigate(label)
@@ -1406,6 +1728,8 @@ if profile:
             if st.button('Retry friends'):st.rerun()
         else:friends_screen(friends,repo,friend_state)
         st.stop()
+    if page=='Study Plan':
+        study_plan_screen(auth.client,profile,auth.user.id);st.stop()
     if page in ('Leaderboard','Study Plan'):
         st.title(page)
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
