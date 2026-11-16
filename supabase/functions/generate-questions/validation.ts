@@ -44,8 +44,8 @@ export function validateGeneratedQuestions(
     if (typeof question !== "string" || !question.trim()) {
       throw new Error(`Question ${index + 1} has no question text.`);
     }
-    if (typeof explanation !== "string" || !explanation.trim()) {
-      throw new Error(`Question ${index + 1} has no explanation.`);
+    if (explanation !== undefined && typeof explanation !== "string") {
+      throw new Error(`Question ${index + 1} has an invalid explanation.`);
     }
     if (!Array.isArray(options) || options.length !== 4 || options.some((option) => typeof option !== "string" || !option.trim())) {
       throw new Error(`Question ${index + 1} must have four non-empty options.`);
@@ -63,7 +63,7 @@ export function validateGeneratedQuestions(
       question: question.trim(),
       options: options.map((option) => option.trim()),
       correctOptionIndex,
-      explanation: explanation.trim(),
+      explanation: typeof explanation === "string" ? explanation.trim() : "",
     };
   });
 }

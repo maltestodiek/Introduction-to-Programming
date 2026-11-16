@@ -28,17 +28,34 @@ export async function requestQuestionsFromRequesty(
         messages: [
           {
             role: "system",
-            content: "Return only a valid JSON object. Do not use Markdown.",
+            content: [
+              "You generate reviewable StudyDuel multiple-choice question drafts from Anki cards.",
+              "Return only one valid JSON object. Do not use Markdown or add commentary.",
+              "Use only information supported by the front and back of the source card.",
+              "Preserve the source card language. If a card is German, generate German; if English, generate English.",
+              "Create exactly one clear, factual question per source card.",
+              "Use a mixed difficulty level: prefer conceptual understanding, but vary between direct recall and application where the source allows it.",
+              "Each question must be self-contained, concise, and unambiguous. Do not use double negatives, trick wording, or reveal the answer in the stem.",
+              "Provide exactly four distinct, non-empty answer options. Exactly one must be correct.",
+              "Incorrect options must be plausible and closely related to the topic, not nonsense. Never use 'all of the above', 'none of the above', or equivalents.",
+              "Vary the correct option position across questions instead of repeatedly using the same index.",
+              "Do not invent facts, context, calculations, or definitions that are absent from the source card.",
+              "If a card is too incomplete to make a reliable question, still return a source-grounded direct-recall question rather than adding external knowledge.",
+              "Do not generate explanations; set explanation to an empty string.",
+            ].join(" "),
           },
           {
             role: "user",
             content: JSON.stringify({
-              task: "Create exactly one factual multiple-choice question for every source card.",
-              requirements: {
-                responseShape: "{ questions: [{ sourceCardId, question, options, correctOptionIndex, explanation }] }",
-                options: "exactly four distinct, non-empty strings",
-                correctOptionIndex: "integer from 0 through 3",
-                sourceCardId: "must match the input card",
+              task: "Create exactly one StudyDuel multiple-choice draft for every source card.",
+              responseShape: {
+                questions: [{
+                  sourceCardId: "input card id",
+                  question: "question text",
+                  options: ["option 1", "option 2", "option 3", "option 4"],
+                  correctOptionIndex: "integer from 0 through 3",
+                  explanation: "",
+                }],
               },
               cards,
             }),
