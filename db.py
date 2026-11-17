@@ -170,6 +170,18 @@ class PlayRepository:
         return result
 
 
+class BattleRepository:
+    """Server-authoritative 15-question Battle Mode operations."""
+    def __init__(self,client):self.client=client
+
+    def action(self,action,data=None):
+        try:result=self.client.rpc('battle_action',{'p_action':action,'p_data':data or {}}).execute().data
+        except Exception as exc:raise ValueError('Battle Mode could not be reached. Refresh and retry after its database migration is applied.') from exc
+        if not isinstance(result,dict):raise ValueError('Battle Mode returned an unexpected result.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
+
+
 class StudyRepository:
     """Authenticated, transactional Study operations. Never accepts a user ID."""
     def __init__(self,client):self.client=client

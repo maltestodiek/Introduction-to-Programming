@@ -21,44 +21,15 @@ def button(at,label):return next(b for b in at.button if b.label==label)
 
 def test_placeholders_disabled_and_incomplete_card_rejected(monkeypatch):
     at=deck_app(monkeypatch)
-    assert button(at,'Import from Anki').disabled
-    assert button(at,'Generate with AI').disabled
-    button(at,'Create 15-question duel deck').click().run()
-    assert button(at,'Save Deck').disabled
-    button(at,'+ Add Flashcard').click().run()
-    assert at.error and len(at.session_state['deck_draft']['cards'])==1
+    assert not button(at,'Import from Anki').disabled
+    assert not button(at,'Generate with AI').disabled
+    assert any(exp.label=='Battle Mode Decks' for exp in at.expander)
+    assert not any('30-question' in getattr(widget,'value','') for widget in at.markdown)
     assert not at.exception
 
-def test_fifteen_card_manual_review_and_publish(monkeypatch):
-    published=[];reviewed=[]
-    def review(self,d):
-        from logic import deck_fingerprint
-        reviewed.append(d.copy());return {'id':'r','fingerprint':deck_fingerprint(d)}
-    def publish(self,d,r):
-        published.append(d.copy());return {'id':'saved'}
-    monkeypatch.setattr('db.DeckRepository.review',review)
-    monkeypatch.setattr('db.DeckRepository.publish',publish)
-    monkeypatch.setattr('db.DeckRepository.get',lambda self,id:{**published[-1],'profiles':{'username':'student_a'}})
-    at=deck_app(monkeypatch);button(at,'Create 15-question duel deck').click().run()
-    next(w for w in at.text_input if w.label=='Deck name').set_value('Finance foundations')
-    for i in range(15):
-        at.text_area[0].set_value(f'Question {i+1}?')
-        for n in range(4):next(w for w in at.text_input if w.label==f'Answer {n+1}').set_value(f'Answer {i+1}.{n+1}')
-        ids=[a['id'] for a in at.session_state['deck_draft']['cards'][i]['answers']]
-        at.radio[0].set_value(ids[i%4])
-        if i<14:button(at,'+ Add Flashcard').click().run()
-        else:at.run()
-        assert not at.exception
-    assert button(at,'+ Add Flashcard').disabled
-    assert not button(at,'Save Deck').disabled
-    button(at,'Save Deck').click().run()
-    assert len(reviewed)==1 and not published
-    assert len(at.success)==15
-    button(at,'Back to editing').click().run()
-    assert at.session_state.get('deck_review') is None
-    assert len(at.session_state['deck_draft']['cards'])==15
-    button(at,'Save Deck').click().run();button(at,'Create Deck').click().run()
-    assert len(published)==1
-    assert len(published[0]['cards'])==15
-    assert not any(b.label in ('Delete this card','Save Deck') for b in at.button)
+def test_active_decks_screen_does_not_offer_legacy_thirty_question_authoring(monkeypatch):
+    at=deck_app(monkeypatch)
+    labels=[widget.label for widget in at.button]
+    assert 'Create 15-question duel deck' not in labels
+    assert 'Create Battle Mode Deck' in labels
     assert not at.exception
