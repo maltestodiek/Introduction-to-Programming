@@ -269,6 +269,34 @@ def validate_study_deck(draft):
     return {'id':_deck_id(draft.get('id')),'name':_deck_text(draft.get('name'),'a deck name'),'course':_deck_text(draft.get('course'),'a course'),'language':draft['language'],'cards':cards}
 
 
+def select_battle_cards(source_deck, card_ids, *, consent):
+    """Return an immutable 15-question Battle snapshot from a valid Study deck."""
+    clean = validate_study_deck(source_deck)
+    if consent is not True:
+        raise ValueError('You must accept that the deck can be played by everyone.')
+    if not isinstance(card_ids, list) or len(card_ids) != 15:
+        raise ValueError('Choose exactly 15 questions for a Battle Deck.')
+    if len(set(card_ids)) != 15:
+        raise ValueError('Choose 15 distinct questions for a Battle Deck.')
+    by_id = {card['id']: card for card in clean['cards']}
+    if any(card_id not in by_id for card_id in card_ids):
+        raise ValueError('Choose questions from the selected source deck.')
+    return deepcopy([by_id[card_id] for card_id in card_ids])
+
+
+def battle_rating_score(rating):
+    scores = {'good': 1, 'neutral': 0, 'bad': -1}
+    if rating not in scores:
+        raise ValueError('Choose good, neutral or bad.')
+    return scores[rating]
+
+
+def battle_creator_reward(rating, *, source_origin, creator_is_player):
+    """Pure reward rule; database uniqueness makes the grant retry-safe."""
+    battle_rating_score(rating)
+    return 5 if rating == 'good' and source_origin == 'human' and not creator_is_player else 0
+
+
 def study_level(current,correct):
     return max(0,min(3,(current or 0)+(1 if correct else -1)))
 
