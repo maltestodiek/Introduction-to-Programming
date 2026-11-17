@@ -17,6 +17,8 @@ Every row shows the place, the profile picture or avatar, the username and the X
 
 The leaderboard is read-only. It offers no friend code, no invitation, no chat and no link to a profile, so being at the top does not expose a student to unlimited requests. It returns only what signed-in students can already see about each other: username, picture and XP.
 
+For development, a local copy (APP_URL on localhost) can set LEADERBOARD_DEMO to 1 to show invented students instead of the real ranking, with a visible notice. The switch is ignored anywhere else and never reads or writes the database.
+
 State and persistence: nothing new is stored. The rankings are read from the existing profile XP each time the tab is opened.
 
 ## Out of scope
