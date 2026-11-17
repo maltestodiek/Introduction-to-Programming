@@ -4,11 +4,13 @@ from pypdf import PdfReader
 
 MAX_SOURCES=100
 MAX_CHARS=3000
+MAX_FILE_BYTES=20*1024*1024
 
 class SlideImportError(ValueError): pass
 
 def parse_pdf_slides(payload:bytes)->dict:
     if not payload:raise SlideImportError('Choose a PDF lecture file.')
+    if len(payload)>MAX_FILE_BYTES:raise SlideImportError('Choose a PDF smaller than 20 MB.')
     try:reader=PdfReader(BytesIO(payload))
     except Exception as exc:raise SlideImportError('Choose a readable PDF lecture file.') from exc
     if reader.is_encrypted:raise SlideImportError('Encrypted PDFs are not supported.')
