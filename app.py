@@ -1602,7 +1602,9 @@ if not url or not key:
     st.stop()
 if "auth" not in st.session_state:
     try:
-        client=create_client(url,key,options=ClientOptions(auto_refresh_token=False,persist_session=True))
+        # AI question generation calls an external provider and commonly takes
+        # longer than the default Functions client read timeout.
+        client=create_client(url,key,options=ClientOptions(auto_refresh_token=False,persist_session=True,function_client_timeout=60))
         st.session_state.auth=AuthService(client,app_url=config("APP_URL") or "http://localhost:8501")
     except Exception:
         st.error("Could not connect to StudyDuel. Please try again shortly.")
