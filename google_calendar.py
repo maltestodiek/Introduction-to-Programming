@@ -48,7 +48,7 @@ def exchange_code(http,client_id,client_secret,redirect_uri,code):
 
 def event_body(title,details,day,start_time,minutes,timezone):
     start=datetime.combine(day,datetime.strptime(start_time,'%H:%M').time());end=start+timedelta(minutes=minutes)
-    return {'summary':title,'description':details,'start':{'dateTime':start.isoformat(),'timeZone':timezone},'end':{'dateTime':end.isoformat(),'timeZone':timezone},'source':{'title':'StudyDuel study plan','url':'https://studyduel-nova-main.streamlit.app'}}
+    return {'summary':title,'description':details,'start':{'dateTime':start.isoformat(),'timeZone':timezone},'end':{'dateTime':end.isoformat(),'timeZone':timezone},'source':{'title':'CampusDuel study plan','url':'https://studyduel-nova-main.streamlit.app'}}
 
 
 def remove_events(http,token,recorded):

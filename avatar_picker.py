@@ -90,7 +90,7 @@ export default function(component) {
   return ()=>{stage.onpointerdown=null;stage.onpointerup=null;stage.onpointercancel=null;stage.onkeydown=null;};
 }
 """
-_picker=st.components.v2.component("studyduel_avatar_swipe",html=HTML,css=CSS,js=JS)
+_picker=st.components.v2.component("campusduel_avatar_swipe",html=HTML,css=CSS,js=JS)
 
 def clean_selection(value,default):
     return {key:value.get(key,default[key]) if value.get(key,default[key]) in choices else default[key]

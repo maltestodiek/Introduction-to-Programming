@@ -16,7 +16,7 @@ University is required, editable, and visible to signed-in users. Courses requir
 
 Use catalog selections for universities, courses, and languages. The existing three prototype courses are Financial Modeling, Corporate Finance, and Investments. The university catalog and course-to-university mapping must be supplied or explicitly labeled as prototype sample data; do not claim those courses belong to every university. Changing university must ask the user to review any incompatible course selections.
 
-No public anonymous profile page is required. 'Visible' means visible inside StudyDuel to signed-in users. Profile editing is restricted to its owner. Do not expose private course selections or email through a public profile response, even if hidden by the interface.
+No public anonymous profile page is required. 'Visible' means visible inside CampusDuel to signed-in users. Profile editing is restricted to its owner. Do not expose private course selections or email through a public profile response, even if hidden by the interface.
 
 ## Profile image
 
