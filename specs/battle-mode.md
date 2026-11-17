@@ -4,7 +4,7 @@
 Offer short, competitive course quizzes separately from non-rewarded Study sessions. Battle rewards performance and high-quality community Battle Decks without affecting learning plans or Study progress.
 
 ## What
-Battle Mode is a new workflow beside Study Mode. The earlier **classic duel** engine remains historical: each participant selected one immutable 15-card classic deck and both received the combined 30-card set. Its saved invitations, rounds, reviews, results and scores must remain readable and unchanged; it is not the new Battle Deck workflow.
+Battle Mode replaces the former 30-question duel workflow. There must be no user-facing route to create or start a new 30-question duel: every new Battle uses exactly one 15-question Battle Deck. Existing legacy rows are not deleted or retroactively changed by this feature, but they are not selectable for new Play sessions.
 
 The redesigned Battle workflow keeps the existing friend-challenge and mutual random-opponent choices, server-owned timing, 24-hour deadline, saved resumption, answer validation and settlement safeguards unless this specification explicitly changes them.
 
@@ -51,7 +51,7 @@ Battle must not create or update Study-plan entries, Study progress, learning le
 ## Out of scope
 - Changing the existing AI-/Chatbot-generation, review or publication workflow; Battle only consumes its already published decks.
 - Changing Study Mode rules, learning progress, Study Plan or real saved Study sessions.
-- Changing historical classic-duel snapshots, results or scores.
+- Deleting existing legacy duel rows or retroactively changing their saved results.
 - Leaderboard design beyond the profile's Game XP, Creator XP and Total XP display.
 - Cross-university Battles, moderation workflows, notifications or new social matching rules.
 
@@ -59,8 +59,8 @@ Battle must not create or update Study-plan entries, Study progress, learning le
 1. A creator can form an immutable 15-question Battle Deck from an eligible published source deck only after accepting the public-play confirmation.
 2. Battle offers Random Deck and Top Decks after course selection while preserving the existing friend and random-opponent choices.
 3. The server selects only published, same-university, same-course, language-compatible Battle Decks. Random selection is uniform; Top Decks follows the daily scoring rule, uses `Europe/Berlin` day boundaries and shows disabled Outstanding placeholders when fewer than ten qualify.
-4. Both participants receive the same 15-question snapshot with the existing 30-second question timer. Historic 30-question classic duels remain readable and playable as before.
+4. Both participants receive the same 15-question snapshot with the existing 30-second question timer. No new 30-question duel can be created or started.
 5. Completion enables one anonymous good/neutral/bad rating per participant and Battle Deck. Abandonment, timeout or non-completion writes the one neutral rating automatically. Repeats, retries and reopening cannot create a second rating.
 6. Good ratings grant exactly 5 Creator XP once to eligible human creators; AI-/Chatbot-derived Battle Decks, neutral ratings and bad ratings grant none. Existing Game XP and streak rules settle once; all XP types appear correctly in the profile Total XP breakdown.
 7. Battle writes do not change Study-plan or Study-progress state. Unauthorized users cannot create/alter another user's Battle Deck, ratings, rewards or Battle.
-8. Behavioral Python/UI checks and isolated database checks cover allowed, rejected and restart scenarios, including public consent, snapshot immutability, daily ranking, rating idempotency, reward idempotency and Battle/Study separation. Existing Play regression checks remain green.
+8. Behavioral Python/UI checks and isolated database checks cover allowed, rejected and restart scenarios, including public consent, snapshot immutability, daily ranking, rating idempotency, reward idempotency and Battle/Study separation. They also confirm that the active Play workflow creates only 15-question Battles.
