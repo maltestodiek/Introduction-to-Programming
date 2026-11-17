@@ -202,6 +202,18 @@ def battle_error_message(error):
     return 'Battle Mode could not be reached. Refresh and retry after its database migration is applied.'
 
 
+class LeaderboardRepository:
+    """Read-only Game XP rankings through the authenticated database function."""
+    def __init__(self,client):self.client=client
+
+    def load(self):
+        try:result=self.client.rpc('leaderboard',{}).execute().data
+        except Exception as exc:raise ValueError('The leaderboard could not be reached. Refresh and retry.') from exc
+        if not isinstance(result,dict):raise ValueError('The leaderboard is temporarily unavailable.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
+
+
 class StudyRepository:
     """Authenticated, transactional Study operations. Never accepts a user ID."""
     def __init__(self,client):self.client=client
