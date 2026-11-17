@@ -3,6 +3,7 @@ import sys
 from types import SimpleNamespace
 
 import pytest
+from test_deck_ui import button, deck_app
 
 
 @pytest.fixture
@@ -46,3 +47,20 @@ def test_pdf_import_rejects_scanned_or_encrypted_sources(parser,monkeypatch):
     monkeypatch.setattr(parser,'PdfReader',Reader)
     with pytest.raises(parser.SlideImportError,match='Encrypted'):
         parser.parse_pdf_slides(b'%PDF')
+
+
+def test_saved_pdf_import_continues_to_question_generation(monkeypatch):
+    monkeypatch.setattr('db.AnkiImportRepository.imports',lambda self:[{
+        'id':'pdf-import','name':'Lecture 1','course':'Finance','language':'English',
+        'cards':[{'id':'slide-1','front':'Lecture slide 1','back':'Capital budgeting'}],
+        'drafts':[],
+    }])
+    at=deck_app(monkeypatch)
+    at.session_state['pdf_import_open']=True
+    at.session_state['pdf_import_saved']={'count':1}
+    at.run()
+    button(at,'Continue to question generation').click().run()
+    assert at.session_state.get('pdf_import_open') is None
+    assert at.session_state['anki_generation_open'] is True
+    assert any(item.value=='Generate reviewed questions' for item in at.heading)
+    assert not at.exception
