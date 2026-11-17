@@ -181,6 +181,12 @@ class BattleRepository:
         if result.get('error'):raise ValueError(result['error'])
         return result
 
+    def progress(self,session_id):
+        try:result=self.client.rpc('battle_round_progress',{'p_session':session_id}).execute().data
+        except Exception as exc:raise ValueError('Battle progress could not be loaded. Refresh and retry.') from exc
+        if not isinstance(result,dict):raise ValueError('Battle progress returned an unexpected result.')
+        return result
+
 
 def battle_error_message(error):
     """Expose approved Battle eligibility feedback without leaking database details."""
