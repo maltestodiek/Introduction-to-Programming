@@ -424,8 +424,6 @@ def decks_screen(client,profile):
         anki_generation_screen(client,profile)
         return
     if st.session_state.get('study_library'):
-        if st.button('Back to course decks'):
-            st.session_state.pop('study_library');st.rerun()
         study_library(client,profile);return
     if st.button('Study decks & progress',type='primary'):
         st.session_state.study_library=True;st.rerun()
@@ -714,6 +712,9 @@ def navigate(page):
     if st.session_state.get('play_in_round'):
         st.session_state.play_exit_to=page
     else:
+        if page=='Decks':
+            for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','anki_import_open','pdf_import_open','anki_generation_open'):
+                st.session_state.pop(key,None)
         st.session_state.main_page=page
         if page=='Play':
             st.session_state.pop('study_active',None)
