@@ -2096,19 +2096,22 @@ picture=None
 if profile:
     try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
     except Exception:pass
-brand,profile_slot,chats_slot=st.columns([4.55,1.2,1.2],vertical_alignment="center")
+brand,profile_slot,friends_slot,chats_slot=st.columns([3.35,1.2,1.2,1.2],vertical_alignment="center")
 with brand:
     st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--sd-text)">Study<span style="color:var(--sd-accent)">Duel</span></span></div>')
 with profile_slot:
     st.html('<style>'+profile_button_avatar_css(picture or render_avatar(DEFAULT_AVATAR))+'</style>')
     if st.button('Profile',use_container_width=True,key='open_profile'):
         navigate('Profile')
+with friends_slot:
+    if profile and st.button('Friends',use_container_width=True,key='open_friends'):
+        navigate('Friends')
 with chats_slot:
     if profile:chat_dropdown(auth.client)
 if profile and st.session_state.get('chat_open'):
     private_chat_dialog(auth.client,st.session_state.chat_open,picture)
 if profile:
-    tabs=['Decks','Play','Friends','Leaderboard','Study Plan']
+    tabs=['Decks','Play','Leaderboard','Study Plan']
     columns=st.columns(len(tabs))
     page=st.session_state.get('main_page','Profile')
     if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
