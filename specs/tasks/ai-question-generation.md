@@ -16,7 +16,7 @@ The frontend sends only an import ID and selected source-card IDs to a Supabase 
 4. requires JSON-only output;
 5. validates every proposed question before any write;
 6. saves valid output as private `draft` questions;
-7. returns a clear error without changing source cards if a provider, timeout, parsing or validation error occurs.
+7. retries one malformed or temporary provider response for the affected batch, then returns a clear diagnostic without changing source cards if a provider, timeout, parsing or validation error remains.
 
 Each AI draft contains a question, exactly four answer options, exactly one correct option index from 0 to 3, an explanation and its `sourceCardId`. Options must be non-empty and unique after normalisation. The source card must belong to the request.
 
@@ -49,7 +49,7 @@ Lecture/PDF text extraction, image/OCR processing, Cloze/media conversion, chatb
 
 1. A signed-in owner can select one to 100 Basic Anki source cards and receive one valid private MC draft per card.
 2. The browser never receives `REQUESTY_API_KEY`, raw provider credentials or a service-role key.
-3. Invalid JSON, malformed options, provider errors and timeouts save no draft questions and preserve the raw source cards.
+3. Invalid JSON, malformed options, provider errors and timeouts save no draft questions and preserve the raw source cards. The user-facing error identifies the failed batch size and the precise validation failure after a retry is exhausted.
 4. A second simultaneous request from the same user is rejected without changing existing data.
 5. A student can edit, discard or explicitly publish drafts; only published questions are playable.
 6. Another user cannot read, generate from, edit or publish the owner's source cards or drafts.
