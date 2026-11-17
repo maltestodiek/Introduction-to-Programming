@@ -1,4 +1,4 @@
-# CampusDuel Supabase setup
+# UniArena Supabase setup
 
 Verified on 11 November 2026:
 - Organization: Nova - ITP, Free plan

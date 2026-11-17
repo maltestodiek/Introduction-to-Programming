@@ -1,7 +1,7 @@
 """Consume the Supabase recovery redirect fragment without logging credentials."""
 import streamlit as st
 
-_callback=st.components.v2.component("campusduel_recovery",html="<span></span>",js="""
+_callback=st.components.v2.component("uniarena_recovery",html="<span></span>",js="""
 export default function({setStateValue}) {
     let redirectWindow=window;
     try { if(window.top.location.origin===window.location.origin) redirectWindow=window.top; } catch (_) {}

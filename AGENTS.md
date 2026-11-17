@@ -1,4 +1,4 @@
-# Working on CampusDuel
+# Working on UniArena
 
 Use English for UI, docs and tests. Read docs/product-brief.md, docs/features.md, the relevant named spec from specs/README.md, and its verification notes before implementation. Archived proposals are historical evidence, not current instructions.
 

@@ -22,7 +22,7 @@ Each AI draft contains a question, exactly four answer options, exactly one corr
 
 The Requesty key is stored exclusively as the Supabase secret `REQUESTY_API_KEY`. It is never returned to the browser, committed to Git or placed in Streamlit secrets.
 
-A student reviews every draft, can edit or discard it, and explicitly publishes the approved questions into a CampusDuel deck. A published deck may contain one to 100 questions. Drafts never appear in Study Mode or in playable deck lists.
+A student reviews every draft, can edit or discard it, and explicitly publishes the approved questions into a UniArena deck. A published deck may contain one to 100 questions. Drafts never appear in Study Mode or in playable deck lists.
 
 ### Limits and concurrency
 
@@ -37,7 +37,7 @@ Only one generation request per signed-in user may run at a time. A second reque
 | Imported source | private Anki import and source cards | select up to 100 cards | select another user's cards |
 | Generating | per-user generation lock | wait for result | start a parallel request |
 | AI draft | private draft questions with provenance | edit, discard or publish | play or share directly |
-| Published | validated CampusDuel deck/questions | use in Study Mode | silently overwrite after publication |
+| Published | validated UniArena deck/questions | use in Study Mode | silently overwrite after publication |
 
 Source cards remain unchanged throughout generation, review, publishing, provider errors and browser restarts. Drafts and their source provenance also survive a full restart.
 

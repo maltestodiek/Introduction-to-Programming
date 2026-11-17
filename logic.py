@@ -258,7 +258,7 @@ def validate_study_deck(draft):
     if not isinstance(draft,dict) or not isinstance(draft.get('cards'),list) or not draft['cards']:
         raise ValueError('Add at least one complete question.')
     if len(draft['cards'])>100:
-        raise ValueError('A CampusDuel deck can contain at most 100 questions.')
+        raise ValueError('A UniArena deck can contain at most 100 questions.')
     cards=[];identities=[]
     for original in draft['cards']:
         card=validate_card(original)

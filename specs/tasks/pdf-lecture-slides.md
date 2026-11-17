@@ -2,11 +2,11 @@
 
 ## Why
 
-Students should be able to turn their private lecture slides into reviewable CampusDuel questions through the same protected source-to-draft workflow used for Anki cards.
+Students should be able to turn their private lecture slides into reviewable UniArena questions through the same protected source-to-draft workflow used for Anki cards.
 
 ## What
 
-An authenticated student can upload one text-based `.pdf` lecture file from Decks. CampusDuel extracts selectable text page by page, keeps at most 100 bounded private sources, and saves them in the existing private-source schema. The student can then select those sources, generate private AI drafts, review them, and explicitly create a Study deck.
+An authenticated student can upload one text-based `.pdf` lecture file from Decks. UniArena extracts selectable text page by page, keeps at most 100 bounded private sources, and saves them in the existing private-source schema. The student can then select those sources, generate private AI drafts, review them, and explicitly create a Study deck.
 
 ## Out of scope
 
