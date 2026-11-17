@@ -1,45 +1,16 @@
-# First feature implementation status
+# Current implementation and verification
 
-Implemented on first-feature, 11 November 2026. Not committed, pushed, merged, or deployed.
+As of 13 November 2026, the live app includes profiles/authentication, friends, private chat, deck authoring, Study Mode, learning progress, calculator permissions and adaptive appearance/navigation. See [features](features.md) for ownership and explicit placeholders.
 
-## Verification
-- 32 pytest checks passed in the Desktop project (32 passed in 3.56s), including existing authentication acceptance tests, profile validation, image processing, storage failures and Streamlit UI checks.
-- Live SQL transactions verified owner reads, owner-only private data, denied cross-user profile writes, XP column protection, case-insensitive username uniqueness, anonymous denial and rollback of failed saves.
-- Authentication email/password and email confirmation are enabled.
-- Confirmation Site URL is http://localhost:8501.
-- No service-role key is used.
+The chronological [implementation journal](archive/implementation-journal.md) preserves prior test runs and original limitations. Its early phrases such as not deployed or later feature describe that point in time, not today's status.
 
-Live signup email delivery, confirmation, full user round-trip and saved-profile recovery after process restart still need a real user walkthrough. Tests do not send email. Avatar/photo UI is implemented; storage endpoint behavior with real user credentials needs that walkthrough.
+## Latest social checks
+Three chat UI checks pass, including failed-send draft retention, participant menus and friendship states inside chat. Isolated database checks cover historical Study/Battle partner requests, existing-chat requests, stranger rejection, required acceptance, duplicate protection and request rate limits. Chat database tests additionally cover participant-only access, idempotent sends, history pagination/read markers and a separate-process restart. No real-user message was sent during these tests.
 
-- Browser verification: app loads, malformed email rejected, Create account displays username/email/password/confirmation.
-- Live Storage policy checks: only the selected image was visible to a second user; uploads into another user’s folder were rejected. SQL test rows were rolled back. Storage deletion must be tested through its API; Supabase blocks direct SQL deletion.
-- The app is running locally at http://localhost:8501. No deployment or GitHub push was performed.
+## Organization change
+Named topic specs replace chronological filenames. Related appearance work is one feature; friends and chat are one feature; subsections and the calculator belong to Deck Authoring. Historical proposals and applied SQL filenames are preserved. Runtime application files, data and dependencies are unchanged by this cleanup.
 
-## Profile refinement verification
+## Remaining manual acceptance
+The group should verify email confirmation/recovery delivery and multi-account workflows using their own authorized test accounts. The current signed-in account has no historical completed sessions, so live history verification showed its empty state; isolated UI tests cover populated history. A clearly labelled demo_alex conversation demonstrates chat and does not represent a real student.
 
-35 tests passed in 2.80s after adding regression tests for preserving signup inputs, username guidance, ten distinct hairstyles, ten accessories plus None, playful skin colors, and custom study fields. Unknown university/course rejection expectations were explicitly revised to blank-name rejection per the user's new requirements. ROR directory integration and shared university-scoped course search are planned, not implemented.
-
-
-## Friends release — 11 November 2026
-- Supabase-backed stable friend codes, recipient-approved requests, sender cancellation, mutual friendships and removal.
-- Seven-day revocable/rotatable invitation links, explicit acceptance, signup continuation, and user-initiated sharing.
-- 62 Python checks passed. Both SQL acceptance scripts passed against synthetic identities under authenticated/anonymous roles and rolled back all test data.
-- Local browser preview verified acceptance changes the count/list, code placement, degree subtitle, and native-resolution profile artwork. No real invitation messages were sent.
-- Real two-person email-confirmation/acceptance remains a user walkthrough; automated checks do not create real accounts or send email.
-- Profile skin label updated to Coloured at the user's explicit request.
-
-## Manual decks and English concept — 11 November 2026
-- English concept delivered as Word and repository text; original German source retained. All nine Word pages rendered and inspected. Wireframes and flow diagrams are translated as English descriptions. Historical React/browser-storage proposal is explicitly superseded by Python/Streamlit/Supabase.
-- 98 Python tests passed in 12.33s, including a full 15-card UI workflow. 13 isolated PostgreSQL-compatible checks passed: validation, atomicity, exact review matching, retry protection, RLS, denied writes, and exact content after a separate process restart.
-- Browser walkthrough with fictional local data verified incomplete-card rejection, completing the last card, mandatory review and read-only publication. No fictional deck or student was added to production.
-- Production migration applied successfully. Real account publication remains a user walkthrough; storage and permissions were tested in an isolated engine using the production migration.
-- Changed feature files: app.py, logic.py, db.py, supabase/decks-schema.sql, tests/test_deck_rules.py, tests/test_deck_repository.py, tests/test_deck_ui.py, tests/decks_database.mjs, specs/third-feature.md, README.md and related concept/status documentation.
-
-## Play — 11 November 2026
-Implemented `specs/fourth-feature.md` with the user's one-hour search correction. Supabase stores private searches, invitations and rounds; matching and scoring are transactional. Play replaces its placeholder. New decks declare a profile-supported language; creators can fill missing legacy language once. Both deck languages and both players' languages must match.
-
-Verification: 108 Python tests passed; 21 isolated PostgreSQL-compatible checks passed, including one-hour non-renewing queues, mismatches, invitation limits/cooldown, participant-only access, answer retries, 30-second expiry, all 30 questions, ratings, score privacy, XP/streak outcomes and progress across a fresh process. The existing deck fixture now declares English, as required by the new language rule. The former Play-placeholder expectation was replaced by actual lobby/round/navigation UI checks; existing other-tab expectations remain.
-
-Browser preview used fictional users and verified the missing-course confirmation, one-hour search and cancellation. The production migration was applied successfully without creating synthetic accounts, invitations or duels. A two-real-account walkthrough is still needed for acceptance by the group. Expired matches settle on the next participant request, not a background job. Search eligibility is opt-in; no external invitation messages are sent automatically.
-
-Changed application files: app.py, logic.py, db.py, supabase/play-schema.sql. Acceptance checks: tests/test_play.py, tests/test_play_ui.py, tests/play_database.mjs, updated tests/test_deck_rules.py and tests/test_navigation.py. Documentation: specs/fourth-feature.md, README.md, docs/product-brief.md, this status file.
+Organization verification: `sh run-tests.sh -q` passed all 151 existing Python checks. Current-document relative links and the six specifications’ required lecture headings were checked; `git diff --check` passed. No runtime source, schema, asset or dependency change is part of the organization commit.

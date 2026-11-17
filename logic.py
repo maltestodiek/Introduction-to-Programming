@@ -62,13 +62,13 @@ def _tint(color,target,amount):
     base=ImageColor.getrgb(color);other=ImageColor.getrgb(target)
     return tuple(round(a+(b-a)*amount) for a,b in zip(base,other))
 
-def render_avatar(settings):
+def render_avatar(settings, *, anonymous=False):
     if set(settings)!=set(OPTIONS) or any(v not in OPTIONS[k] for k,v in settings.items()):
         raise ValueError("Invalid avatar settings.")
-    im=Image.new("RGB",(1024,1024),"#E8EBFB"); d=_SmoothDraw(im)
-    d.ellipse((16,13,240,260),fill="#F2F3FF")
+    # Keep the character separate from its theme-aware CSS backdrop.
+    im=Image.new("RGBA",(1024,1024),(0,0,0,0)); d=_SmoothDraw(im)
     skin=SKIN[settings["skin"]]; hair=HAIR_COLORS[settings["hair_color"]]
-    style=settings["hair"]
+    style="Bald" if anonymous else settings["hair"]
     if style=="Long": d.rounded_rectangle((61,40,195,206),radius=54,fill=hair)
     if style=="Bob": d.rounded_rectangle((60,43,196,163),radius=38,fill=hair)
     if style=="Ponytail": d.ellipse((171,71,223,193),fill=hair)
@@ -82,6 +82,10 @@ def render_avatar(settings):
         d.ellipse((x,104,x+14,135),fill=skin)
         d.arc((x+4,111,x+11,129),90,270,fill=_tint(skin,"#50382F",.18),width=1)
     d.ellipse((69,47,187,181),fill=skin)
+    if anonymous:
+        # Same head, ears, neck and clothing as profiles; no hair or facial features.
+        im=im.resize((512,512),Image.Resampling.LANCZOS)
+        out=io.BytesIO();im.save(out,format="PNG");return out.getvalue()
     if style in ("Short","Long","Bob","Ponytail","Bun"):
         d.pieslice((64,37,191,120),180,360,fill=hair)
         d.polygon([(66,82),(124,49),(181,80),(160,56),(110,45)],fill=hair)
@@ -191,7 +195,7 @@ import hashlib
 import json
 
 def new_card():
-    return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None}
+    return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None,'allow_calculator':False}
 
 def new_deck(course='',language=''):
     return {'id':str(uuid4()),'course':course,'language':language,'name':'','cards':[new_card()]}
@@ -208,6 +212,7 @@ def _deck_text(value,label):
 
 def validate_card(card):
     if not isinstance(card,dict):raise ValueError('Complete this card.')
+    if type(card.get('allow_calculator',False)) is not bool:raise ValueError('Choose whether this question allows a calculator.')
     answers=card.get('answers')
     if not isinstance(answers,list) or len(answers)!=4:raise ValueError('Each card needs exactly four answers.')
     clean=[]
@@ -218,7 +223,7 @@ def validate_card(card):
     if len(set(ids))!=4:raise ValueError('Answer identities must be unique.')
     correct=card.get('correct_answer_id')
     if not isinstance(correct,str) or correct not in ids:raise ValueError('Select exactly one correct answer.')
-    return {'id':_deck_id(card.get('id')),'question':_deck_text(card.get('question'),'a question'),'answers':clean,'correct_answer_id':correct}
+    return {'id':_deck_id(card.get('id')),'question':_deck_text(card.get('question'),'a question'),'answers':clean,'correct_answer_id':correct,'allow_calculator':card.get('allow_calculator',False)}
 
 def validate_deck(draft):
     if not isinstance(draft,dict):raise ValueError('Create a deck first.')
@@ -247,3 +252,83 @@ def delete_card(draft,index):
     result=deepcopy(draft);result['cards'].pop(index)
     if not result['cards']:result['cards']=[new_card()]
     return result
+
+# Study decks are flexible; published legacy decks retain their 15-card contract.
+def validate_study_deck(draft):
+    if not isinstance(draft,dict) or not isinstance(draft.get('cards'),list) or not draft['cards']:
+        raise ValueError('Add at least one complete question.')
+    if len(draft['cards'])>100:
+        raise ValueError('A StudyDuel deck can contain at most 100 questions.')
+    cards=[];identities=[]
+    for original in draft['cards']:
+        card=validate_card(original)
+        card['chapter']=str(original.get('chapter','')).strip()
+        cards.append(card);identities.extend([card['id']]+[a['id'] for a in card['answers']])
+    if len(set(identities))!=len(identities):raise ValueError('Question and answer identities must be unique.')
+    if draft.get('language') not in LANGUAGES:raise ValueError('Select a deck language.')
+    return {'id':_deck_id(draft.get('id')),'name':_deck_text(draft.get('name'),'a deck name'),'course':_deck_text(draft.get('course'),'a course'),'language':draft['language'],'cards':cards}
+
+
+def study_level(current,correct):
+    return max(0,min(3,(current or 0)+(1 if correct else -1)))
+
+
+def study_card_version(card):
+    content={k:card[k] for k in ('question','answers','correct_answer_id')}
+    return hashlib.sha256(json.dumps(content,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+
+
+def filter_study_cards(cards,chapters,levels):
+    return [c for c in cards if (not chapters or c.get('chapter','') in chapters) and ('new' if c.get('level') is None else str(c['level'])) in levels]
+
+
+NOTEPAD_LIMIT=500
+
+
+def scratch_note(text):
+    """Unsaved per-question scratch text, never longer than the notepad limit."""
+    return str(text or '')[:NOTEPAD_LIMIT]
+
+
+def calculate(expression):
+    """Evaluate bounded arithmetic only, without executing Python expressions."""
+    import ast
+    from decimal import Decimal, DecimalException, localcontext
+    if not isinstance(expression,str) or not expression.strip() or len(expression)>120:
+        raise ValueError('Enter a calculation of up to 120 characters.')
+    source=expression.strip().replace('×','*').replace('÷','/').replace('−','-').replace('^','**')
+    try:
+        tree=ast.parse(source,mode='eval')
+        if len(list(ast.walk(tree)))>80:raise ValueError('Please use a shorter calculation.')
+        def number(node):
+            if isinstance(node,ast.Constant) and type(node.value) in (int,float):
+                result=Decimal(ast.get_source_segment(source,node))
+            elif isinstance(node,ast.UnaryOp) and isinstance(node.op,(ast.UAdd,ast.USub)):
+                result=number(node.operand)*(-1 if isinstance(node.op,ast.USub) else 1)
+            elif isinstance(node,ast.Call) and isinstance(node.func,ast.Name) and node.func.id=='sqrt' and len(node.args)==1 and not node.keywords:
+                operand=number(node.args[0])
+                if operand<0:raise ValueError('Square root needs a non-negative number.')
+                result=operand.sqrt()
+            elif isinstance(node,ast.BinOp) and isinstance(node.op,(ast.Add,ast.Sub,ast.Mult,ast.Div,ast.Pow)):
+                left,right=number(node.left),number(node.right)
+                if isinstance(node.op,ast.Add):result=left+right
+                elif isinstance(node.op,ast.Sub):result=left-right
+                elif isinstance(node.op,ast.Mult):result=left*right
+                elif isinstance(node.op,ast.Pow):
+                    if right!=right.to_integral_value() or abs(right)>12:raise ValueError('Use a whole-number power between −12 and 12.')
+                    if left==0 and right<=0:raise ValueError('Zero needs a positive power.')
+                    result=left**int(right)
+                else:
+                    if right==0:raise ValueError('Cannot divide by zero.')
+                    result=left/right
+            else:raise ValueError('Use numbers, brackets, +, −, ×, ÷, powers or sqrt().')
+            if not result.is_finite() or abs(result)>Decimal('1e15') or (result and result.adjusted() < -100):
+                raise ValueError('This number is too large for the simple calculator.')
+            return result
+        with localcontext() as context:
+            context.prec=28
+            value=number(tree.body)
+            if value==0:return '0'
+            return format(value.normalize(),'f')
+    except (SyntaxError,DecimalException,RecursionError) as exc:
+        raise ValueError('Check your calculation and brackets.') from exc

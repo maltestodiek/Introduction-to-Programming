@@ -35,6 +35,7 @@ try{
  }
  await db.exec(await fs.readFile(new URL('../supabase/decks-schema.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/play-schema.sql',import.meta.url),'utf8'));
+ if(process.env.TEST_STUDY_MIGRATION)await db.exec(await fs.readFile(new URL('../supabase/study-schema.sql',import.meta.url),'utf8'));
  for(const peer of [B,C,D])await db.query("insert into public.friend_edges values(least($1::uuid,$2::uuid),greatest($1::uuid,$2::uuid),'accepted')",[A,peer]);
  const da=await deck(A,'A'),dbb=await deck(B,'B'),dc=await deck(C,'C'),dd=await deck(D,'D','German'),pt=await deck(B,'Portuguese','Portuguese'),math=await deck(B,'Math','English','Math');
  await test('new deck rejects undeclared language',async()=>{await who(A);await assert.rejects(()=>db.query('select public.review_deck($1::jsonb)',[JSON.stringify({...da,id:randomUUID(),language:''})]));});

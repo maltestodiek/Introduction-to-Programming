@@ -207,7 +207,7 @@ begin
    return jsonb_build_object('state','feedback','feedback',payload,'card',card);
   end if;
   select jsonb_agg(a order by md5(did::text||me::text||round.cursor::text||(a->>'id'))) into options from jsonb_array_elements(card->'answers')a;
-  return jsonb_build_object('state','question','index',round.cursor,'question',card->>'question','options',options,'seconds',greatest(0,ceil(extract(epoch from(round.question_started+interval '30 seconds'-now())))));
+  return jsonb_build_object('state','question','index',round.cursor,'question',card->>'question','allow_calculator',coalesce(card->'allow_calculator','false'::jsonb),'options',options,'seconds',greatest(0,ceil(extract(epoch from(round.question_started+interval '30 seconds'-now())))));
  end if;
  raise exception 'Unknown Play action';
 exception when raise_exception then return jsonb_build_object('error',sqlerrm);

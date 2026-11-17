@@ -25,12 +25,12 @@ def browser_bridge(action,value=None):
 
 def welcome(logo):
     st.html(f'''<style>
-    .welcome{{text-align:center;padding:30px 16px 8px;color:#17223B}}
+    .welcome{{text-align:center;padding:30px 16px 8px;color:var(--sd-text)}}
     .welcome-mark{{width:min(320px,70vw);height:220px;object-fit:cover;animation:duel-arrive .8s ease-out both,duel-float 4s ease-in-out .8s infinite}}
     .welcome h1{{font-size:clamp(44px,8vw,68px);font-weight:850;letter-spacing:-3px;margin:0!important;line-height:1.15}}
-    .welcome h1 span{{color:#4F46E5}}
-    .welcome p{{font-size:20px;color:#475467;margin:20px auto 14px;max-width:480px}}
-    .welcome-tag{{display:inline-block;background:#D9F8EB;color:#174E3B;padding:7px 16px;border-radius:99px;font-size:14px;font-weight:600;letter-spacing:.03em}}
+    .welcome h1 span{{color:var(--sd-accent)}}
+    .welcome p{{font-size:20px;color:var(--sd-muted);margin:20px auto 14px;max-width:480px}}
+    .welcome-tag{{display:inline-block;background:var(--sd-badge);color:var(--sd-badge-text);padding:7px 16px;border-radius:99px;font-size:14px;font-weight:600;letter-spacing:.03em}}
     @keyframes duel-arrive{{from{{opacity:0;transform:translateY(18px) scale(.85) rotate(-7deg)}}to{{opacity:1;transform:translateY(0) scale(1) rotate(0)}}}}
     @keyframes duel-float{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-9px)}}}}
     @media(prefers-reduced-motion:reduce){{.welcome-mark{{animation:none}}}}

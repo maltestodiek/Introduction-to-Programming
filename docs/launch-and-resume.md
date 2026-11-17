@@ -2,7 +2,7 @@
 
 First visits show the large animated logo and Start button. Start opens account creation/sign-in. Reduced-motion preferences disable the animation. Returning browsers skip the welcome screen and retain the selected account tab.
 
-This user-requested extension supersedes the original first-feature requirement to forget authentication after a process restart. Browser localStorage holds Supabase access/refresh tokens and minimal navigation state. Passwords, profile drafts, uploaded photos and recovery links are never stored there. Always sign out on shared devices. Clearing site data removes remembered sign-in.
+This user-requested extension supersedes the original authentication requirement to forget authentication after a process restart. Browser localStorage holds Supabase access/refresh tokens and minimal navigation state. Passwords, profile drafts, uploaded photos and recovery links are never stored there. Always sign out on shared devices. Clearing site data removes remembered sign-in.
 
 On a fresh app session, Supabase set_session refreshes expired access tokens, and get_user verifies identity before profile access. A browser-supplied user ID never grants access. Invalid/revoked sessions return to sign-in. Profile/edit navigation resumes only for the verified matching account; saved profile fields load from Supabase. Unsaved form edits are retained during normal Streamlit interactions, but are not restored after a full page reload.
 

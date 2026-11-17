@@ -1,0 +1,10 @@
+<svg class="mode-emblem study-emblem" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Open study book">
+ <circle cx="64" cy="64" r="55" fill="#d1fae5"/><circle cx="64" cy="64" r="45" fill="#ecfdf5" stroke="#a7f3d0"/>
+ <g class="study-book">
+ <path d="M18 37Q42 29 64 43 86 29 110 37V91Q87 83 64 97 41 83 18 91Z" fill="#4f46e5" stroke="#17223b" stroke-width="3" stroke-linejoin="round"/>
+ <g class="book-page"><path d="M24 30Q45 25 64 39V88Q44 75 24 81Z" fill="#fff" stroke="#4f46e5" stroke-width="2.5" stroke-linejoin="round"/><path d="M33 43Q44 41 55 48M33 54Q44 52 55 59M33 65Q44 63 51 68" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/></g>
+ <path d="M104 30Q83 25 64 39V88Q84 75 104 81Z" fill="#fff" stroke="#4f46e5" stroke-width="2.5" stroke-linejoin="round"/><path d="M74 48Q85 41 96 43M74 59Q85 52 96 54M77 68Q87 63 96 65" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+ <path d="M87 30V49L92 45 97 48V29" fill="#6ee7b7" stroke="#059669" stroke-width="1.5" stroke-linejoin="round"/>
+ </g>
+ <path class="mode-spark" d="m104 10 2.5 7.5L114 20l-7.5 2.5L104 30l-2.5-7.5L94 20l7.5-2.5Z" fill="#4f46e5"/>
+</svg>

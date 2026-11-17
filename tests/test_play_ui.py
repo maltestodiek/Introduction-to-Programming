@@ -14,7 +14,16 @@ def setup(monkeypatch,friend=None,state=None):
     monkeypatch.setattr('db.PlayRepository.action',action)
     at=deck_app(monkeypatch)
     monkeypatch.setattr('db.DeckRepository.list',lambda self,c:[DECK])
-    button(at,'Play').click().run()
+    # The classic lobby is no longer in Play navigation. Keep its existing
+    # safety checks through an isolated test-only rendering of the retained helper.
+    from pathlib import Path
+    from streamlit.testing.v1 import AppTest
+    root=Path(__file__).parents[1]
+    source=(root/'app.py').read_text().replace('Path(__file__).parent',f'Path({str(root)!r})')
+    source=source.replace('        ongoing_sessions(client)\n','        ongoing_sessions(client)\n        play_lobby(client,profile)\n')
+    auth=at.session_state['auth']
+    at=AppTest.from_string(source,default_timeout=20)
+    at.session_state['auth']=auth;at.session_state['main_page']='Play';at.run()
     return at,calls
 
 def test_play_is_real_lobby_with_one_hour_opt_in(monkeypatch):

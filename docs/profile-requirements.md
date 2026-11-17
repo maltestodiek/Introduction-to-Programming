@@ -28,7 +28,7 @@ Image selection is optional. Skipping it uses a default avatar. Users can custom
 
 Store the uploaded photo and avatar configuration privately. Other signed-in users can see the selected profile image, but cannot retrieve raw customization settings, inactive uploads, or the original uncropped image. Proposed implementation: crop and remove metadata before uploading; retain only the cropped result. Render custom avatars deterministically from allowed preset values.
 
-The selected image will be reused on profiles, deck authorship, duels, friends lists, and the leaderboard as those features are built. This first feature does not implement those additional screens.
+The selected image will be reused on profiles, deck authorship, duels, friends lists, and the leaderboard as those features are built. These screens are now implemented under their named feature specifications.
 
 Reject invalid image files with a helpful message and preserve the current profile image. Proposed upload defaults: JPEG or PNG, maximum 5 MB; verify actual image contents rather than trusting the extension. Persist the active image selection and avatar settings so they survive sign-out and restart. A failed save must leave the last confirmed selection intact.
 
@@ -36,13 +36,13 @@ Reject invalid image files with a helpful message and preserve the current profi
 
 Show 0 XP, a 0 win streak, and an empty friends list for a new account. XP and win streak are visible to signed-in users and cannot be edited through profile settings. Future duel rules calculate them.
 
-The friends list is private to its owner, and each friendship is visible to the two people involved. Friendship creation/removal is a later feature; the first profile shows an empty state, not working friendship controls.
+The friends list is private to its owner, and each friendship is visible to the two people involved. Friendship creation/removal is owned by Social Connections; a new profile starts with an empty friend list.
 
 ## Persistence and access boundaries
 
 Supabase Auth stores account identity. Profile records and images belong in Supabase Database and Storage so they are available to the same user across devices. This extends the prior SQLite-only application data plan for this feature; SQLite is not an identity or profile-image store.
 
-Require owner-based database and storage access rules and an explicit limited representation for other signed-in users. Session state alone is not a durable profile. After a restart the user signs in again and sees their saved profile. Authorization must not depend on user-editable metadata or an editable XP field.
+Require owner-based database and storage access rules and an explicit limited representation for other signed-in users. Session state alone is not a durable profile. After a restart, Supabase verifies any restored session before loading the saved profile; otherwise the user signs in again. Authorization must not depend on user-editable metadata or an editable XP field.
 
 ## Acceptance scenarios
 
@@ -70,3 +70,7 @@ UI refinements: University selection opens a dropdown with search first, selecta
 Profile study fields appear in this order: university, degree level, field of study, courses, languages.
 
 Profile summary: show the individual friend code in muted grey beside the username. Display degree and field together beneath the university (for example, Master in Finance). Render the avatar at full source resolution, sized only by CSS, to avoid blurry downsampling.
+
+
+## Expected graduation year
+Expected graduation year is optional (2000–2100), owner-private, editable and removable. The summary shows Class of YEAR beneath the university beside the degree. It does not infer academic year without a program start date. Apply supabase/graduation-year.sql before deploying this version.
