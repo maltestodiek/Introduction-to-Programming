@@ -46,7 +46,7 @@ export async function requestQuestionsFromRequesty(
           {
             role: "system",
             content: [
-              "You generate reviewable CampusDuel multiple-choice question drafts from Anki cards.",
+              "You generate reviewable UniArena multiple-choice question drafts from Anki cards.",
               "Return only one valid JSON object. Do not use Markdown or add commentary.",
               "Use only information supported by the front and back of the source card.",
               "Preserve the source card language. If a card is German, generate German; if English, generate English.",
@@ -64,7 +64,7 @@ export async function requestQuestionsFromRequesty(
           {
             role: "user",
             content: JSON.stringify({
-              task: "Create exactly one CampusDuel multiple-choice draft for every source card.",
+              task: "Create exactly one UniArena multiple-choice draft for every source card.",
               responseShape: {
                 questions: [{
                   sourceCardId: "input card id",

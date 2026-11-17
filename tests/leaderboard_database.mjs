@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import {spawnSync} from 'node:child_process';import {fileURLToPath} from 'node:url';
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 if(process.argv[2]==='reload'){const db=new PGlite(process.argv[3]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[process.argv[4]]);const r=(await db.query('select leaderboard() r')).rows[0].r;assert.equal(r.me.rank,Number(process.argv[5]));await db.close();console.log('PASS restart keeps the ranking');process.exit(0);}
-const dir=await fs.mkdtemp(path.join(os.tmpdir(),'campusduel-leaderboard-'));const db=new PGlite(path.join(dir,'db'));let passed=0;
+const dir=await fs.mkdtemp(path.join(os.tmpdir(),'uniarena-leaderboard-'));const db=new PGlite(path.join(dir,'db'));let passed=0;
 const users=Object.fromEntries(['anna','ben','cleo','dan','eva','finn','gus','hana','ivo','jule','kai','lea','mo'].map(n=>[n,randomUUID()]));const NOPROFILE=randomUUID();
 const xp={anna:500,ben:400,cleo:400,dan:300,eva:250,finn:200,gus:150,hana:120,ivo:100,jule:90,kai:80,lea:10,mo:0};
 async function who(u,role='authenticated'){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[u]);await db.exec('set role '+role);}
