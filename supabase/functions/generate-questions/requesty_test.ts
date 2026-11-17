@@ -63,3 +63,24 @@ Deno.test("retries one malformed response and returns the valid replacement", as
   assertEquals(calls, 2);
   assertEquals(drafts.length, 1);
 });
+
+Deno.test("recovers an omitted source with a targeted follow-up request", async () => {
+  const twoCards = [cards[0], { ...cards[0], id: "22222222-2222-4222-8222-222222222222", front: "What is discounting?" }];
+  let calls = 0;
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    calls += 1;
+    const sent = JSON.parse(String(init?.body)).messages[1].content;
+    const source = JSON.parse(sent).cards;
+    const questions = source.length === 2
+      ? [
+        { sourceCardId: twoCards[0].id, question: "What describes time value?", options: ["A", "B", "C", "D"], correctOptionIndex: 0, explanation: "" },
+      ]
+      : [
+        { sourceCardId: twoCards[1].id, question: "What is discounting?", options: ["A", "B", "C", "D"], correctOptionIndex: 0, explanation: "" },
+      ];
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions }) } }] }), { status: 200 });
+  };
+  const drafts = await requestQuestionsWithRetry("test-key", "test-model", twoCards, fakeFetch);
+  assertEquals(drafts.map((draft) => draft.sourceCardId), twoCards.map((card) => card.id));
+  assertEquals(calls, 3);
+});
