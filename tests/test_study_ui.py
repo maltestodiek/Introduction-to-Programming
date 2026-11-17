@@ -86,6 +86,16 @@ def test_study_library_can_publish_an_owned_deck(monkeypatch):
     assert not at.exception
 
 
+def test_decks_navigation_returns_from_study_library_to_course_decks(monkeypatch):
+    at,calls,d=setup(monkeypatch)
+    button(at,'Decks').click().run();button(at,'Study decks & progress').click().run()
+    assert not any(w.label=='Back to course decks' for w in at.button)
+    button(at,'Decks').click().run()
+    assert not at.session_state.get('study_library')
+    assert button(at,'Study decks & progress')
+    assert not at.exception
+
+
 def test_friend_settings_only_request_eligible_friends(monkeypatch):
     at,calls,d=setup(monkeypatch)
     button(at,'Change study mode').click().run();button(at,'Study Mode').click().run();button(at,'Study together').click().run();button(at,'Friend').click().run()
