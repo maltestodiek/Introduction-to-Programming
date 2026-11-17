@@ -12,6 +12,24 @@ export function validateGeneratedQuestions(
   payload: unknown,
   allowedSourceCardIds: readonly string[],
 ): GeneratedQuestion[] {
+  return validateQuestions(payload, allowedSourceCardIds, true);
+}
+
+/** Validates well-formed questions without requiring every source to be present.
+ * This is used only to recover omitted sources before anything is persisted.
+ */
+export function validatePartialGeneratedQuestions(
+  payload: unknown,
+  allowedSourceCardIds: readonly string[],
+): GeneratedQuestion[] {
+  return validateQuestions(payload, allowedSourceCardIds, false);
+}
+
+function validateQuestions(
+  payload: unknown,
+  allowedSourceCardIds: readonly string[],
+  requireEverySource: boolean,
+): GeneratedQuestion[] {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("The AI response was not a JSON object.");
   }
@@ -20,7 +38,7 @@ export function validateGeneratedQuestions(
   if (!Array.isArray(questions)) {
     throw new Error("The AI response did not contain a questions list.");
   }
-  if (questions.length !== allowedSourceCardIds.length) {
+  if (requireEverySource && questions.length !== allowedSourceCardIds.length) {
     throw new Error(
       `The AI returned ${questions.length} question${questions.length === 1 ? "" : "s"}, but this batch requires exactly ${allowedSourceCardIds.length} (one per selected source card).`,
     );
@@ -80,6 +98,21 @@ export function parseRequestyContent(
   content: unknown,
   allowedSourceCardIds: readonly string[],
 ): GeneratedQuestion[] {
+  return parseContent(content, allowedSourceCardIds, true);
+}
+
+export function parsePartialRequestyContent(
+  content: unknown,
+  allowedSourceCardIds: readonly string[],
+): GeneratedQuestion[] {
+  return parseContent(content, allowedSourceCardIds, false);
+}
+
+function parseContent(
+  content: unknown,
+  allowedSourceCardIds: readonly string[],
+  requireEverySource: boolean,
+): GeneratedQuestion[] {
   if (typeof content !== "string") {
     throw new Error("The AI response did not contain text.");
   }
@@ -93,5 +126,7 @@ export function parseRequestyContent(
   } catch {
     throw new Error("The AI response was not valid JSON.");
   }
-  return validateGeneratedQuestions(payload, allowedSourceCardIds);
+  return requireEverySource
+    ? validateGeneratedQuestions(payload, allowedSourceCardIds)
+    : validatePartialGeneratedQuestions(payload, allowedSourceCardIds);
 }
