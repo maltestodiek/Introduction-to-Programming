@@ -1681,7 +1681,8 @@ def battle_round_screen(client,session_id):
     state=result['state']
     if state=='question':
         st.progress(result['index']/15,text=f"Question {result['index']+1} of 15")
-        st.caption(f":material/timer: {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
+        st.progress(result['seconds']/30,text=f":material/timer: {result['seconds']} seconds remaining")
+        st.caption('The timer continues if you leave this Battle.')
         st.subheader(result['question'])
         question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
         columns=st.columns(2)
@@ -1702,7 +1703,8 @@ def battle_round_screen(client,session_id):
         if result.get('can_rate'):
             rating=st.radio('How was this Battle Deck?',('good','neutral','bad'),format_func=lambda value:{'good':'Good','neutral':'Neutral','bad':'Bad'}[value],horizontal=True)
             if st.button('Save rating',type='primary'):
-                if battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:st.success('Your anonymous rating was saved.')
+                if battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:
+                    st.session_state.pop('battle_session',None);st.session_state.pop('battle_feedback',None);st.session_state.main_page='Play';st.rerun()
         else:st.info('You played your own Battle Deck. It does not receive a rating or Creator XP from you.')
         if st.button('Back to Battle Mode'):
             st.session_state.pop('battle_session',None);st.rerun()
@@ -1711,12 +1713,18 @@ def battle_round_screen(client,session_id):
     if st.button('Back to Battle Mode'):st.session_state.pop('battle_session',None);st.rerun()
 
 
+@st.dialog('Battle Mode',width='large')
+def battle_game_dialog(client,session_id):
+    if st.button('Save and leave Battle'):
+        st.session_state.pop('battle_session',None);st.rerun()
+    battle_round_screen(client,session_id)
+
+
 def battle_screen(client,profile):
     st.subheader('Battle Mode')
     st.caption('15 shared questions · 30 seconds per question · Game XP and Creator XP · Battle never changes Study progress.')
     if st.session_state.get('battle_session'):
-        if st.button('Save and leave Battle'):st.session_state.pop('battle_session',None);st.rerun()
-        battle_round_screen(client,st.session_state.battle_session);return
+        battle_game_dialog(client,st.session_state.battle_session);return
     state=battle_request(client,'list')
     if state is None:return
     if state.get('search'):
@@ -1781,6 +1789,45 @@ def battle_screen(client,profile):
                 if st.button('Resume Battle',key='resume_battle_'+session['id'],type='primary'):
                     st.session_state.battle_session=session['id'];st.rerun()
             else:st.caption(f"{session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Game XP · {session['score']}/15")
+
+
+LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-name{flex:1}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
+
+def leaderboard_rows(rows,repo):
+    lines='';cache=st.session_state.setdefault('leaderboard_pictures',{})
+    for row in rows:
+        path=row.get('image_path')
+        if path not in cache:
+            try:
+                data=repo.image(path);cache[path]=data if isinstance(data,(bytes,bytearray)) else None
+            except Exception:cache[path]=None
+        image=base64.b64encode(cache[path] or render_avatar(row.get('avatar') or DEFAULT_AVATAR)).decode()
+        lines+=f'<div class="sd-lb-row{" sd-lb-me" if row.get("me") else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{image}" alt=""><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if row.get("me") else ""}</span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
+    st.html(LEADERBOARD_STYLE+'<div>'+lines+'</div>')
+
+def leaderboard_demo(profile):
+    names=['nora_k','tiago','lena_m','felix','ines','jonas','sofia_r','matteo','clara','diogo','emma_w','lukas','beatriz','hugo','anna_s'];points=[1840,1675,1520,1520,1390,1210,1085,960,870,790,640,455,320,180,60]
+    rows=[{'username':n,'xp':x,'image_path':None,'me':False} for n,x in zip(names,points)]+[{'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'me':True}]
+    def ranked(items):return [{**item,'rank':1+sum(other['xp']>item['xp'] for other in items)} for item in sorted(items,key=lambda item:(-item['xp'],item['username']))]
+    world=ranked(rows);return {'top':world[:10],'me':next(item for item in world if item['me']),'friends':ranked([item for item in rows if item['me'] or item['username'] in ('tiago','ines','emma_w','hugo')])}
+
+def leaderboard_screen(client,repo,profile=None):
+    from db import LeaderboardRepository
+    st.title('Leaderboard')
+    if profile and os.getenv('LEADERBOARD_DEMO')=='1' and (os.getenv('APP_URL') or '').startswith('http://localhost'):
+        st.warning('Preview with invented students and XP.');data=leaderboard_demo(profile)
+    else:
+        try:data=LeaderboardRepository(client).load()
+        except ValueError as exc:st.error(str(exc));return
+    st.caption('Ranks are based on Game XP earned in Battle Mode. Study Mode and Creator XP do not affect them.')
+    global_tab,friends_tab=st.tabs(['Global top 10','Friends'])
+    for tab,rows in ((global_tab,data.get('top',[])),(friends_tab,data.get('friends',[]))):
+        with tab:
+            leaderboard_rows(rows,repo)
+            if tab is global_tab and data.get('me') and not any(row.get('me') for row in rows):
+                st.caption('Your place')
+                leaderboard_rows([data['me']],repo)
+            if tab is friends_tab and len(rows)<2:st.caption('Add friends to compare your Game XP.')
 
 
 def play_screen(client,profile):
@@ -2066,6 +2113,8 @@ if profile:
         st.stop()
     if page=='Study Plan':
         study_plan_screen(auth.client,profile,auth.user.id);st.stop()
+    if page=='Leaderboard':
+        leaderboard_screen(auth.client,repo,profile);st.stop()
     if page in ('Leaderboard','Study Plan'):
         st.title(page)
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
