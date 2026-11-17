@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { parseRequestyContent, validateGeneratedQuestions } from "./validation.ts";
+import { parsePartialRequestyContent, parseRequestyContent, validateGeneratedQuestions } from "./validation.ts";
 
 const sourceIds = [
   "11111111-1111-4111-8111-111111111111",
@@ -51,4 +51,9 @@ Deno.test("reports the returned and expected question counts", () => {
     Error,
     "returned 1 question, but this batch requires exactly 2",
   );
+});
+
+Deno.test("keeps valid partial questions in memory for missing-source recovery", () => {
+  const partial = parsePartialRequestyContent(JSON.stringify({ questions: [valid.questions[0]] }), sourceIds);
+  assertEquals(partial.map((draft) => draft.sourceCardId), [sourceIds[0]]);
 });
