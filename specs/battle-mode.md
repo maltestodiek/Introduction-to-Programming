@@ -7,7 +7,7 @@ Offer short, competitive course quizzes separately from non-rewarded Study sessi
 Battle Mode is a new workflow beside Study Mode. The earlier classic 30-question duel engine remains historical and must continue to display its saved rounds, reviews and scores unchanged. The redesigned workflow keeps the existing friend-challenge and mutual random-opponent choices, server-owned timing, 24-hour deadline, saved resumption, answer validation and settlement safeguards unless this specification explicitly changes them.
 
 ### Eligibility and matching
-A player battles only within their own university. The player chooses a course; the selected Battle deck must match that course and a language supported by both participants. Eligible decks are published decks at that university with at least 15 valid questions. Decks with fewer than 15 questions are shown as not Battle-capable and cannot be selected.
+A player battles only within their own university. The player chooses a course; the selected Battle deck must match that course and a language supported by both participants. Eligible decks are published decks at that university with at least 15 valid questions. A reviewed and published AI-/Chatbot-generated deck is eligible on the same basis as a human-authored deck. Decks with fewer than 15 questions are shown as not Battle-capable and cannot be selected.
 
 A deck's creator may participate in a Battle using their own deck if it is selected. This is an accepted consequence of the random selection; it must not give that creator rating privileges.
 
@@ -29,12 +29,12 @@ A player may submit at most one lifetime rating for a given deck. A participant 
 ### Rewards and progress
 Battle uses the existing Game XP, result and streak settlement rules. Game XP and Creator XP both contribute to Total XP, while the profile displays the two components separately: Game XP in blue/violet and Creator XP in green.
 
-A good rating awards the original human deck creator 5 Creator XP exactly once per participant and deck. Neutral and bad ratings award no Creator XP. AI-generated decks never award Creator XP, even after a positive rating. Creator rewards are separate from Game XP and must be transactional and retry-safe.
+A good rating awards the original human deck creator 5 Creator XP exactly once per participant and deck. Neutral and bad ratings award no Creator XP. AI-/Chatbot-generated decks may be played after their existing review and publication workflow, but never award Creator XP, even after a positive rating. Creator rewards are separate from Game XP and must be transactional and retry-safe.
 
 Battle must not create or update Study-plan entries, Study progress, learning levels, earned copies, or Study feedback. It uses no Study-mode creator reward logic.
 
 ## Out of scope
-- Slide upload, AI provider selection, AI deck generation and source-file storage.
+- Changing the existing AI-/Chatbot-generation, review or publication workflow; Battle only consumes its already published decks.
 - Changing Study Mode rules, learning progress, Study Plan or real saved Study sessions.
 - Changing historical classic-duel snapshots, results or scores.
 - Leaderboard design beyond the profile's Game XP, Creator XP and Total XP display.
