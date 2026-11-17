@@ -122,11 +122,16 @@ class AnkiImportRepository:
             data=getattr(result,'data',result)
         except Exception as exc:
             detail='Question generation could not be completed. Your source cards are unchanged; try again.'
-            response=getattr(exc,'context',None)
-            try:
-                payload=response.json()
-                if isinstance(payload,dict) and isinstance(payload.get('error'),str):detail=payload['error']
-            except Exception:pass
+            for response in (getattr(exc,'context',None),getattr(exc,'response',None)):
+                try:
+                    payload=response if isinstance(response,dict) else response.json()
+                    if isinstance(payload,dict) and isinstance(payload.get('error'),str):
+                        detail=payload['error'];break
+                except Exception:pass
+            if detail.startswith('Question generation could not'):
+                message=str(exc).strip()
+                if message and message not in {'Error invoking remote function','FunctionsHttpError'}:
+                    detail=f'Question generation failed: {message}'
             raise ValueError(detail) from exc
         if not isinstance(data,dict) or data.get('status')!='draft':
             raise ValueError('Question generation returned an unexpected result. No source cards were changed.')
