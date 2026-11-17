@@ -139,3 +139,15 @@ class ChatRepository:
         if not isinstance(result,dict):raise ValueError('Chat is temporarily unavailable.')
         if result.get('error'):raise ValueError(result['error'])
         return result
+
+
+class StudyPlanRepository:
+    """Owner-only study plans through an authenticated Supabase RPC. Never accepts a user ID."""
+    def __init__(self,client):self.client=client
+
+    def action(self,action,data=None):
+        try:result=self.client.rpc('study_plan_action',{'p_action':action,'p_data':data or {}}).execute().data
+        except Exception as exc:raise ValueError('Study plans could not be reached. Nothing was changed; refresh and retry. If study plans are not set up yet, apply their database migration.') from exc
+        if not isinstance(result,dict):raise ValueError('Study plans are temporarily unavailable.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result

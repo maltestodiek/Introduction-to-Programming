@@ -182,7 +182,7 @@ def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
 
 def test_colour_dropdown_keeps_combined_learning_levels(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    for label in ['Building confidence','Getting stronger','Well practised']:
+    for label in ['Level 1 · Building confidence','Level 2 · Getting stronger','Level 3 · Well practised']:
         next(w for w in at.checkbox if w.label==label).uncheck()
     at.run()
     button(at,'Start studying').click().run()
