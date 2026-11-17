@@ -607,12 +607,17 @@ def anki_generation_screen(client,profile):
     drafts=[draft for draft in imported['drafts'] if draft['status']=='draft']
     if not drafts:return
     st.subheader('2. Review drafts');selected_drafts=[]
+    if st.button('Include all in Study Deck',key='ai_include_all_'+imported['id']):
+        for draft in drafts:st.session_state['ai_include_'+draft['id']]=True
+        st.rerun()
     for number,draft in enumerate(drafts,1):
-        with st.expander(f"Draft {number}: {draft['question'][:70]}",expanded=number==1):
+        include,review=st.columns([.26,.74],vertical_alignment='center')
+        if include.checkbox('Include in Study deck',key='ai_include_'+draft['id']):selected_drafts.append(draft)
+        with review.expander(f"Draft {number}: {draft['question'][:70]}",expanded=number==1):
             question=st.text_area('Question',value=draft['question'],key='ai_question_'+draft['id'])
             options=[st.text_input(f'Answer {index+1}',value=option,key=f'ai_option_{draft["id"]}_{index}') for index,option in enumerate(draft['options'])]
             correct=st.radio('Correct answer',range(4),index=draft['correct_option_index'],format_func=lambda value:f'Answer {value+1}',horizontal=True,key='ai_correct_'+draft['id'])
-            edit,discard,include=st.columns(3)
+            edit,discard=st.columns(2)
             if edit.button('Save edits',key='ai_save_'+draft['id']):
                 try:repository.update_draft(draft['id'],question,options,correct)
                 except ValueError as exc:st.error(str(exc))
@@ -621,7 +626,6 @@ def anki_generation_screen(client,profile):
                 try:repository.discard_draft(draft['id'])
                 except ValueError as exc:st.error(str(exc))
                 else:st.rerun()
-            if include.checkbox('Include in Study deck',key='ai_include_'+draft['id']):selected_drafts.append(draft)
     st.subheader('3. Publish after Study review')
     name=st.text_input('Study deck name',value=f"{imported['name']} questions",key='ai_study_name_'+imported['id'])
     if st.button(f'Create editable Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
@@ -1674,7 +1678,9 @@ if not url or not key:
     st.stop()
 if "auth" not in st.session_state:
     try:
-        client=create_client(url,key,options=ClientOptions(auto_refresh_token=False,persist_session=True))
+        # AI question generation calls an external provider and commonly takes
+        # longer than the default Functions client read timeout.
+        client=create_client(url,key,options=ClientOptions(auto_refresh_token=False,persist_session=True,function_client_timeout=60))
         st.session_state.auth=AuthService(client,app_url=config("APP_URL") or "http://localhost:8501")
     except Exception:
         st.error("Could not connect to StudyDuel. Please try again shortly.")
