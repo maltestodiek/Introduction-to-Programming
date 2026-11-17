@@ -1,28 +1,5 @@
 """StudyDuel authentication and profile setup."""
-import importlib
 import os
-import sys
-
-
-def refresh_helper_modules(names=('logic','db','study_plan','google_calendar')):
-    """A long-running server keeps helper modules in memory. Reload any whose file changed since it was last
-    checked, for example after a deploy, so this script never runs against an older helper."""
-    for name in names:
-        module=sys.modules.get(name);file=getattr(module,'__file__',None)
-        if not file:continue
-        try:changed=os.path.getmtime(file)
-        except OSError:continue
-        if getattr(module,'_studyduel_mtime',changed)!=changed:module=importlib.reload(module)
-        module._studyduel_mtime=changed
-
-
-def current_module(name,needs):
-    """Import a helper module; reload it once if the copy in memory is from before `needs` was added."""
-    module=importlib.import_module(name)
-    return module if hasattr(module,needs) else importlib.reload(module)
-
-
-refresh_helper_modules()
 from pathlib import Path
 from PIL import Image
 import base64
@@ -315,7 +292,8 @@ def clear_notepads():
 
 def notepad_rules():
     # A long-running server can still hold logic.py from before a deploy; reload it once instead of failing.
-    return current_module('logic','scratch_note')
+    import importlib,logic
+    return logic if hasattr(logic,'scratch_note') else importlib.reload(logic)
 
 
 def notepad_changed(key):
@@ -803,6 +781,12 @@ def study_request(client,action,data=None):
     return play_request(StudyRepository(client),action,data)
 
 
+def study_public_request(client,action,data=None):
+    from db import StudyRepository
+    try:return StudyRepository(client).publication(action,data)
+    except ValueError as exc:st.error(str(exc));return None
+
+
 STUDY_LEVEL_COLORS={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
 STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
 STUDY_LEVEL_TITLES={'new':'New','0':'Needs practice','1':'Level 1 · Building confidence','2':'Level 2 · Getting stronger','3':'Level 3 · Well practised'}
@@ -943,6 +927,9 @@ def study_library(client,profile):
         return
     data=study_request(client,'list')
     if data is None:return
+    public=study_public_request(client,'list')
+    if public is None:return
+    published_ids=set(public.get('published_ids',[]))
     if st.button('Create Study deck',type='primary'):
         st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0;st.rerun()
     st.caption('Study decks have flexible question counts and chapters. Existing published decks remain available below.')
@@ -954,6 +941,23 @@ def study_library(client,profile):
                 st.write('**'+d['name']+'**');st.caption(f"{d['course']} · {d.get('language') or 'Set a language first'} · {d['count']} questions")
                 if st.button('View progress and questions',key='study_open_'+d['id']):
                     st.session_state.study_deck_open={'id':d['id'],'shared':key=='shared'};st.rerun()
+                if key=='decks':
+                    if d['id'] in published_ids:
+                        st.caption('Published to students at your university.')
+                        if st.button('Unpublish Study deck',key='study_unpublish_'+d['id']):
+                            if study_public_request(client,'unpublish',{'id':d['id']}) is not None:st.rerun()
+                    elif st.button('Publish Study deck',key='study_publish_'+d['id'],type='primary'):
+                        if study_public_request(client,'publish',{'id':d['id']}) is not None:st.rerun()
+    st.subheader('Published Study decks')
+    st.caption('Published by students at your university for a course and language in your profile.')
+    if not public.get('decks'):st.caption('No published Study decks match your profile yet.')
+    for d in public.get('decks',[]):
+        with st.container(border=True):
+            st.write('**'+d['name']+'**');st.caption(f"{d['course']} · {d['language']} · By {d['author']} · {d['count']} questions")
+            if st.button('Save private Study copy',key='study_copy_public_'+d['id']):
+                copied=study_public_request(client,'copy',{'id':d['id']})
+                if copied is not None:
+                    st.success('Saved a private Study copy.');st.rerun()
     with st.expander('Feedback on your questions'):
         if not data['feedback']:st.caption('No feedback yet.')
         for f in data['feedback']:
@@ -1018,13 +1022,13 @@ WEEKDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'
 
 
 def study_plan_request(client,action,data=None):
-    StudyPlanRepository=current_module('db','StudyPlanRepository').StudyPlanRepository
+    from db import StudyPlanRepository
     return play_request(StudyPlanRepository(client),action,data)
 
 
 def study_plan_quiet(client,action,data=None):
     """Study plan request for places where the plan is an extra: problems are not shown."""
-    StudyPlanRepository=current_module('db','StudyPlanRepository').StudyPlanRepository
+    from db import StudyPlanRepository
     try:return StudyPlanRepository(client).action(action,data)
     except ValueError:return None
 
@@ -1075,7 +1079,7 @@ def study_plan_clock():
 
 def study_plan_today(client,plan,levels,by_deck,decks,today,prefix):
     """Today's sessions of one plan with a start button for everything still open. The day's amount is fixed once per day."""
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     now=study_plan_clock()
     if (plan.get('day') or {}).get('date')!=today.isoformat():
         plan['day']=rules.day_snapshot(plan,levels,today)
@@ -1139,7 +1143,7 @@ def study_plan_add_day_off(key):
 
 def study_plan_editor(client,profile,decks,user_id=''):
     from datetime import date,time,timedelta
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     draft=st.session_state.plan_draft;today=date.today();key='plan_'+str(draft.get('id','new'))+'_'
     st.subheader('Edit study plan' if draft.get('id') else 'Create study plan')
     st.caption('Study plans are for Study Mode. Nothing is saved, and no calendar is changed, until you save.')
@@ -1232,7 +1236,7 @@ def study_plan_google_answer(client,decks,user_id):
     from datetime import date
     import httpx
     import google_calendar as google
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     state=str(st.query_params.get('state',''))
     if not state.startswith(google.STATE_PREFIX):return
     code=st.query_params.get('code')
@@ -1270,7 +1274,7 @@ def study_plan_google_answer(client,decks,user_id):
 def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
     """Calendar file download and Google Calendar link for one saved plan."""
     import google_calendar as google
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     client_id,secret,redirect=study_plan_google_settings();download,online=st.columns(2)
     download.download_button('Calendar file',rules.plan_ics(plan,rules.plan_sessions(plan,levels,today)),file_name='studyduel-'+plan['id'][:8]+'.ics',mime='text/calendar',key='plan_ics_'+plan['id'],icon=':material/download:',use_container_width=True,help='Download the planned sessions and import them into any calendar.')
     if client_id and secret:
@@ -1282,7 +1286,7 @@ def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
 def study_plan_finish(client,stored,decks,user_id):
     """Step after saving: put the sessions into a calendar if wanted, then finish to see the progress overview."""
     from datetime import date
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     plan={**stored['plan'],'id':stored['id']};today=date.today()
     st.subheader('Study plan saved: '+plan['name'])
     levels=study_plan_levels(client,plan,decks)
@@ -1300,7 +1304,7 @@ def study_plan_finish(client,stored,decks,user_id):
 def study_plan_screen(client,profile,user_id=''):
     from datetime import date
     import google_calendar as google
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     st.title('Study Plan')
     decks=study_plan_decks(client)
     if decks is None:return
@@ -1329,56 +1333,6 @@ def study_plan_screen(client,profile,user_id=''):
             study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
             if st.button('Edit',key='plan_edit_'+plan['id'],icon=':material/edit:',use_container_width=True):
                 st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
-
-
-LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;color:var(--sd-text);border-top:1px solid var(--sd-border)}.sd-lb-row:first-child{border-top:0}.sd-lb-row img{flex:0 0 40px;width:40px;height:40px;border-radius:50%;object-fit:cover;background:var(--sd-avatar)}.sd-lb-place{flex:0 0 44px;font-variant-numeric:tabular-nums;color:var(--sd-muted)}.sd-lb-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-lb-xp{white-space:nowrap;font-variant-numeric:tabular-nums}.sd-lb-me{background:var(--sd-hover);border:1px solid var(--sd-battle-border);border-radius:12px;font-weight:700}.sd-lb-me .sd-lb-place{color:inherit}</style>'
-
-
-def leaderboard_rows(rows,repo):
-    """One line per student: place, picture, username and XP. Read-only: no invite, chat or profile action."""
-    cache=st.session_state.setdefault('leaderboard_pictures',{});lines=''
-    for row in rows:
-        path_=row.get('image_path')
-        if path_ not in cache:
-            try:data=repo.image(path_)
-            except Exception:data=None
-            cache[path_]=data if isinstance(data,(bytes,bytearray)) else None
-        picture=base64.b64encode(cache[path_] or render_avatar(row.get('avatar') or DEFAULT_AVATAR)).decode();me=bool(row.get('me'))
-        lines+=f'<div class="sd-lb-row{" sd-lb-me" if me else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{picture}" alt=""><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if me else ""}</span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
-    st.html(LEADERBOARD_STYLE+'<div class="sd-lb">'+lines+'</div>')
-
-
-def leaderboard_demo(profile):
-    """Invented students for looking at the layout. Never read from or written to the database."""
-    from logic import SKIN,HAIR_COLORS,CLOTHES,OPTIONS
-    names=['nora_k','tiago','lena_m','felix','ines','jonas','sofia_r','matteo','clara','diogo','emma_w','lukas','beatriz','hugo','anna_s']
-    points=[1840,1675,1520,1520,1390,1210,1085,960,870,790,640,455,320,180,60]
-    everyone=[{'username':name,'xp':xp,'image_path':None,'me':False,'avatar':dict(skin=list(SKIN)[i%len(SKIN)],hair=OPTIONS['hair'][i%len(OPTIONS['hair'])],hair_color=list(HAIR_COLORS)[i%len(HAIR_COLORS)],clothing=list(CLOTHES)[i%len(CLOTHES)],accessory='None')} for i,(name,xp) in enumerate(zip(names,points))]
-    everyone.append({'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'me':True})
-    def ranked(rows):return [{**row,'rank':1+sum(1 for other in rows if other['xp']>row['xp'])} for row in sorted(rows,key=lambda r:(-r['xp'],r['username']))]
-    world=ranked(everyone)
-    return {'top':world[:10],'me':next(row for row in world if row['me']),'friends':ranked([row for row in everyone if row['me'] or row['username'] in ('tiago','ines','emma_w','hugo')])}
-
-
-def leaderboard_screen(client,repo,profile=None):
-    LeaderboardRepository=current_module('db','LeaderboardRepository').LeaderboardRepository
-    st.title('Leaderboard')
-    if profile and config('LEADERBOARD_DEMO')=='1' and (config('APP_URL') or '').startswith('http://localhost'):
-        st.warning('Preview with invented students and XP. Only this local copy shows it; the real ranking is not changed.')
-        data=leaderboard_demo(profile)
-    else:
-        try:data=LeaderboardRepository(client).load()
-        except ValueError as exc:
-            st.error(str(exc));return
-    st.caption('Places are based on the XP earned in Battle Mode. Study Mode and study plans do not change them.')
-    world,friends=st.tabs(['Global top 10','Friends'])
-    with world:
-        leaderboard_rows(data['top'],repo)
-        if data.get('me') and not any(row.get('me') for row in data['top']):
-            st.divider();st.caption('Your place');leaderboard_rows([data['me']],repo)
-    with friends:
-        leaderboard_rows(data['friends'],repo)
-        if len(data['friends'])<2:st.caption('Add friends in the Friends tab to compare your Battle XP with them.')
 
 
 def study_design():
@@ -1884,8 +1838,6 @@ if profile:
         st.stop()
     if page=='Study Plan':
         study_plan_screen(auth.client,profile,auth.user.id);st.stop()
-    if page=='Leaderboard':
-        leaderboard_screen(auth.client,repo,profile);st.stop()
     if page in ('Leaderboard','Study Plan'):
         st.title(page)
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
