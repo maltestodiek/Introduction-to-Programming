@@ -1,6 +1,6 @@
-# StudyDuel — current product brief
+# CampusDuel — current product brief
 
-StudyDuel helps students create reviewed course questions, practise independently or with classmates, track learning progress and communicate privately. The interface, documentation and tests are in English.
+CampusDuel helps students create reviewed course questions, practise independently or with classmates, track learning progress and communicate privately. The interface, documentation and tests are in English.
 
 ## Approved implementation
 Python and Streamlit, run with uv, with pytest for Python checks. Supabase Auth handles accounts; PostgreSQL and private Storage hold shared durable data. This is the group's approved extension of the lecture's SQLite starting point. No React frontend or new chat/calculator provider is used.

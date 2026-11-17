@@ -4,11 +4,11 @@ Parent topic: [Appearance and navigation](../appearance-and-navigation.md).
 
 ## Why
 
-Students come to StudyDuel to play and study. After signing in they landed on their Profile and had to click once more to start; there was also no single "home" control.
+Students come to CampusDuel to play and study. After signing in they landed on their Profile and had to click once more to start; there was also no single "home" control.
 
 ## What
 
-After signing in, a user with a profile lands on Play instead of Profile. The StudyDuel logo and wordmark in the header are one button that opens Play from any page, keeping the logo artwork, the two-colour wordmark, a visible keyboard focus indicator and the usual confirmation when leaving an active round.
+After signing in, a user with a profile lands on Play instead of Profile. The CampusDuel logo and wordmark in the header are one button that opens Play from any page, keeping the logo artwork, the two-colour wordmark, a visible keyboard focus indicator and the usual confirmation when leaving an active round.
 
 A browser that restores a remembered session still resumes the page it was last on, as described in [Welcome and returning users](../../docs/launch-and-resume.md). A new user without a profile still completes profile setup first.
 

@@ -137,7 +137,7 @@ def session_minutes(steps):
 
 
 def session_title(plan,session):
-    return f"StudyDuel: {plan['name']} ({session['steps']} questions)"
+    return f"CampusDuel: {plan['name']} ({session['steps']} questions)"
 
 
 def session_details(session):
@@ -154,7 +154,7 @@ def _ics_text(value):
 
 def plan_ics(plan,sessions):
     """Calendar file with local (floating) times so sessions appear at the chosen clock time."""
-    lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//StudyDuel//Study plan//EN','CALSCALE:GREGORIAN']
+    lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//CampusDuel//Study plan//EN','CALSCALE:GREGORIAN']
     for session in sessions:
         start=datetime.combine(session['date'],datetime.strptime(session['time'],'%H:%M').time());end=start+timedelta(minutes=session_minutes(session['steps']))
         lines+=['BEGIN:VEVENT','UID:'+session_uid(plan,session),f'DTSTAMP:{start:%Y%m%dT%H%M%S}',f'DTSTART:{start:%Y%m%dT%H%M%S}',f'DTEND:{end:%Y%m%dT%H%M%S}',

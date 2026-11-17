@@ -1,4 +1,4 @@
-# StudyDuel Overall Concept v2
+# CampusDuel Overall Concept v2
 
 10 November 2026 · @Penelope
 
@@ -6,9 +6,9 @@ Current implementation: Python, Streamlit and Supabase. No React frontend or bro
 
 ## Overview
 
-StudyDuel is a learning app where students create quiz decks for their courses and challenge each other to duels. It combines flashcard learning, as in Anki, with competition among friends, as in Quizduell. Whoever answers more questions correctly wins the duel and earns XP.
+CampusDuel is a learning app where students create quiz decks for their courses and challenge each other to duels. It combines flashcard learning, as in Anki, with competition among friends, as in Quizduell. Whoever answers more questions correctly wins the duel and earns XP.
 
-Navigation: StudyDuel appears at the top left; Decks, Play and Leaderboard are in the centre; Profile and the profile picture are at the top right. Colour highlights the active tab.
+Navigation: CampusDuel appears at the top left; Decks, Play and Leaderboard are in the centre; Profile and the profile picture are at the top right. Colour highlights the active tab.
 
 Prototype courses: Financial Modeling, Corporate Finance and Investments.
 
@@ -151,7 +151,7 @@ Reporting requires confirmation:
 
 ## Calendar reminders
 
-StudyDuel uses the user's Google or Apple calendar to avoid missed deadlines and encourage regular learning.
+CampusDuel uses the user's Google or Apple calendar to avoid missed deadlines and encourage regular learning.
 
 - **Your 24-hour deadline:** When challenged and due to play, a calendar entry reminds you before the 24 hours expire, helping avoid an accidental loss.
 - **Study and quiz reminders:** Regular calendar reminders to play a duel or study a deck.
@@ -233,7 +233,7 @@ The original wireframes illustrate desktop layouts; colours and visual details a
 
 ### Decks start screen
 
-A header contains StudyDuel, Decks, Play, Leaderboard and Profile. Create New Deck is the primary entry point. Below it are course cards for Financial Modeling, Corporate Finance and Investments. Choosing a course opens its decks and their creators and ratings.
+A header contains CampusDuel, Decks, Play, Leaderboard and Profile. Create New Deck is the primary entry point. Below it are course cards for Financial Modeling, Corporate Finance and Investments. Choosing a course opens its decks and their creators and ratings.
 
 ### Deck creation and card list
 
@@ -279,11 +279,11 @@ Prototype simulation: The opponent is an example user. Two test buttons demonstr
 
 ### Original starter prompt for step one
 
-We are building a clickable prototype of the StudyDuel learning app for a university project. Technology: React with Vite, no database, no login; example data in code and game state in localStorage.
+We are building a clickable prototype of the CampusDuel learning app for a university project. Technology: React with Vite, no database, no login; example data in code and game state in localStorage.
 
 Task for this step only: Set up the project and build the foundation.
 
-- StudyDuel at the top left; Decks, Play and Leaderboard in the centre; Profile with an icon at the top right.
+- CampusDuel at the top left; Decks, Play and Leaderboard in the centre; Profile with an icon at the top right.
 - Highlight the active tab. Every tab opens an empty placeholder page.
 - Desktop layout, calm and clear styling, generous whitespace and legible type.
 - Buttons react immediately when pressed, becoming slightly smaller and changing colour.
