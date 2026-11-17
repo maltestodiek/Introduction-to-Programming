@@ -64,7 +64,8 @@ def test_profile_summary_shows_studies_and_invitation_without_auto_accept(monkey
     client=Mock();client.auth.get_user.return_value=Obj(user=Obj(id='a'))
     auth=AuthService(client);auth.user=client.auth.get_user.return_value.user
     at=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=15)
-    at.session_state['auth']=auth;at.query_params['invite']='a'*48
+    # Sign-in now lands on Play (specs/tasks/play-landing-and-logo.md); open Profile explicitly to check the summary.
+    at.session_state['auth']=auth;at.session_state['main_page']='Profile';at.query_params['invite']='a'*48
     at.run()
     assert not at.exception
     assert any('Master in Finance' in m.value for m in at.markdown)
