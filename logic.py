@@ -335,10 +335,15 @@ def scratch_note(text):
     return str(text or '')[:NOTEPAD_LIMIT]
 
 
+CALCULATOR_DECIMALS=4  # results are shown rounded to this many decimal places
+
+
 def calculate(expression):
-    """Evaluate bounded arithmetic only, without executing Python expressions."""
+    """Evaluate bounded arithmetic only, without executing Python expressions.
+
+    The result is rounded half away from zero to CALCULATOR_DECIMALS places."""
     import ast
-    from decimal import Decimal, DecimalException, localcontext
+    from decimal import Decimal, DecimalException, ROUND_HALF_UP, localcontext
     if not isinstance(expression,str) or not expression.strip() or len(expression)>120:
         raise ValueError('Enter a calculation of up to 120 characters.')
     source=expression.strip().replace('×','*').replace('÷','/').replace('−','-').replace('^','**')
@@ -372,7 +377,7 @@ def calculate(expression):
             return result
         with localcontext() as context:
             context.prec=28
-            value=number(tree.body)
+            value=number(tree.body).quantize(Decimal(1).scaleb(-CALCULATOR_DECIMALS),rounding=ROUND_HALF_UP)
             if value==0:return '0'
             return format(value.normalize(),'f')
     except (SyntaxError,DecimalException,RecursionError) as exc:
