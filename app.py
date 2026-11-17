@@ -287,8 +287,14 @@ def calculator_input_changed(key):
     st.session_state.pop(key+'_error',None)
 
 
+def calculator_rules():
+    # A long-running server can still hold logic.py from before a deploy; reload it once so rounding applies.
+    import importlib,logic
+    return logic if hasattr(logic,'CALCULATOR_DECIMALS') else importlib.reload(logic)
+
+
 def calculator_key(key,token):
-    from logic import calculate
+    calculate=calculator_rules().calculate
     calculator_input_changed(key)
     value=st.session_state.get(key,'')
     if token=='Clear':
@@ -354,7 +360,8 @@ def question_calculator(identity):
             st.session_state['calculator_open_'+identity]=False;st.rerun()
         st.text_input('Calculation',key=key,max_chars=120,placeholder='e.g. (100 + 20) ÷ 4',label_visibility='collapsed',on_change=calculator_input_changed,args=(key,))
         result=st.session_state.get(key+'_result','—')
-        st.html(f'<div style="text-align:right;padding:4px 0 12px;font-size:1.8rem;font-weight:700"><span style="display:block;font-size:.8rem;font-weight:400;opacity:.7">Result</span>{escape(result)}</div>')
+        decimals=calculator_rules().CALCULATOR_DECIMALS
+        st.html(f'<div style="text-align:right;padding:4px 0 12px;font-size:1.8rem;font-weight:700;overflow-wrap:anywhere"><span style="display:block;font-size:.8rem;font-weight:400;opacity:.7">Result</span>{escape(result)}<span style="display:block;font-size:.75rem;font-weight:400;opacity:.7">Rounded to {decimals} decimal places</span></div>')
         for row in [('Clear','⌫','(',')'),('7','8','9','÷'),('4','5','6','×'),('1','2','3','−'),('0','.','√','^'),('+','=')]:
             for col,token in zip(st.columns(len(row)),row):
                 label={'Clear':'C','^':'xʸ'}.get(token,token)
