@@ -22,7 +22,7 @@ def button(at,label):return next(b for b in at.button if b.label==label)
 def test_placeholders_disabled_and_incomplete_card_rejected(monkeypatch):
     at=deck_app(monkeypatch)
     assert not button(at,'Import from Anki').disabled
-    assert button(at,'Generate with AI').disabled
+    assert not button(at,'Generate with AI').disabled
     assert any(exp.label=='Battle Mode Decks' for exp in at.expander)
     assert not any('30-question' in getattr(widget,'value','') for widget in at.markdown)
     assert not at.exception

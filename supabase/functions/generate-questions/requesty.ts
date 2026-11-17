@@ -1,10 +1,27 @@
 import {
+  parsePartialRequestyContent,
   parseRequestyContent,
   type GeneratedQuestion,
 } from "./validation.ts";
 
 type SourceCard = { id: string; front: string; back: string };
 type FetchLike = typeof fetch;
+const MAX_ATTEMPTS = 2;
+
+class IncompleteBatchError extends Error {
+  constructor(message: string, readonly drafts: GeneratedQuestion[]) {
+    super(message);
+    this.name = "IncompleteBatchError";
+  }
+}
+
+const canRetry = (error: unknown) => {
+  const message = error instanceof Error ? error.message : "";
+  return message.startsWith("The AI response") ||
+    message.startsWith("Question ") ||
+    message.includes("The AI provider took too long") ||
+    /HTTP (429|5\d\d)/.test(message);
+};
 
 export async function requestQuestionsFromRequesty(
   apiKey: string,
@@ -71,7 +88,26 @@ export async function requestQuestionsFromRequesty(
     const body: unknown = await response.json();
     const content = (body as { choices?: Array<{ message?: { content?: unknown } }> })
       ?.choices?.[0]?.message?.content;
-    return parseRequestyContent(content, cards.map((card) => card.id));
+    const sourceCardIds = cards.map((card) => card.id);
+    try {
+      return parseRequestyContent(content, sourceCardIds);
+    } catch (error) {
+      // A provider may omit one otherwise valid question. Keep no partial data,
+      // but retain the valid in-memory drafts so the retry layer can ask only
+      // for the missing sources.
+      try {
+        const partial = parsePartialRequestyContent(content, sourceCardIds);
+        if (partial.length < cards.length) {
+          throw new IncompleteBatchError(
+            error instanceof Error ? error.message : "The AI response was incomplete.",
+            partial,
+          );
+        }
+      } catch (partialError) {
+        if (partialError instanceof IncompleteBatchError) throw partialError;
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("The AI provider took too long to respond.");
@@ -80,4 +116,40 @@ export async function requestQuestionsFromRequesty(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/** Retry a malformed or temporarily unavailable provider response once.
+ * Each attempt validates before it is returned, so callers never save partial drafts.
+ */
+export async function requestQuestionsWithRetry(
+  apiKey: string,
+  model: string,
+  cards: SourceCard[],
+  fetcher: FetchLike = fetch,
+): Promise<GeneratedQuestion[]> {
+  let lastError: unknown;
+  let incomplete: IncompleteBatchError | undefined;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await requestQuestionsFromRequesty(apiKey, model, cards, fetcher);
+    } catch (error) {
+      lastError = error;
+      if (error instanceof IncompleteBatchError) incomplete = error;
+      if (attempt === MAX_ATTEMPTS || !canRetry(error)) break;
+    }
+  }
+  if (incomplete && incomplete.drafts.length > 0 && incomplete.drafts.length < cards.length) {
+    const returned = new Map(incomplete.drafts.map((draft) => [draft.sourceCardId, draft]));
+    const missing = cards.filter((card) => !returned.has(card.id));
+    try {
+      const recovered = await requestQuestionsWithRetry(apiKey, model, missing, fetcher);
+      for (const draft of recovered) returned.set(draft.sourceCardId, draft);
+      return cards.map((card) => returned.get(card.id)!).filter(Boolean);
+    } catch (recoveryError) {
+      const recoveryMessage = recoveryError instanceof Error ? recoveryError.message : "unknown recovery error";
+      throw new Error(`The AI omitted ${missing.length} source card${missing.length === 1 ? "" : "s"} from a batch of ${cards.length}, and recovery failed. ${recoveryMessage}`);
+    }
+  }
+  const message = lastError instanceof Error ? lastError.message : "The AI provider returned an unknown error.";
+  throw new Error(`Generation failed for a batch of ${cards.length} source cards after ${MAX_ATTEMPTS} attempts. ${message}`);
 }

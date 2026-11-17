@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { requestQuestionsFromRequesty } from "./requesty.ts";
+import { requestQuestionsFromRequesty, requestQuestionsWithRetry } from "./requesty.ts";
 
 const cards = [{
   id: "11111111-1111-4111-8111-111111111111",
@@ -42,4 +42,45 @@ Deno.test("does not accept a simulated provider failure", async () => {
     Error,
     "could not generate",
   );
+});
+
+Deno.test("retries one malformed response and returns the valid replacement", async () => {
+  let calls = 0;
+  const fakeFetch: typeof fetch = async () => {
+    calls += 1;
+    const content = calls === 1 ? JSON.stringify({ questions: [] }) : JSON.stringify({
+      questions: [{
+        sourceCardId: cards[0].id,
+        question: "Which statement describes the time value of money?",
+        options: ["Money today can earn returns", "Money never changes value", "Inflation is impossible", "Only debt has value"],
+        correctOptionIndex: 0,
+        explanation: "",
+      }],
+    });
+    return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+  };
+  const drafts = await requestQuestionsWithRetry("test-key", "test-model", cards, fakeFetch);
+  assertEquals(calls, 2);
+  assertEquals(drafts.length, 1);
+});
+
+Deno.test("recovers an omitted source with a targeted follow-up request", async () => {
+  const twoCards = [cards[0], { ...cards[0], id: "22222222-2222-4222-8222-222222222222", front: "What is discounting?" }];
+  let calls = 0;
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    calls += 1;
+    const sent = JSON.parse(String(init?.body)).messages[1].content;
+    const source = JSON.parse(sent).cards;
+    const questions = source.length === 2
+      ? [
+        { sourceCardId: twoCards[0].id, question: "What describes time value?", options: ["A", "B", "C", "D"], correctOptionIndex: 0, explanation: "" },
+      ]
+      : [
+        { sourceCardId: twoCards[1].id, question: "What is discounting?", options: ["A", "B", "C", "D"], correctOptionIndex: 0, explanation: "" },
+      ];
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions }) } }] }), { status: 200 });
+  };
+  const drafts = await requestQuestionsWithRetry("test-key", "test-model", twoCards, fakeFetch);
+  assertEquals(drafts.map((draft) => draft.sourceCardId), twoCards.map((card) => card.id));
+  assertEquals(calls, 3);
 });

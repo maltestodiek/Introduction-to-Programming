@@ -4,7 +4,7 @@
 Practise alone, or discover another student's course material asynchronously, without XP or rankings.
 
 ## What
-Study decks support one or more four-option, one-solution questions and optional chapters. Existing published 15-card decks remain intact and can be studied by their owners. A Study copy can be created for editing; new Study decks are private until explicitly shared through a session. Review is mandatory before saving content. Optimistic revision checks prevent overwriting concurrent edits.
+Study decks support one or more four-option, one-solution questions and optional chapters. Existing published 15-card decks remain intact and can be studied by their owners. A Study copy can be created for editing. New Study decks are private until their author explicitly publishes them or shares a fixed copy through a session. Published Study decks are visible only to signed-in students at the same university whose profile includes the deck course and language; they can save a private Study copy. Authors can unpublish at any time. Review is mandatory before saving content. Optimistic revision checks prevent overwriting concurrent edits.
 
 Per-user progress is New (unanswered), Needs practice (answered level 0), orange level 1, yellow level 2, green level 3. Correct raises one, wrong lowers one, bounded 0–3. Question content changes create a new progress identity; chapter-only changes do not. Answers from existing duels also update progress exactly once. Private notes and feedback reference the immutable question content version. Feedback is explicitly sent to its author and remains visible to the sender. Private notes are never sent.
 

@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { parseRequestyContent, validateGeneratedQuestions } from "./validation.ts";
+import { parsePartialRequestyContent, parseRequestyContent, validateGeneratedQuestions } from "./validation.ts";
 
 const sourceIds = [
   "11111111-1111-4111-8111-111111111111",
@@ -42,5 +42,18 @@ Deno.test("rejects duplicate options and unknown source IDs", () => {
 
   const foreign = structuredClone(valid);
   foreign.questions[1].sourceCardId = "33333333-3333-4333-8333-333333333333";
-  assertThrows(() => validateGeneratedQuestions(foreign, sourceIds), Error, "invalid source card");
+  assertThrows(() => validateGeneratedQuestions(foreign, sourceIds), Error, "outside this selected batch");
+});
+
+Deno.test("reports the returned and expected question counts", () => {
+  assertThrows(
+    () => validateGeneratedQuestions({ questions: [valid.questions[0]] }, sourceIds),
+    Error,
+    "returned 1 question, but this batch requires exactly 2",
+  );
+});
+
+Deno.test("keeps valid partial questions in memory for missing-source recovery", () => {
+  const partial = parsePartialRequestyContent(JSON.stringify({ questions: [valid.questions[0]] }), sourceIds);
+  assertEquals(partial.map((draft) => draft.sourceCardId), [sourceIds[0]]);
 });

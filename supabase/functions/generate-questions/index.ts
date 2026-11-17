@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { requestQuestionsFromRequesty } from "./requesty.ts";
+import { requestQuestionsWithRetry } from "./requesty.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,7 +87,7 @@ serve(async (request) => {
   try {
     const drafts = [];
     for (const batch of chunks(cards, 10)) {
-      const generated = await requestQuestionsFromRequesty(
+      const generated = await requestQuestionsWithRetry(
         requestyApiKey,
         requestyModel,
         batch.map(({ id, front, back }) => ({ id, front, back })),

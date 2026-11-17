@@ -1,28 +1,5 @@
 """StudyDuel authentication and profile setup."""
-import importlib
 import os
-import sys
-
-
-def refresh_helper_modules(names=('logic','db','study_plan','google_calendar')):
-    """A long-running server keeps helper modules in memory. Reload any whose file changed since it was last
-    checked, for example after a deploy, so this script never runs against an older helper."""
-    for name in names:
-        module=sys.modules.get(name);file=getattr(module,'__file__',None)
-        if not file:continue
-        try:changed=os.path.getmtime(file)
-        except OSError:continue
-        if getattr(module,'_studyduel_mtime',changed)!=changed:module=importlib.reload(module)
-        module._studyduel_mtime=changed
-
-
-def current_module(name,needs):
-    """Import a helper module; reload it once if the copy in memory is from before `needs` was added."""
-    module=importlib.import_module(name)
-    return module if hasattr(module,needs) else importlib.reload(module)
-
-
-refresh_helper_modules()
 from pathlib import Path
 from PIL import Image
 import base64
@@ -315,7 +292,8 @@ def clear_notepads():
 
 def notepad_rules():
     # A long-running server can still hold logic.py from before a deploy; reload it once instead of failing.
-    return current_module('logic','scratch_note')
+    import importlib,logic
+    return logic if hasattr(logic,'scratch_note') else importlib.reload(logic)
 
 
 def notepad_changed(key):
@@ -439,6 +417,9 @@ def decks_screen(client,profile):
     if st.session_state.get('anki_import_open'):
         anki_import_screen(client,profile)
         return
+    if st.session_state.get('pdf_import_open'):
+        pdf_import_screen(client,profile)
+        return
     if st.session_state.get('anki_generation_open'):
         anki_generation_screen(client,profile)
         return
@@ -553,8 +534,8 @@ def decks_screen(client,profile):
         if st.button('Generate questions from imports',use_container_width=True):
             st.session_state.anki_generation_open=True;st.rerun()
     with ai:
-        st.write('**AI from lecture slides**');st.caption('Coming soon')
-        st.button('Generate with AI',disabled=True,use_container_width=True)
+        st.write('**AI from lecture slides**');st.caption('Upload text-based PDF slides, then review generated questions.')
+        if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     with st.expander('Battle Mode Decks'):
         st.caption('Turn one of your reviewed Study decks into an immutable public 15-question Battle Deck.')
         if st.button('Create Battle Mode Deck'):
@@ -571,6 +552,21 @@ def decks_screen(client,profile):
             st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
             if st.button('Open deck',key='open_'+deck['id']):
                 st.session_state.deck_open=deck['id'];st.rerun()
+    public_study=study_public_request(client,'list')
+    if public_study is None:return
+    published=[deck for deck in public_study.get('decks',[]) if deck['course'].strip().lower()==course.strip().lower()]
+    if published:
+        st.subheader('Published Study decks')
+        for deck in published:
+            with st.container(border=True):
+                st.write('**'+deck['name']+'**');st.caption(f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions")
+                if deck.get('owned'):
+                    st.caption('Your published Study deck.')
+                    if st.button('Open your Study deck',key='course_open_study_'+deck['id']):
+                        st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
+                elif st.button('Save private Study copy',key='course_copy_study_'+deck['id']):
+                    if study_public_request(client,'copy',{'id':deck['id']}) is not None:
+                        st.success('Saved a private Study copy.');st.rerun()
 
 
 def anki_import_screen(client,profile):
@@ -580,7 +576,12 @@ def anki_import_screen(client,profile):
     st.header('Import Basic Anki cards')
     st.info('Only two-field Basic text cards are accepted. Cloze, image and media cards stay in your Anki file and are not imported.')
     if st.button('Back to Decks'):
-        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.rerun()
+        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.session_state.pop('anki_import_saved',None);st.rerun()
+    if saved:=st.session_state.get('anki_import_saved'):
+        st.success(f"Saved {saved['count']} private source cards.")
+        if st.button('Continue to question generation',type='primary'):
+            st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_saved',None);st.session_state.anki_generation_open=True;st.rerun()
+        return
     upload=st.file_uploader('Anki package (.apkg)',type=['apkg'])
     if upload and st.button('Check Anki package',type='primary'):
         try:st.session_state.anki_import_result=parse_basic_apkg(upload.getvalue())
@@ -602,17 +603,46 @@ def anki_import_screen(client,profile):
         try: saved=AnkiImportRepository(client).save(name=name,course=course,language=language,cards=cards)
         except ValueError as exc:st.error(str(exc))
         else:
-            st.success(f"Saved {saved['count']} private source cards. You can now select cards and generate reviewable questions.")
             st.session_state.pop('anki_import_result',None)
-            if st.button('Continue to question generation',type='primary'):
-                st.session_state.pop('anki_import_open',None);st.session_state.anki_generation_open=True;st.rerun()
+            st.session_state.anki_import_saved=saved;st.rerun()
+
+def pdf_import_screen(client,profile):
+    from pdf_import import SlideImportError,parse_pdf_slides
+    from db import AnkiImportRepository
+    st.caption('Decks › AI from lecture slides')
+    st.header('Import PDF lecture slides')
+    st.info('PDF slides stay private. Only selectable text is supported; scanned PDFs need OCR before import.')
+    if st.button('Back to Decks'):
+        st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_result',None);st.session_state.pop('pdf_import_saved',None);st.rerun()
+    if saved:=st.session_state.get('pdf_import_saved'):
+        st.success(f"Saved {saved['count']} private PDF sources.")
+        if st.button('Continue to question generation',type='primary'):
+            st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_saved',None);st.session_state.anki_generation_open=True;st.rerun()
+        return
+    upload=st.file_uploader('Lecture slides (.pdf)',type=['pdf'])
+    if upload and st.button('Check PDF slides',type='primary'):
+        try:st.session_state.pdf_import_result=parse_pdf_slides(upload.getvalue())
+        except SlideImportError as exc:st.error(str(exc));st.session_state.pop('pdf_import_result',None)
+    result=st.session_state.get('pdf_import_result')
+    if not result:return
+    st.success(f"{len(result['cards'])} private text sources are ready to import.")
+    if result['skipped']:st.warning(f"{result['skipped']} pages without selectable text were skipped.")
+    if result['limited']:st.warning('Only the first 100 text sources were kept.')
+    name=st.text_input('Import name',placeholder='For example: Corporate Finance lecture slides',key='pdf_import_name')
+    course=st.selectbox('Course',profile['courses'],key='pdf_import_course')
+    language=st.selectbox('Deck language',profile['languages'],key='pdf_import_language')
+    if st.button(f"Save {len(result['cards'])} PDF sources",type='primary'):
+        try:saved=AnkiImportRepository(client).save_slides(name=name,course=course,language=language,cards=result['cards'])
+        except ValueError as exc:st.error(str(exc))
+        else:
+            st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
 
 def anki_generation_screen(client,profile):
     """Select private source cards, generate drafts, then hand reviewed cards to Study."""
     from uuid import uuid4
     from db import AnkiImportRepository
     repository=AnkiImportRepository(client)
-    st.caption('Decks › Anki imports › AI question generation')
+    st.caption('Decks › private sources › AI question generation')
     st.header('Generate reviewed questions')
     st.info('Select up to 100 private source cards. AI drafts stay private until you review and publish them as a Study deck.')
     if st.button('Back to Decks'):
@@ -620,9 +650,9 @@ def anki_generation_screen(client,profile):
     try:imports=repository.imports()
     except ValueError as exc:st.error(str(exc));return
     if not imports:
-        st.info('Import Basic Anki cards first. Your imports will appear here after saving.');return
+        st.info('Import Anki cards or PDF lecture slides first. Your private sources will appear here after saving.');return
     choices={f"{item['name']} · {len(item['cards'])} source cards":item for item in imports}
-    imported=choices[st.selectbox('Anki import',list(choices))]
+    imported=choices[st.selectbox('Source import',list(choices))]
     st.caption(f"{imported['course']} · {imported['language']}")
     available=[card for card in imported['cards'] if not any(draft['source_card_id']==card['id'] and draft['status'] in ('draft','published') for draft in imported['drafts'])]
     if available:
@@ -840,6 +870,12 @@ def study_request(client,action,data=None):
     return play_request(StudyRepository(client),action,data)
 
 
+def study_public_request(client,action,data=None):
+    from db import StudyRepository
+    try:return StudyRepository(client).publication(action,data)
+    except ValueError as exc:st.error(str(exc));return None
+
+
 STUDY_LEVEL_COLORS={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
 STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
 STUDY_LEVEL_TITLES={'new':'New','0':'Needs practice','1':'Level 1 · Building confidence','2':'Level 2 · Getting stronger','3':'Level 3 · Well practised'}
@@ -980,6 +1016,9 @@ def study_library(client,profile):
         return
     data=study_request(client,'list')
     if data is None:return
+    public=study_public_request(client,'list')
+    if public is None:return
+    published_ids=set(public.get('published_ids',[]))
     if st.button('Create Study deck',type='primary'):
         st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0;st.rerun()
     st.caption('Study decks have flexible question counts and chapters. Existing published decks remain available below.')
@@ -991,6 +1030,27 @@ def study_library(client,profile):
                 st.write('**'+d['name']+'**');st.caption(f"{d['course']} · {d.get('language') or 'Set a language first'} · {d['count']} questions")
                 if st.button('View progress and questions',key='study_open_'+d['id']):
                     st.session_state.study_deck_open={'id':d['id'],'shared':key=='shared'};st.rerun()
+                if key=='decks':
+                    if d['id'] in published_ids:
+                        st.caption('Published to students at your university.')
+                        if st.button('Unpublish Study deck',key='study_unpublish_'+d['id']):
+                            if study_public_request(client,'unpublish',{'id':d['id']}) is not None:st.rerun()
+                    elif st.button('Publish Study deck',key='study_publish_'+d['id'],type='primary'):
+                        if study_public_request(client,'publish',{'id':d['id']}) is not None:st.rerun()
+    st.subheader('Published Study decks')
+    st.caption('Your published decks and decks published by compatible students at your university.')
+    if not public.get('decks'):st.caption('No published Study decks match your profile yet.')
+    for d in public.get('decks',[]):
+        with st.container(border=True):
+            st.write('**'+d['name']+'**');st.caption(f"{d['course']} · {d['language']} · By {d['author']} · {d['count']} questions")
+            if d.get('owned'):
+                st.caption('Your published Study deck.')
+                if st.button('Open your Study deck',key='study_open_public_'+d['id']):
+                    st.session_state.study_deck_open={'id':d['id'],'shared':False};st.rerun()
+            elif st.button('Save private Study copy',key='study_copy_public_'+d['id']):
+                copied=study_public_request(client,'copy',{'id':d['id']})
+                if copied is not None:
+                    st.success('Saved a private Study copy.');st.rerun()
     with st.expander('Feedback on your questions'):
         if not data['feedback']:st.caption('No feedback yet.')
         for f in data['feedback']:
@@ -1055,13 +1115,13 @@ WEEKDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'
 
 
 def study_plan_request(client,action,data=None):
-    StudyPlanRepository=current_module('db','StudyPlanRepository').StudyPlanRepository
+    from db import StudyPlanRepository
     return play_request(StudyPlanRepository(client),action,data)
 
 
 def study_plan_quiet(client,action,data=None):
     """Study plan request for places where the plan is an extra: problems are not shown."""
-    StudyPlanRepository=current_module('db','StudyPlanRepository').StudyPlanRepository
+    from db import StudyPlanRepository
     try:return StudyPlanRepository(client).action(action,data)
     except ValueError:return None
 
@@ -1112,7 +1172,7 @@ def study_plan_clock():
 
 def study_plan_today(client,plan,levels,by_deck,decks,today,prefix):
     """Today's sessions of one plan with a start button for everything still open. The day's amount is fixed once per day."""
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     now=study_plan_clock()
     if (plan.get('day') or {}).get('date')!=today.isoformat():
         plan['day']=rules.day_snapshot(plan,levels,today)
@@ -1176,7 +1236,7 @@ def study_plan_add_day_off(key):
 
 def study_plan_editor(client,profile,decks,user_id=''):
     from datetime import date,time,timedelta
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     draft=st.session_state.plan_draft;today=date.today();key='plan_'+str(draft.get('id','new'))+'_'
     st.subheader('Edit study plan' if draft.get('id') else 'Create study plan')
     st.caption('Study plans are for Study Mode. Nothing is saved, and no calendar is changed, until you save.')
@@ -1269,7 +1329,7 @@ def study_plan_google_answer(client,decks,user_id):
     from datetime import date
     import httpx
     import google_calendar as google
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     state=str(st.query_params.get('state',''))
     if not state.startswith(google.STATE_PREFIX):return
     code=st.query_params.get('code')
@@ -1307,7 +1367,7 @@ def study_plan_google_answer(client,decks,user_id):
 def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
     """Calendar file download and Google Calendar link for one saved plan."""
     import google_calendar as google
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     client_id,secret,redirect=study_plan_google_settings();download,online=st.columns(2)
     download.download_button('Calendar file',rules.plan_ics(plan,rules.plan_sessions(plan,levels,today)),file_name='studyduel-'+plan['id'][:8]+'.ics',mime='text/calendar',key='plan_ics_'+plan['id'],icon=':material/download:',use_container_width=True,help='Download the planned sessions and import them into any calendar.')
     if client_id and secret:
@@ -1319,7 +1379,7 @@ def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
 def study_plan_finish(client,stored,decks,user_id):
     """Step after saving: put the sessions into a calendar if wanted, then finish to see the progress overview."""
     from datetime import date
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     plan={**stored['plan'],'id':stored['id']};today=date.today()
     st.subheader('Study plan saved: '+plan['name'])
     levels=study_plan_levels(client,plan,decks)
@@ -1337,7 +1397,7 @@ def study_plan_finish(client,stored,decks,user_id):
 def study_plan_screen(client,profile,user_id=''):
     from datetime import date
     import google_calendar as google
-    rules=current_module('study_plan','session_overdue')
+    import study_plan as rules
     st.title('Study Plan')
     decks=study_plan_decks(client)
     if decks is None:return
@@ -1366,56 +1426,6 @@ def study_plan_screen(client,profile,user_id=''):
             study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
             if st.button('Edit',key='plan_edit_'+plan['id'],icon=':material/edit:',use_container_width=True):
                 st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
-
-
-LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;color:var(--sd-text);border-top:1px solid var(--sd-border)}.sd-lb-row:first-child{border-top:0}.sd-lb-row img{flex:0 0 40px;width:40px;height:40px;border-radius:50%;object-fit:cover;background:var(--sd-avatar)}.sd-lb-place{flex:0 0 44px;font-variant-numeric:tabular-nums;color:var(--sd-muted)}.sd-lb-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-lb-xp{white-space:nowrap;font-variant-numeric:tabular-nums}.sd-lb-me{background:var(--sd-hover);border:1px solid var(--sd-battle-border);border-radius:12px;font-weight:700}.sd-lb-me .sd-lb-place{color:inherit}</style>'
-
-
-def leaderboard_rows(rows,repo):
-    """One line per student: place, picture, username and XP. Read-only: no invite, chat or profile action."""
-    cache=st.session_state.setdefault('leaderboard_pictures',{});lines=''
-    for row in rows:
-        path_=row.get('image_path')
-        if path_ not in cache:
-            try:data=repo.image(path_)
-            except Exception:data=None
-            cache[path_]=data if isinstance(data,(bytes,bytearray)) else None
-        picture=base64.b64encode(cache[path_] or render_avatar(row.get('avatar') or DEFAULT_AVATAR)).decode();me=bool(row.get('me'))
-        lines+=f'<div class="sd-lb-row{" sd-lb-me" if me else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{picture}" alt=""><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if me else ""}</span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
-    st.html(LEADERBOARD_STYLE+'<div class="sd-lb">'+lines+'</div>')
-
-
-def leaderboard_demo(profile):
-    """Invented students for looking at the layout. Never read from or written to the database."""
-    from logic import SKIN,HAIR_COLORS,CLOTHES,OPTIONS
-    names=['nora_k','tiago','lena_m','felix','ines','jonas','sofia_r','matteo','clara','diogo','emma_w','lukas','beatriz','hugo','anna_s']
-    points=[1840,1675,1520,1520,1390,1210,1085,960,870,790,640,455,320,180,60]
-    everyone=[{'username':name,'xp':xp,'image_path':None,'me':False,'avatar':dict(skin=list(SKIN)[i%len(SKIN)],hair=OPTIONS['hair'][i%len(OPTIONS['hair'])],hair_color=list(HAIR_COLORS)[i%len(HAIR_COLORS)],clothing=list(CLOTHES)[i%len(CLOTHES)],accessory='None')} for i,(name,xp) in enumerate(zip(names,points))]
-    everyone.append({'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'me':True})
-    def ranked(rows):return [{**row,'rank':1+sum(1 for other in rows if other['xp']>row['xp'])} for row in sorted(rows,key=lambda r:(-r['xp'],r['username']))]
-    world=ranked(everyone)
-    return {'top':world[:10],'me':next(row for row in world if row['me']),'friends':ranked([row for row in everyone if row['me'] or row['username'] in ('tiago','ines','emma_w','hugo')])}
-
-
-def leaderboard_screen(client,repo,profile=None):
-    LeaderboardRepository=current_module('db','LeaderboardRepository').LeaderboardRepository
-    st.title('Leaderboard')
-    if profile and config('LEADERBOARD_DEMO')=='1' and (config('APP_URL') or '').startswith('http://localhost'):
-        st.warning('Preview with invented students and XP. Only this local copy shows it; the real ranking is not changed.')
-        data=leaderboard_demo(profile)
-    else:
-        try:data=LeaderboardRepository(client).load()
-        except ValueError as exc:
-            st.error(str(exc));return
-    st.caption('Places are based on the XP earned in Battle Mode. Study Mode and study plans do not change them.')
-    world,friends=st.tabs(['Global top 10','Friends'])
-    with world:
-        leaderboard_rows(data['top'],repo)
-        if data.get('me') and not any(row.get('me') for row in data['top']):
-            st.divider();st.caption('Your place');leaderboard_rows([data['me']],repo)
-    with friends:
-        leaderboard_rows(data['friends'],repo)
-        if len(data['friends'])<2:st.caption('Add friends in the Friends tab to compare your Battle XP with them.')
 
 
 def study_design():
@@ -2050,8 +2060,6 @@ if profile:
         st.stop()
     if page=='Study Plan':
         study_plan_screen(auth.client,profile,auth.user.id);st.stop()
-    if page=='Leaderboard':
-        leaderboard_screen(auth.client,repo,profile);st.stop()
     if page in ('Leaderboard','Study Plan'):
         st.title(page)
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}

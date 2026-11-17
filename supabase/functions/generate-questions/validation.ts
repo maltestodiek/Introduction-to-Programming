@@ -12,13 +12,36 @@ export function validateGeneratedQuestions(
   payload: unknown,
   allowedSourceCardIds: readonly string[],
 ): GeneratedQuestion[] {
+  return validateQuestions(payload, allowedSourceCardIds, true);
+}
+
+/** Validates well-formed questions without requiring every source to be present.
+ * This is used only to recover omitted sources before anything is persisted.
+ */
+export function validatePartialGeneratedQuestions(
+  payload: unknown,
+  allowedSourceCardIds: readonly string[],
+): GeneratedQuestion[] {
+  return validateQuestions(payload, allowedSourceCardIds, false);
+}
+
+function validateQuestions(
+  payload: unknown,
+  allowedSourceCardIds: readonly string[],
+  requireEverySource: boolean,
+): GeneratedQuestion[] {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("The AI response was not a JSON object.");
   }
 
   const questions = (payload as Record<string, unknown>).questions;
-  if (!Array.isArray(questions) || questions.length !== allowedSourceCardIds.length) {
-    throw new Error("The AI response did not contain exactly one question per source card.");
+  if (!Array.isArray(questions)) {
+    throw new Error("The AI response did not contain a questions list.");
+  }
+  if (requireEverySource && questions.length !== allowedSourceCardIds.length) {
+    throw new Error(
+      `The AI returned ${questions.length} question${questions.length === 1 ? "" : "s"}, but this batch requires exactly ${allowedSourceCardIds.length} (one per selected source card).`,
+    );
   }
 
   const allowed = new Set(allowedSourceCardIds);
@@ -36,8 +59,11 @@ export function validateGeneratedQuestions(
     const correctOptionIndex = value.correctOptionIndex;
     const explanation = value.explanation;
 
-    if (typeof sourceCardId !== "string" || !allowed.has(sourceCardId) || seen.has(sourceCardId)) {
-      throw new Error(`Question ${index + 1} has an invalid source card.`);
+    if (typeof sourceCardId !== "string" || !allowed.has(sourceCardId)) {
+      throw new Error(`Question ${index + 1} referenced a source card outside this selected batch.`);
+    }
+    if (seen.has(sourceCardId)) {
+      throw new Error(`Question ${index + 1} duplicated a source card already used in this batch.`);
     }
     seen.add(sourceCardId);
 
@@ -72,6 +98,21 @@ export function parseRequestyContent(
   content: unknown,
   allowedSourceCardIds: readonly string[],
 ): GeneratedQuestion[] {
+  return parseContent(content, allowedSourceCardIds, true);
+}
+
+export function parsePartialRequestyContent(
+  content: unknown,
+  allowedSourceCardIds: readonly string[],
+): GeneratedQuestion[] {
+  return parseContent(content, allowedSourceCardIds, false);
+}
+
+function parseContent(
+  content: unknown,
+  allowedSourceCardIds: readonly string[],
+  requireEverySource: boolean,
+): GeneratedQuestion[] {
   if (typeof content !== "string") {
     throw new Error("The AI response did not contain text.");
   }
@@ -85,5 +126,7 @@ export function parseRequestyContent(
   } catch {
     throw new Error("The AI response was not valid JSON.");
   }
-  return validateGeneratedQuestions(payload, allowedSourceCardIds);
+  return requireEverySource
+    ? validateGeneratedQuestions(payload, allowedSourceCardIds)
+    : validatePartialGeneratedQuestions(payload, allowedSourceCardIds);
 }
