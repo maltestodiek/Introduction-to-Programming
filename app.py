@@ -568,6 +568,13 @@ def anki_generation_screen(client,profile):
     available=[card for card in imported['cards'] if not any(draft['source_card_id']==card['id'] and draft['status'] in ('draft','published') for draft in imported['drafts'])]
     if available:
         selected=[];st.subheader('1. Select source cards')
+        select_all,clear=st.columns(2)
+        if select_all.button('Select all available cards',use_container_width=True):
+            for card in available:st.session_state['anki_source_'+card['id']]=True
+            st.rerun()
+        if clear.button('Clear selection',use_container_width=True):
+            for card in available:st.session_state['anki_source_'+card['id']]=False
+            st.rerun()
         for card in available:
             if st.checkbox(card['front'],help=card['back'],key='anki_source_'+card['id']):selected.append(card['id'])
         if st.button(f'Generate {len(selected)} question drafts',type='primary',disabled=not selected):

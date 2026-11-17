@@ -26,3 +26,15 @@ def test_unexpected_generation_response_does_not_claim_success():
     client.functions.invoke.return_value=Obj(data={'count':1})
     with pytest.raises(ValueError,match='unexpected result'):
         AnkiImportRepository(client).generate('import-1',['card-1'])
+
+
+def test_generation_keeps_the_safe_error_returned_by_the_edge_function():
+    class FunctionError(Exception): pass
+    response=Mock()
+    response.json.return_value={'error':'The AI provider could not generate questions (HTTP 402).'}
+    client=Mock()
+    error=FunctionError()
+    error.context=response
+    client.functions.invoke.side_effect=error
+    with pytest.raises(ValueError,match='HTTP 402'):
+        AnkiImportRepository(client).generate('import-1',['card-1'])
