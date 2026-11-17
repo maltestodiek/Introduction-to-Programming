@@ -16,7 +16,7 @@ from launch import browser_bridge, welcome
 from appearance import apply_appearance
 from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
-from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username
+from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
 LOGO_PATH=Path(__file__).parent / "assets" / "studyduel-icon.png"
 st.set_page_config(page_title="StudyDuel",page_icon=Image.open(LOGO_PATH),layout="centered")
@@ -27,6 +27,7 @@ st.markdown("""<style>
 [data-testid="stPopoverBody"] [data-testid="stCaptionContainer"]{color:inherit!important}
 h1{letter-spacing:-.04em}div[data-testid="stForm"]{border-radius:18px;padding:24px}
 .stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
+.sd-xp-summary{background:var(--sd-surface);border:1px solid var(--sd-border);border-radius:16px;border-top:4px solid #6EE7B7;padding:20px;min-height:126px}.sd-xp-summary__label{font-size:1rem;font-weight:500}.sd-xp-summary__total{font-size:2.6rem;font-weight:600;line-height:1.15;margin:14px 0}.sd-xp-summary__breakdown{font-size:.92rem;line-height:1.35}.sd-xp-summary__game{color:#7C3AED}.sd-xp-summary__creator{color:#047857}
 </style>""",unsafe_allow_html=True)
 st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
 logo_data=base64.b64encode(LOGO_PATH.read_bytes()).decode()
@@ -520,11 +521,14 @@ def decks_screen(client,profile):
     manual,anki,ai=st.columns(3)
     with manual:
         st.write('**Manual**');st.caption('Add as many questions as you need and organise them into subsections or lectures.')
-        if st.button('+ Create New Deck',type='primary',use_container_width=True):
-            st.session_state.study_library=True
-            if not st.session_state.get('study_draft'):
-                st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
-            st.session_state.pop('study_deck_open',None);st.rerun()
+        with st.popover('+ Create Deck',type='primary',use_container_width=True):
+            if st.button('Create Study Deck',use_container_width=True):
+                st.session_state.study_library=True
+                if not st.session_state.get('study_draft'):
+                    st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
+                st.session_state.pop('study_deck_open',None);st.rerun()
+            if st.button('Create Battle Mode Deck',use_container_width=True):
+                st.session_state.battle_deck_creator=True;st.rerun()
     with anki:
         st.write('**Anki import**');st.caption('Import up to 100 Basic text cards. Cloze and image cards are reported, not imported.')
         if st.button('Import from Anki',use_container_width=True):
@@ -534,10 +538,6 @@ def decks_screen(client,profile):
     with ai:
         st.write('**AI from lecture slides**');st.caption('Upload text-based PDF slides, then review generated questions.')
         if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
-    with st.expander('Battle Mode Decks'):
-        st.caption('Turn one of your reviewed Study decks into an immutable public 15-question Battle Deck.')
-        if st.button('Create Battle Mode Deck'):
-            st.session_state.battle_deck_creator=True;st.rerun()
     st.subheader('Your courses')
     st.caption('Decks are shared with signed-in students at your university. Add courses in Edit profile.')
     course=st.selectbox('Browse course',profile['courses'],key='deck_browse_course')
@@ -2143,8 +2143,10 @@ if not editing:
         st.caption(" · ".join(profile["languages"]))
         if st.button("Edit profile"):st.session_state.editing=True;st.rerun()
     a,b,c=st.columns(3)
-    a.metric("Total XP",profile.get("xp",0));b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
-    st.caption(f":violet[Game XP: {profile.get('game_xp',profile.get('xp',0))}] · :green[Creator XP: {profile.get('creator_xp',0)}]")
+    xp=xp_breakdown(profile)
+    with a:
+        st.html(f'<section class="sd-xp-summary" aria-label="Total XP"><div class="sd-xp-summary__label">Total XP</div><div class="sd-xp-summary__total">{xp["total"]}</div><div class="sd-xp-summary__breakdown"><span class="sd-xp-summary__game">Game XP: {xp["game"]}</span> · <span class="sd-xp-summary__creator">Creator XP: {xp["creator"]}</span></div></section>')
+    b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:st.write(":material/school: "+course)

@@ -297,6 +297,14 @@ def battle_creator_reward(rating, *, source_origin, creator_is_player):
     return 5 if rating == 'good' and source_origin == 'human' and not creator_is_player else 0
 
 
+def xp_breakdown(profile):
+    """Return the durable Total, Game and Creator XP values for profile UI."""
+    game = int(profile.get('game_xp', profile.get('xp', 0)) or 0)
+    creator = int(profile.get('creator_xp', 0) or 0)
+    total = int(profile.get('xp', game + creator) or 0)
+    return {'total': total, 'game': game, 'creator': creator}
+
+
 def study_level(current,correct):
     return max(0,min(3,(current or 0)+(1 if correct else -1)))
 
