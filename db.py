@@ -177,6 +177,13 @@ class StudyRepository:
         if result.get('error'):raise ValueError(result['error'])
         return result
 
+    def publication(self,action,data=None):
+        try:result=self.client.rpc('study_public_action',{'p_action':action,'p_data':data or {}}).execute().data
+        except Exception as exc:raise ValueError('Could not update Study deck publishing. Refresh and retry.') from exc
+        if not isinstance(result,dict):raise ValueError('Could not load published Study decks.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
+
 
 class ChatRepository:
     """Participant-only chat through the existing authenticated Supabase client."""
@@ -198,17 +205,5 @@ class StudyPlanRepository:
         try:result=self.client.rpc('study_plan_action',{'p_action':action,'p_data':data or {}}).execute().data
         except Exception as exc:raise ValueError('Study plans could not be reached. Nothing was changed; refresh and retry. If study plans are not set up yet, apply their database migration.') from exc
         if not isinstance(result,dict):raise ValueError('Study plans are temporarily unavailable.')
-        if result.get('error'):raise ValueError(result['error'])
-        return result
-
-
-class LeaderboardRepository:
-    """Read-only rankings by Battle XP through an authenticated Supabase RPC. Never accepts a user ID."""
-    def __init__(self,client):self.client=client
-
-    def load(self):
-        try:result=self.client.rpc('leaderboard',{}).execute().data
-        except Exception as exc:raise ValueError('The leaderboard could not be reached. Refresh and retry. If it is not set up yet, apply its database migration.') from exc
-        if not isinstance(result,dict):raise ValueError('The leaderboard is temporarily unavailable.')
         if result.get('error'):raise ValueError(result['error'])
         return result

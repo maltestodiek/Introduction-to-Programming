@@ -19,6 +19,7 @@ def setup(monkeypatch):
             return {'state':'question','index':0,'total':10,'question':d['cards'][0]['question'],'chapter':'Lecture 1','options':d['cards'][0]['answers'],'part':'Solo study','allow_calculator':d['cards'][0].get('allow_calculator',False)}
         return {}
     monkeypatch.setattr('db.StudyRepository.action',action)
+    monkeypatch.setattr('db.StudyRepository.publication',lambda self,a,data=None:{'published_ids':[],'decks':[]} if a=='list' else {'id':data['id']})
     at=deck_app(monkeypatch);button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
     return at,calls,d
 
@@ -67,6 +68,21 @@ def test_study_editor_requires_review_and_adds_more_questions(monkeypatch):
     assert not any(a=='save_deck' for a,_ in calls)
     button(at,'Back to Study editing').click().run();button(at,'Add Study question').click().run()
     assert len(at.session_state.study_draft['cards'])==2
+    assert not at.exception
+
+
+def test_study_library_can_publish_an_owned_deck(monkeypatch):
+    published=[]
+    at,calls,d=setup(monkeypatch)
+    def publication(self,action,data=None):
+        if action=='list':return {'published_ids':published,'decks':[]}
+        if action=='publish':published.append(data['id']);return {'id':data['id'],'published':True}
+        return {'id':data['id'],'published':False}
+    monkeypatch.setattr('db.StudyRepository.publication',publication)
+    button(at,'Decks').click().run();button(at,'Study decks & progress').click().run()
+    button(at,'Publish Study deck').click().run()
+    assert d['id'] in published
+    assert any('Published to students' in item.value for item in at.caption)
     assert not at.exception
 
 
