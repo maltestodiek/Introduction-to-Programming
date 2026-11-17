@@ -102,6 +102,10 @@ class AnkiImportRepository:
         except Exception as exc:
             raise ValueError('The Anki import could not be saved. Your file and imported cards are unchanged; try again.') from exc
 
+    def save_slides(self, *, name, course, language, cards):
+        try:return self.client.rpc('import_pdf_slides',{'p_name':name,'p_course':course,'p_language':language,'p_cards':cards}).execute().data
+        except Exception as exc:raise ValueError('The PDF import could not be saved. Your extracted text is unchanged; try again.') from exc
+
     def imports(self):
         try:
             imports=self.client.table('anki_imports').select('id,name,course,language,created_at').order('created_at',desc=True).execute().data
