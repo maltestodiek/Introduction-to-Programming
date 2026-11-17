@@ -2,7 +2,7 @@
 
 ## Why
 
-Students should be able to preserve the text content of an Anki deck in StudyDuel before converting selected cards into reviewed multiple-choice questions in a later AI feature.
+Students should be able to preserve the text content of an Anki deck in CampusDuel before converting selected cards into reviewed multiple-choice questions in a later AI feature.
 
 ## What
 

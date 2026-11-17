@@ -9,7 +9,7 @@ Battle Mode replaces the former 30-question duel workflow. There must be no user
 The redesigned Battle workflow keeps the existing friend-challenge and mutual random-opponent choices, server-owned timing, 24-hour deadline, saved resumption, answer validation and settlement safeguards unless this specification explicitly changes them.
 
 ### Creating a Battle Deck
-A Battle Deck is a separate, immutable 15-question snapshot created from one of the creator's own published StudyDuel decks. It is not a second manual authoring form.
+A Battle Deck is a separate, immutable 15-question snapshot created from one of the creator's own published CampusDuel decks. It is not a second manual authoring form.
 
 1. The creator selects **Create Battle Mode Deck**.
 2. The creator selects one of their published source decks, including a reviewed/published deck created manually or through the existing approved AI-/Chatbot-generation workflow.
