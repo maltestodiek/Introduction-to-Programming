@@ -53,7 +53,7 @@ export async function requestQuestionsFromRequesty(
                   sourceCardId: "input card id",
                   question: "question text",
                   options: ["option 1", "option 2", "option 3", "option 4"],
-                  correctOptionIndex: "integer from 0 through 3",
+                  correctOptionIndex: 0,
                   explanation: "",
                 }],
               },
