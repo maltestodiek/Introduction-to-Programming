@@ -28,6 +28,7 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/calculator-update.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-visibility.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-course-variable.sql',import.meta.url),'utf8'));
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
   assert.equal((await ok(A,'deck',{id:d.id})).cards[0].allow_calculator,true);
