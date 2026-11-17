@@ -75,9 +75,13 @@ export function parseRequestyContent(
   if (typeof content !== "string") {
     throw new Error("The AI response did not contain text.");
   }
+  // Some OpenAI-compatible providers wrap otherwise valid JSON in a Markdown
+  // code fence even when JSON mode is requested. Accept that transport quirk,
+  // while keeping the actual question schema strict below.
+  const json = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   let payload: unknown;
   try {
-    payload = JSON.parse(content);
+    payload = JSON.parse(json);
   } catch {
     throw new Error("The AI response was not valid JSON.");
   }
