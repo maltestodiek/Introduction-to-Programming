@@ -380,6 +380,9 @@ def decks_screen(client,profile):
     if st.session_state.get('anki_import_open'):
         anki_import_screen(client,profile)
         return
+    if st.session_state.get('pdf_import_open'):
+        pdf_import_screen(client,profile)
+        return
     if st.session_state.get('anki_generation_open'):
         anki_generation_screen(client,profile)
         return
@@ -494,8 +497,8 @@ def decks_screen(client,profile):
         if st.button('Generate questions from imports',use_container_width=True):
             st.session_state.anki_generation_open=True;st.rerun()
     with ai:
-        st.write('**AI from lecture slides**');st.caption('Coming soon')
-        st.button('Generate with AI',disabled=True,use_container_width=True)
+        st.write('**AI from lecture slides**');st.caption('Upload text-based PDF slides, then review generated questions.')
+        if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     with st.expander('Classic 30-question duels'):
         st.caption('The original duel format uses exactly 15 questions from each player. Create a separate deck for this format here.')
         if st.button('Create 15-question duel deck'):
@@ -548,12 +551,40 @@ def anki_import_screen(client,profile):
             if st.button('Continue to question generation',type='primary'):
                 st.session_state.pop('anki_import_open',None);st.session_state.anki_generation_open=True;st.rerun()
 
+def pdf_import_screen(client,profile):
+    from pdf_import import SlideImportError,parse_pdf_slides
+    from db import AnkiImportRepository
+    st.caption('Decks › AI from lecture slides')
+    st.header('Import PDF lecture slides')
+    st.info('PDF slides stay private. Only selectable text is supported; scanned PDFs need OCR before import.')
+    if st.button('Back to Decks'):
+        st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_result',None);st.rerun()
+    upload=st.file_uploader('Lecture slides (.pdf)',type=['pdf'])
+    if upload and st.button('Check PDF slides',type='primary'):
+        try:st.session_state.pdf_import_result=parse_pdf_slides(upload.getvalue())
+        except SlideImportError as exc:st.error(str(exc));st.session_state.pop('pdf_import_result',None)
+    result=st.session_state.get('pdf_import_result')
+    if not result:return
+    st.success(f"{len(result['cards'])} private text sources are ready to import.")
+    if result['skipped']:st.warning(f"{result['skipped']} pages without selectable text were skipped.")
+    if result['limited']:st.warning('Only the first 100 text sources were kept.')
+    name=st.text_input('Import name',placeholder='For example: Corporate Finance lecture slides',key='pdf_import_name')
+    course=st.selectbox('Course',profile['courses'],key='pdf_import_course')
+    language=st.selectbox('Deck language',profile['languages'],key='pdf_import_language')
+    if st.button(f"Save {len(result['cards'])} PDF sources",type='primary'):
+        try:saved=AnkiImportRepository(client).save_slides(name=name,course=course,language=language,cards=result['cards'])
+        except ValueError as exc:st.error(str(exc))
+        else:
+            st.success(f"Saved {saved['count']} private PDF sources.");st.session_state.pop('pdf_import_result',None)
+            if st.button('Continue to question generation',type='primary'):
+                st.session_state.pop('pdf_import_open',None);st.session_state.anki_generation_open=True;st.rerun()
+
 def anki_generation_screen(client,profile):
     """Select private source cards, generate drafts, then hand reviewed cards to Study."""
     from uuid import uuid4
     from db import AnkiImportRepository
     repository=AnkiImportRepository(client)
-    st.caption('Decks › Anki imports › AI question generation')
+    st.caption('Decks › private sources › AI question generation')
     st.header('Generate reviewed questions')
     st.info('Select up to 100 private source cards. AI drafts stay private until you review and publish them as a Study deck.')
     if st.button('Back to Decks'):
@@ -561,9 +592,9 @@ def anki_generation_screen(client,profile):
     try:imports=repository.imports()
     except ValueError as exc:st.error(str(exc));return
     if not imports:
-        st.info('Import Basic Anki cards first. Your imports will appear here after saving.');return
+        st.info('Import Anki cards or PDF lecture slides first. Your private sources will appear here after saving.');return
     choices={f"{item['name']} · {len(item['cards'])} source cards":item for item in imports}
-    imported=choices[st.selectbox('Anki import',list(choices))]
+    imported=choices[st.selectbox('Source import',list(choices))]
     st.caption(f"{imported['course']} · {imported['language']}")
     available=[card for card in imported['cards'] if not any(draft['source_card_id']==card['id'] and draft['status'] in ('draft','published') for draft in imported['drafts'])]
     if available:
