@@ -66,7 +66,7 @@ export async function requestQuestionsFromRequesty(
     });
 
     if (!response.ok) {
-      throw new Error("The AI provider could not generate questions.");
+      throw new Error(`The AI provider could not generate questions (HTTP ${response.status}).`);
     }
     const body: unknown = await response.json();
     const content = (body as { choices?: Array<{ message?: { content?: unknown } }> })
