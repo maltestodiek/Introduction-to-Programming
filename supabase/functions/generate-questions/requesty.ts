@@ -5,6 +5,15 @@ import {
 
 type SourceCard = { id: string; front: string; back: string };
 type FetchLike = typeof fetch;
+const MAX_ATTEMPTS = 2;
+
+const canRetry = (error: unknown) => {
+  const message = error instanceof Error ? error.message : "";
+  return message.startsWith("The AI response") ||
+    message.startsWith("Question ") ||
+    message.includes("The AI provider took too long") ||
+    /HTTP (429|5\d\d)/.test(message);
+};
 
 export async function requestQuestionsFromRequesty(
   apiKey: string,
@@ -80,4 +89,26 @@ export async function requestQuestionsFromRequesty(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/** Retry a malformed or temporarily unavailable provider response once.
+ * Each attempt validates before it is returned, so callers never save partial drafts.
+ */
+export async function requestQuestionsWithRetry(
+  apiKey: string,
+  model: string,
+  cards: SourceCard[],
+  fetcher: FetchLike = fetch,
+): Promise<GeneratedQuestion[]> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await requestQuestionsFromRequesty(apiKey, model, cards, fetcher);
+    } catch (error) {
+      lastError = error;
+      if (attempt === MAX_ATTEMPTS || !canRetry(error)) break;
+    }
+  }
+  const message = lastError instanceof Error ? lastError.message : "The AI provider returned an unknown error.";
+  throw new Error(`Generation failed for a batch of ${cards.length} source cards after ${MAX_ATTEMPTS} attempts. ${message}`);
 }

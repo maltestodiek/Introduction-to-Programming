@@ -17,8 +17,13 @@ export function validateGeneratedQuestions(
   }
 
   const questions = (payload as Record<string, unknown>).questions;
-  if (!Array.isArray(questions) || questions.length !== allowedSourceCardIds.length) {
-    throw new Error("The AI response did not contain exactly one question per source card.");
+  if (!Array.isArray(questions)) {
+    throw new Error("The AI response did not contain a questions list.");
+  }
+  if (questions.length !== allowedSourceCardIds.length) {
+    throw new Error(
+      `The AI returned ${questions.length} question${questions.length === 1 ? "" : "s"}, but this batch requires exactly ${allowedSourceCardIds.length} (one per selected source card).`,
+    );
   }
 
   const allowed = new Set(allowedSourceCardIds);
@@ -36,8 +41,11 @@ export function validateGeneratedQuestions(
     const correctOptionIndex = value.correctOptionIndex;
     const explanation = value.explanation;
 
-    if (typeof sourceCardId !== "string" || !allowed.has(sourceCardId) || seen.has(sourceCardId)) {
-      throw new Error(`Question ${index + 1} has an invalid source card.`);
+    if (typeof sourceCardId !== "string" || !allowed.has(sourceCardId)) {
+      throw new Error(`Question ${index + 1} referenced a source card outside this selected batch.`);
+    }
+    if (seen.has(sourceCardId)) {
+      throw new Error(`Question ${index + 1} duplicated a source card already used in this batch.`);
     }
     seen.add(sourceCardId);
 
