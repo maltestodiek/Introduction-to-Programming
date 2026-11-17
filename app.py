@@ -1595,8 +1595,9 @@ def study_screen(client,profile):
 
 
 def ongoing_sessions(client):
-    from db import PlayRepository
-    battle_data=play_request(PlayRepository(client),'list')
+    from db import BattleRepository
+    from logic import battle_session_groups
+    battle_data=play_request(BattleRepository(client),'list')
     study_data=study_request(client,'list')
     st.subheader('Ongoing sessions')
     battle,study=st.columns(2)
@@ -1604,16 +1605,15 @@ def ongoing_sessions(client):
         st.markdown('**:material/swords: Battle**')
         data=battle_data
         if data is not None:
-            active=[d for d in data['duels'] if d['status'] in ('Ongoing','Pending')]
+            active=battle_session_groups(data.get('sessions',[]))['ongoing']
             if not active:st.caption('No ongoing Battle sessions.')
-            for duel in active:
+            for session in active:
                 with st.container(border=True):
-                    st.write(f"**{duel['course']}** · vs {duel['username']}")
-                    session_partner_chat(client,'battle',duel['id'],'home')
-                    st.caption('Finish by '+duel['deadline'])
-                    if duel['status']=='Pending':st.caption('Your answers are saved. Waiting for your opponent.')
-                    elif st.button('Resume Battle' if duel['started'] else 'Start Battle',key='home_battle_'+duel['id']):
-                        st.session_state.play_duel=duel['id'];st.session_state.pop('play_feedback',None);st.rerun()
+                    st.write('**'+session['deck_name']+'**')
+                    st.caption(f"{session['course']} · {session['language']} · 15 questions · {session['status'].title()}")
+                    if session['status']=='pending':st.caption('Your answers are saved. Waiting for your opponent.')
+                    if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id']):
+                        st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
     with study:
         st.markdown('**:material/menu_book: Study**')
         data=study_data
@@ -1635,15 +1635,12 @@ def ongoing_sessions(client):
     battle_history,study_history=st.columns(2)
     with battle_history:
         st.markdown('**:material/swords: Battle**')
-        finished=[d for d in (battle_data or {}).get('duels',[]) if d['status']=='Completed']
+        finished=battle_session_groups((battle_data or {}).get('sessions',[]))['completed']
         if not finished:st.caption('No past Battle sessions yet.')
-        for duel in finished:
+        for session in finished:
             with st.container(border=True):
-                st.write(f"**{duel['course']}** · vs {duel['username']}")
-                session_partner_chat(client,'battle',duel['id'],'history')
-                st.caption('Completed')
-                if st.button('View Battle session',key='history_battle_'+duel['id']):
-                    st.session_state.play_review=duel['id'];st.rerun()
+                st.write('**'+session['deck_name']+'**')
+                st.caption(f"{session['course']} · {session['language']} · Completed · {session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Game XP · {session['score']}/15")
     with study_history:
         st.markdown('**:material/menu_book: Study**')
         finished=[s for s in (study_data or {}).get('sessions',[]) if s['state'] not in ('own','waiting','paired')]

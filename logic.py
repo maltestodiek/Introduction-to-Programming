@@ -305,6 +305,15 @@ def xp_breakdown(profile):
     return {'total': total, 'game': game, 'creator': creator}
 
 
+def battle_session_groups(sessions):
+    """Split Battle Mode session rows returned by the durable Battle API."""
+    rows = list(sessions or [])
+    return {
+        'ongoing': [session for session in rows if session.get('status') in ('ongoing', 'pending')],
+        'completed': [session for session in rows if session.get('status') == 'completed'],
+    }
+
+
 def study_level(current,correct):
     return max(0,min(3,(current or 0)+(1 if correct else -1)))
 
