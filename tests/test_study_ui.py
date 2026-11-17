@@ -137,6 +137,16 @@ def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
     assert not at.exception
 
 
+def test_selected_battle_mode_hides_mode_picker_and_creation_heading(monkeypatch):
+    at,calls,d=setup(monkeypatch)
+    button(at,'Change study mode').click().run()
+    button(at,'Battle Mode').click().run()
+    assert not any(w.value=='Create new session' for w in at.subheader)
+    assert not any(b.label=='Study Mode' for b in at.button)
+    assert button(at,'Change play mode')
+    assert not at.exception
+
+
 def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeypatch):
     at,calls,d=setup(monkeypatch)
     d['cards'][0]['allow_calculator']=True

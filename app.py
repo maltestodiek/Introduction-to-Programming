@@ -1468,7 +1468,7 @@ def study_screen(client,profile):
     if st.session_state.get('study_session'):
         study_round_screen(client,st.session_state.study_session);return
     if st.button('Change study mode',icon=':material/arrow_back:'):
-        st.session_state.pop('study_active',None);st.session_state.pop('study_choose',None);st.rerun()
+        st.session_state.pop('study_active',None);st.session_state.pop('study_choose',None);st.session_state.pop('play_mode_preview',None);st.rerun()
     data=study_request(client,'list')
     if data is None:return
     # Incoming invitations stay above all setup, regardless of selected course.
@@ -1806,38 +1806,43 @@ def play_screen(client,profile):
                         if a['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
                         else:st.write(label)
     else:
-        st.subheader('Create new session')
         assets=Path(__file__).parent/'assets'
         st.html('<style>'+ (assets/'play-modes.css').read_text()+'</style>')
-        st.write('Choose how you want to play.')
-        battle,study=st.columns(2)
-        with battle:
-            with st.container(border=True,key='battle_mode_card'):
-                st.markdown((assets/'battle-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
-                st.subheader('Battle Mode')
-                st.caption('Compete, test your knowledge and earn XP.')
-                if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
-                    st.session_state.play_mode_preview='Battle';st.rerun()
-                st.caption('15 questions · earn XP')
-        with study:
-            with st.container(border=True,key='study_mode_card'):
-                st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
-                st.subheader('Study Mode')
-                st.caption('Practise together and focus on learning.')
-                study_design()
-                if not st.session_state.get('study_choose'):
-                    if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
-                        st.session_state.study_choose=True;st.rerun()
-                else:
-                    st.caption('How would you like to study?')
-                    for col,(label,icon,material) in zip(st.columns(2),[('Study alone','solo',':material/person:'),('Study together','together',':material/group:')]):
-                        with col:
-                            if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
-                                st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_session',None);st.session_state.pop('study_join',None);st.session_state.pop('study_choose',None);st.rerun()
         selected=st.session_state.get('play_mode_preview')
-        if selected=='Battle':
-            if st.button('Back to play modes'):st.session_state.pop('play_mode_preview',None);st.rerun()
+        if not selected:
+            st.subheader('Create new session')
+            st.write('Choose how you want to play.')
+            battle,study=st.columns(2)
+            with battle:
+                with st.container(border=True,key='battle_mode_card'):
+                    st.markdown((assets/'battle-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
+                    st.subheader('Battle Mode')
+                    st.caption('Compete, test your knowledge and earn XP.')
+                    if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
+                        st.session_state.play_mode_preview='Battle';st.rerun()
+                    st.caption('15 questions · earn XP')
+            with study:
+                with st.container(border=True,key='study_mode_card'):
+                    st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
+                    st.subheader('Study Mode')
+                    st.caption('Practise together and focus on learning.')
+                    if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
+                        st.session_state.play_mode_preview='Study';st.rerun()
+        elif selected=='Battle':
+            if st.button('Change play mode',icon=':material/arrow_back:'):
+                st.session_state.pop('play_mode_preview',None);st.rerun()
             battle_screen(client,profile);return
+        else:
+            st.header('Study Mode')
+            st.caption('Practise together and focus on learning.')
+            study_design()
+            st.caption('How would you like to study?')
+            for col,(label,icon,material) in zip(st.columns(2),[('Study alone','solo',':material/person:'),('Study together','together',':material/group:')]):
+                with col:
+                    if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
+                        st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_session',None);st.session_state.pop('study_join',None);st.rerun()
+            if st.button('Change play mode',icon=':material/arrow_back:'):
+                st.session_state.pop('play_mode_preview',None);st.rerun()
         st.divider()
         ongoing_sessions(client)
 
