@@ -14,6 +14,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Leaderboard](tasks/leaderboard.md): global top ten with own place and a friends ranking, by Battle XP, read-only.
 - [Battle round layout](tasks/battle-round-layout.md): active-round overview and server-timed countdown display.
 - [Profile button avatar](tasks/profile-button-avatar.md): the header Profile button shows the user's own picture instead of an icon and a separate portrait.
+- [Friends header button](tasks/friends-header-button.md): Friends moves from the large tabs into the header between Profile and Chats.
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
 
 A feature can require several small implementation branches. Add a task spec under `specs/tasks/` when a change needs its own acceptance scenarios; link it to its parent topic. Do not duplicate a rule across multiple feature specs. Before implementation, list state, persistence, an allowed action, a rejected action and restart verification; review expected outcomes with the group.
