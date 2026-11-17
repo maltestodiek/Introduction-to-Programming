@@ -200,3 +200,15 @@ class StudyPlanRepository:
         if not isinstance(result,dict):raise ValueError('Study plans are temporarily unavailable.')
         if result.get('error'):raise ValueError(result['error'])
         return result
+
+
+class LeaderboardRepository:
+    """Read-only rankings by Battle XP through an authenticated Supabase RPC. Never accepts a user ID."""
+    def __init__(self,client):self.client=client
+
+    def load(self):
+        try:result=self.client.rpc('leaderboard',{}).execute().data
+        except Exception as exc:raise ValueError('The leaderboard could not be reached. Refresh and retry. If it is not set up yet, apply its database migration.') from exc
+        if not isinstance(result,dict):raise ValueError('The leaderboard is temporarily unavailable.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
