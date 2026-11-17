@@ -1305,6 +1305,39 @@ def study_plan_screen(client,profile,user_id=''):
                 st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
 
 
+def leaderboard_rows(rows,repo):
+    """One line per student: place, picture, username and XP. Read-only: no invite, chat or profile action."""
+    cache=st.session_state.setdefault('leaderboard_pictures',{})
+    for row in rows:
+        path_=row.get('image_path')
+        if path_ not in cache:
+            try:data=repo.image(path_)
+            except Exception:data=None
+            cache[path_]=data if isinstance(data,(bytes,bytearray)) else None
+        place,picture,name,points=st.columns([1,1,5,2],vertical_alignment='center')
+        place.markdown(f"**#{row['rank']}**" if row.get('me') else f"#{row['rank']}")
+        with picture:portrait(cache[path_] or render_avatar(DEFAULT_AVATAR),40)
+        name.markdown(f"**{row['username']} (you)**" if row.get('me') else row['username'])
+        points.markdown(f"**{row['xp']} XP**" if row.get('me') else f"{row['xp']} XP")
+
+
+def leaderboard_screen(client,repo):
+    from db import LeaderboardRepository
+    st.title('Leaderboard')
+    try:data=LeaderboardRepository(client).load()
+    except ValueError as exc:
+        st.error(str(exc));return
+    st.caption('Places are based on the XP earned in Battle Mode. Study Mode and study plans do not change them.')
+    world,friends=st.tabs(['Global top 10','Friends'])
+    with world:
+        leaderboard_rows(data['top'],repo)
+        if data.get('me') and not any(row.get('me') for row in data['top']):
+            st.divider();st.caption('Your place');leaderboard_rows([data['me']],repo)
+    with friends:
+        leaderboard_rows(data['friends'],repo)
+        if len(data['friends'])<2:st.caption('Add friends in the Friends tab to compare your Battle XP with them.')
+
+
 def study_design():
     st.html('<style>'+(Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style>')
 
@@ -1806,6 +1839,8 @@ if profile:
         st.stop()
     if page=='Study Plan':
         study_plan_screen(auth.client,profile,auth.user.id);st.stop()
+    if page=='Leaderboard':
+        leaderboard_screen(auth.client,repo);st.stop()
     if page in ('Leaderboard','Study Plan'):
         st.title(page)
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
