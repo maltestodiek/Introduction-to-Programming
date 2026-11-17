@@ -6,7 +6,7 @@ if(process.argv[2]==='reload'){
  const db=new PGlite(process.argv[3]);const row=(await db.query('select * from public.play_rounds where duel_id=$1 and user_id=$2',[process.argv[4],process.argv[5]])).rows[0];
  assert.equal(row.cursor,1);assert.equal(row.answers.length,1);await db.close();console.log('PASS full process restart retains question progress');process.exit(0);
 }
-const dir=await fs.mkdtemp(path.join(os.tmpdir(),'studyduel-play-'));const db=new PGlite(path.join(dir,'db'));
+const dir=await fs.mkdtemp(path.join(os.tmpdir(),'campusduel-play-'));const db=new PGlite(path.join(dir,'db'));
 const A=randomUUID(),B=randomUUID(),C=randomUUID(),D=randomUUID();let passed=0;
 async function admin(sql,args=[]){await db.exec('reset role');return db.query(sql,args);}
 async function who(id,role='authenticated'){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role '+role);}

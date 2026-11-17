@@ -1,8 +1,8 @@
-# StudyDuel Supabase setup
+# CampusDuel Supabase setup
 
 Verified on 11 November 2026:
 - Organization: Nova - ITP, Free plan
-- Project: StudyDuel
+- Project: StudyDuel (the project name in the Supabase dashboard)
 - Project reference: lhqqgyirhtjdwieizxjf
 - Project URL: https://lhqqgyirhtjdwieizxjf.supabase.co
 - Status: Healthy

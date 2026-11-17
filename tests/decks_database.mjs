@@ -15,7 +15,7 @@ if(process.argv[2]==='reload'){
  await db.close();console.log('PASS full process restart preserves the exact published snapshot');
  process.exit(0);
 }
-const dir=await fs.mkdtemp(path.join(os.tmpdir(),'studyduel-decks-'));
+const dir=await fs.mkdtemp(path.join(os.tmpdir(),'campusduel-decks-'));
 const db=new PGlite(path.join(dir,'db'));
 const owner=randomUUID(),peer=randomUUID(),outsider=randomUUID();
 let passed=0;

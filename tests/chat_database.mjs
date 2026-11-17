@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import {spawnSync} from 'node:child_process';
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 if(process.argv[2]==='reload'){const db=new PGlite(process.argv[3]);assert.equal((await db.query('select count(*)::int n from chat_messages')).rows[0].n,Number(process.argv[4]));await db.close();console.log('PASS restart preserves chat history');process.exit(0);}
-const dir=await fs.mkdtemp(path.join(os.tmpdir(),'studyduel-chat-'));const db=new PGlite(path.join(dir,'db'));const A=randomUUID(),B=randomUUID(),C=randomUUID();let passed=0;
+const dir=await fs.mkdtemp(path.join(os.tmpdir(),'campusduel-chat-'));const db=new PGlite(path.join(dir,'db'));const A=randomUUID(),B=randomUUID(),C=randomUUID();let passed=0;
 async function who(u,role='authenticated'){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[u]);await db.exec('set role '+role);}
 async function act(u,a,d={}){await who(u);return(await db.query('select chat_action($1,$2::jsonb) r',[a,JSON.stringify(d)])).rows[0].r;}
 async function ok(u,a,d={}){const r=await act(u,a,d);assert.ok(!r.error,r.error);return r;}

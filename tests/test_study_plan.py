@@ -118,7 +118,7 @@ def test_calendar_file_lists_every_session_with_stable_ids():
     assert text.startswith('BEGIN:VCALENDAR\r\n') and text.endswith('END:VCALENDAR\r\n')
     assert text.count('BEGIN:VEVENT')==len(sessions)
     assert 'DTSTART:20261116T090000' in text and 'UID:plan-1-20261116-0900@studyduel' in text
-    assert 'SUMMARY:StudyDuel: Winter exams' in text
+    assert 'SUMMARY:CampusDuel: Winter exams' in text
     assert plan_ics(clean,sessions)==text
 
 

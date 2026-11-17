@@ -16,7 +16,7 @@ def search_universities(query):
     escaped=re.sub(r'([+\-=><!(){}\[\]^"~*?:\\/|&])',r'\\\1',query)
     url="https://api.ror.org/v2/organizations?"+urlencode(
         {"query":escaped,"filter":"types:education"})
-    request=Request(url,headers={"User-Agent":"StudyDuel/0.1 (university profile search)","Accept":"application/json"})
+    request=Request(url,headers={"User-Agent":"CampusDuel/0.1 (university profile search)","Accept":"application/json"})
     try:
         with urlopen(request,timeout=8) as response:
             payload=json.load(response)

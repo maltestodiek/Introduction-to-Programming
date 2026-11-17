@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
-const directory=await fs.mkdtemp(path.join(os.tmpdir(),'studyduel-battle-'));
+const directory=await fs.mkdtemp(path.join(os.tmpdir(),'campusduel-battle-'));
 const db=new PGlite(path.join(directory,'db'));
 const A=randomUUID(),B=randomUUID(),C=randomUUID();
 
