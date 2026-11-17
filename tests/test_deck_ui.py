@@ -34,3 +34,19 @@ def test_active_decks_screen_does_not_offer_legacy_thirty_question_authoring(mon
     assert 'Create 15-question duel deck' not in labels
     assert 'Create Battle Mode Deck' in labels
     assert not at.exception
+
+
+def test_battle_deck_creator_warns_when_more_than_fifteen_cards_are_selected(monkeypatch):
+    cards=[{'id':str(index),'question':f'Question {index}'} for index in range(16)]
+    def action(self,kind,data=None):
+        if kind=='sources':
+            return {'sources':[{'id':'source-1','name':'Source','course':'Finance','language':'English','count':16,'battle_capable':True}]}
+        if kind=='source':return {'name':'Source','cards':cards}
+        raise AssertionError(kind)
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    at=deck_app(monkeypatch)
+    at.session_state['battle_deck_creator']=True;at.run()
+    for checkbox in at.checkbox[:16]:checkbox.check().run()
+    assert any('more than 15 cards' in error.value for error in at.error)
+    assert button(at,'Submit Battle Deck').disabled
+    assert not at.exception

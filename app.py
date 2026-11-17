@@ -398,6 +398,8 @@ def battle_deck_creator(client):
     for number,card in enumerate(deck['cards'],1):
         if st.checkbox(f"{number}. {card['question']}",key='battle_card_'+source_id+'_'+card['id']):selected.append(card['id'])
     st.caption(f'{len(selected)} of 15 questions selected.')
+    if len(selected)>15:
+        st.error('You have selected more than 15 cards — please select only 15.')
     name=st.text_input('Battle Deck name',value=deck['name'],max_chars=120)
     consent=st.checkbox('By submitting, you accept that the deck can be played by everyone.')
     if st.button('Submit Battle Deck',type='primary',disabled=len(selected)!=15 or not consent):
