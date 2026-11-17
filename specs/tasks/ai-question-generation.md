@@ -16,7 +16,7 @@ The frontend sends only an import ID and selected source-card IDs to a Supabase 
 4. requires JSON-only output;
 5. validates every proposed question before any write;
 6. saves valid output as private `draft` questions;
-7. retries one malformed or temporary provider response for the affected batch, then returns a clear diagnostic without changing source cards if a provider, timeout, parsing or validation error remains.
+7. retries one malformed or temporary provider response for the affected batch and, when otherwise valid questions omit sources, requests only the missing sources before returning a clear diagnostic without changing source cards if recovery fails.
 
 Each AI draft contains a question, exactly four answer options, exactly one correct option index from 0 to 3, an explanation and its `sourceCardId`. Options must be non-empty and unique after normalisation. The source card must belong to the request.
 
