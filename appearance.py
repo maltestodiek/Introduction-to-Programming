@@ -1,4 +1,6 @@
 """Custom-brand colours follow Streamlit's native per-browser theme selection."""
+import base64
+
 import streamlit as st
 
 PALETTES={
@@ -25,3 +27,10 @@ def apply_appearance():
     # through native color-scheme. Streamlit owns the per-browser preference.
     mode=st.context.theme.type
     st.html('<style>'+theme_variables(mode)+'</style>')
+
+PROFILE_BUTTON_AVATAR_SIZE=28  # px; assets/navigation.css sizes the Profile button artwork to match.
+
+def profile_button_avatar_css(image):
+    """CSS that paints the user's picture inside the header Profile button."""
+    encoded=base64.b64encode(image).decode()
+    return '.st-key-open_profile button::before{background-image:url("data:image/png;base64,'+encoded+'")}'

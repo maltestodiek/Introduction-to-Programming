@@ -13,7 +13,7 @@ from auth import AuthService
 from recovery import recovery_callback
 from db import ProfileRepository, FriendsRepository
 from launch import browser_bridge, welcome
-from appearance import apply_appearance
+from appearance import apply_appearance,profile_button_avatar_css
 from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
@@ -2096,11 +2096,11 @@ picture=None
 if profile:
     try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
     except Exception:pass
-brand,avatar_slot,profile_slot,chats_slot=st.columns([4,.55,1.2,1.2],vertical_alignment="center")
+brand,profile_slot,chats_slot=st.columns([4.55,1.2,1.2],vertical_alignment="center")
 with brand:
     st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--sd-text)">Study<span style="color:var(--sd-accent)">Duel</span></span></div>')
-with avatar_slot:portrait(picture or render_avatar(DEFAULT_AVATAR),44)
 with profile_slot:
+    st.html('<style>'+profile_button_avatar_css(picture or render_avatar(DEFAULT_AVATAR))+'</style>')
     if st.button('Profile',use_container_width=True,key='open_profile'):
         navigate('Profile')
 with chats_slot:
