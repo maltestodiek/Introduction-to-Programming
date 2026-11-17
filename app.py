@@ -584,7 +584,7 @@ def anki_generation_screen(client,profile):
     from uuid import uuid4
     from db import AnkiImportRepository
     repository=AnkiImportRepository(client)
-    st.caption('Decks › Anki imports › AI question generation')
+    st.caption('Decks › private sources › AI question generation')
     st.header('Generate reviewed questions')
     st.info('Select up to 100 private source cards. AI drafts stay private until you review and publish them as a Study deck.')
     if st.button('Back to Decks'):
@@ -592,9 +592,9 @@ def anki_generation_screen(client,profile):
     try:imports=repository.imports()
     except ValueError as exc:st.error(str(exc));return
     if not imports:
-        st.info('Import Basic Anki cards first. Your imports will appear here after saving.');return
+        st.info('Import Anki cards or PDF lecture slides first. Your private sources will appear here after saving.');return
     choices={f"{item['name']} · {len(item['cards'])} source cards":item for item in imports}
-    imported=choices[st.selectbox('Anki import',list(choices))]
+    imported=choices[st.selectbox('Source import',list(choices))]
     st.caption(f"{imported['course']} · {imported['language']}")
     available=[card for card in imported['cards'] if not any(draft['source_card_id']==card['id'] and draft['status'] in ('draft','published') for draft in imported['drafts'])]
     if available:
