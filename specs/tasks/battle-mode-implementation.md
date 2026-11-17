@@ -3,58 +3,63 @@
 Parent feature: [Battle Mode](../battle-mode.md).
 
 ## Why
-Implement the approved competitive Battle workflow without changing Study rules, Study progress, historic classic duels or production data outside an additive reviewed migration.
+Implement the approved Battle Deck workflow: creators turn their reviewed published learning decks into public, immutable 15-question competitive decks. Preserve the historical classic 30-question duels and keep Battle completely separate from Study progress.
 
 ## What
 Build the implementation in reviewed slices on a `feature/battle-mode-implementation` branch created from current `main`. Keep screen rendering in `app.py`, rule validation/sampling/ranking helpers in `logic.py`, and Supabase calls in `db.py`.
 
-### Player flow
-1. From Play, choose **Battle Mode**.
-2. The university is the signed-in player's university; the player selects one of their enrolled courses.
-3. Choose **Random Deck** or **Top Decks**.
-4. Keep the existing friend challenge and mutual random-opponent paths. A Battle starts only when the selected deck language is supported by both participants.
-5. The server validates eligibility, chooses/freezes 15 distinct cards, and creates one shared Battle snapshot.
-6. Both participants answer the snapshot using the existing 30-second question timer, persistence, deadline, answer validation and restart/resume behavior.
-7. The existing once-only Game XP and streak settlement runs. Battle writes must not create Study progress or Study-plan effects.
-8. A completed participant submits one anonymous `good`, `neutral` or `bad` rating. A non-completing participant receives one automatic neutral rating. The original human creator receives 5 Creator XP only for a good rating.
+### Player and creator flow
+1. A creator opens **Create Battle Mode Deck** and selects one of their own published source decks.
+2. The creator chooses exactly 15 distinct valid questions.
+3. Before saving, the creator explicitly accepts: **“By submitting, you accept that the deck can be played by everyone.”**
+4. The system saves an immutable, public Battle Deck snapshot. Source-deck edits cannot change it.
+5. A Battle initiator chooses their enrolled course and Random Deck or Top Decks, then uses the existing friend challenge or mutual random-opponent route.
+6. Random Deck chooses an eligible published Battle Deck uniformly after a compatible match; Top Decks lets the initiator choose a ranked Battle Deck.
+7. Both participants answer the same 15 frozen questions using the existing 30-second timer and durable resume/deadline behavior.
+8. Existing Game XP/streak settlement runs once. Completion permits one rating; non-completion writes one automatic neutral receipt. Battle never changes Study plan or progress.
+
+Raw imported Anki source cards and private AI drafts cannot be used directly. A source deck may be manually authored or AI-/Chatbot-generated, but it must have completed its existing review and publication process. An AI-/Chatbot-derived Battle Deck never earns Creator XP.
 
 ### Required persistent state
 Use an additive migration; do not rewrite applied schema files or historical rows. The design must durably record:
-- duel mode and a frozen 15-card Battle snapshot;
-- source type (`random` or `top`), selected deck, university, course and language;
-- Battle eligibility for a published deck, including at least-15-card validation;
-- one rating receipt per participant and deck, including automatic neutral receipts;
+- a creator-owned public Battle Deck, source deck/version, university, course, language and immutable 15-question snapshot;
+- submission/public-play consent;
+- duel mode, source type (`random` or `top`) and selected Battle Deck;
+- one rating receipt per participant and Battle Deck, including automatic neutral and own-deck non-scoring receipts;
 - daily rating aggregates keyed by the `Europe/Berlin` calendar day;
-- idempotent Creator XP awards and whether a deck is AI-generated; and
+- source origin needed to suppress Creator XP for AI-/Chatbot-derived Battle Decks;
+- idempotent Game XP and Creator XP settlement; and
 - separate Game XP and Creator XP profile components while preserving Total XP and legacy values.
 
-The database must enforce participant-only actions, one rating receipt per participant/deck, creator-only eligibility changes where applicable, and retry-safe XP writes. It must use server-owned identity and transactions rather than UI checks.
+The database must enforce creator-only Battle Deck creation, participant-only Battle actions, one rating receipt per participant/deck, public-consent capture, and retry-safe XP writes. It must use server-owned identity and transactions rather than UI checks.
 
 ### Required UI states
-- Random Deck has an accurate empty state when no eligible deck exists.
-- Top Decks presents up to ten selectable decks ranked by the parent specification. Missing qualifying places are disabled and labelled **Outstanding**.
-- Decks with fewer than 15 questions are clearly marked as not Battle-capable.
+- A source deck with fewer than 15 valid questions is marked not Battle-capable.
+- The source-deck selector excludes another user's decks, raw imports and private AI drafts.
+- Random Deck has an accurate empty state when no eligible Battle Deck exists.
+- Top Decks presents up to ten selectable Battle Decks ranked by the parent specification. Missing qualifying places are disabled and labelled **Outstanding**.
 - The profile shows Total XP plus a small blue/violet Game XP and green Creator XP breakdown.
-- A deck's creator may play their own selected deck, but receives no rating control for it; that non-scoring receipt cannot affect rating totals or Creator XP.
-- Existing classic 30-question history/review screens remain distinguishable from new Battle results.
+- A creator may play their own selected Battle Deck, but receives no rating control for it; its non-scoring receipt cannot affect rating totals or Creator XP.
+- Existing classic 30-question history/review screens remain distinguishable from new 15-question Battle results.
 
 ### Required behavior before coding
 Review these scenarios with the group and turn them into tests before implementation:
-- **Allowed:** A student selects a course and a compatible eligible published deck is sampled uniformly by Random Deck.
-- **Allowed:** A 100-question deck contributes 15 distinct frozen cards; a 15-question deck contributes all cards.
-- **Allowed:** Top Decks ranks daily good/neutral/bad scores and shows fewer than ten cards with Outstanding placeholders.
-- **Rejected:** A deck with fewer than 15 cards, the wrong university/course, or an unsupported language cannot start a Battle.
-- **Rejected:** A user cannot alter another user's rating, rate the same deck twice, obtain duplicate Creator XP, or create Study progress through Battle.
+- **Allowed:** A creator selects exactly 15 questions from their own published 100-question source deck, accepts public-play consent and creates an immutable Battle Deck.
+- **Allowed:** A reviewed/published AI-/Chatbot source deck becomes a playable Battle Deck but never produces Creator XP.
+- **Allowed:** A student selects a course and a compatible eligible Battle Deck is selected uniformly by Random Deck.
+- **Allowed:** Top Decks ranks daily good/neutral/bad scores and shows fewer than ten decks with Outstanding placeholders.
+- **Rejected:** A source deck with fewer than 15 questions, another user's source deck, a raw import, a private AI draft, missing consent, another university/course, or an unsupported language cannot start/create a Battle.
+- **Rejected:** A user cannot alter another user's Battle Deck or rating, rate the same Battle Deck twice, obtain duplicate Creator XP, or create Study progress through Battle.
 - **Automatic:** Abandonment, timeout or non-completion creates exactly one neutral receipt and no Creator XP.
-- **Restart:** A fresh process reopens an active Battle with the same card snapshot and progress; settlement and Creator XP remain once-only after retries.
+- **Restart:** A fresh process reopens an active Battle with the same Battle Deck snapshot and progress; settlement and Creator XP remain once-only after retries.
 - **Regression:** Existing classic duels retain 30-question validation, historical results and review behavior.
 
 ## Out of scope
-Implementing AI generation itself, modifying Study Mode, changing historic classic-duel outcomes, redesigning the leaderboard, adding cross-university Battles, notifications, moderation or a merge into `main`.
+Implementing AI generation itself, modifying Study Mode, changing historic classic-duel outcomes, redesigning the leaderboard, adding cross-university Battles, notifications, and an immediate merge into `main`.
 
 ## Done when
 1. The implementation follows the parent specification and all listed scenarios have reviewed expected outcomes.
 2. New behavioral Python/UI tests and isolated database tests pass alongside existing Play and Study regression coverage.
-3. The Supabase migration is reviewed for row-level security, idempotency, legacy compatibility and mode-aware Study-progress exclusion.
-4. A manual two-participant Battle, rejection case and full restart are recorded in [Battle Mode verification](../../docs/battle-mode-verification.md).
+3. The Supabase migration is reviewed for row-level security, consent capture, idempotency, legacy compatibility and mode-aware Study-progress exclusion.
+4. A manual two-participant Battle, rejection case and full restart are recorded in Battle Mode verification notes.
 5. A reviewed pull request is ready for `main`; no release or merge occurs without group approval.
