@@ -524,7 +524,12 @@ def anki_import_screen(client,profile):
     st.header('Import Basic Anki cards')
     st.info('Only two-field Basic text cards are accepted. Cloze, image and media cards stay in your Anki file and are not imported.')
     if st.button('Back to Decks'):
-        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.rerun()
+        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.session_state.pop('anki_import_saved',None);st.rerun()
+    if saved:=st.session_state.get('anki_import_saved'):
+        st.success(f"Saved {saved['count']} private source cards.")
+        if st.button('Continue to question generation',type='primary'):
+            st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_saved',None);st.session_state.anki_generation_open=True;st.rerun()
+        return
     upload=st.file_uploader('Anki package (.apkg)',type=['apkg'])
     if upload and st.button('Check Anki package',type='primary'):
         try:st.session_state.anki_import_result=parse_basic_apkg(upload.getvalue())
@@ -546,10 +551,8 @@ def anki_import_screen(client,profile):
         try: saved=AnkiImportRepository(client).save(name=name,course=course,language=language,cards=cards)
         except ValueError as exc:st.error(str(exc))
         else:
-            st.success(f"Saved {saved['count']} private source cards. You can now select cards and generate reviewable questions.")
             st.session_state.pop('anki_import_result',None)
-            if st.button('Continue to question generation',type='primary'):
-                st.session_state.pop('anki_import_open',None);st.session_state.anki_generation_open=True;st.rerun()
+            st.session_state.anki_import_saved=saved;st.rerun()
 
 def pdf_import_screen(client,profile):
     from pdf_import import SlideImportError,parse_pdf_slides
@@ -558,7 +561,12 @@ def pdf_import_screen(client,profile):
     st.header('Import PDF lecture slides')
     st.info('PDF slides stay private. Only selectable text is supported; scanned PDFs need OCR before import.')
     if st.button('Back to Decks'):
-        st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_result',None);st.rerun()
+        st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_result',None);st.session_state.pop('pdf_import_saved',None);st.rerun()
+    if saved:=st.session_state.get('pdf_import_saved'):
+        st.success(f"Saved {saved['count']} private PDF sources.")
+        if st.button('Continue to question generation',type='primary'):
+            st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_saved',None);st.session_state.anki_generation_open=True;st.rerun()
+        return
     upload=st.file_uploader('Lecture slides (.pdf)',type=['pdf'])
     if upload and st.button('Check PDF slides',type='primary'):
         try:st.session_state.pdf_import_result=parse_pdf_slides(upload.getvalue())
@@ -575,9 +583,7 @@ def pdf_import_screen(client,profile):
         try:saved=AnkiImportRepository(client).save_slides(name=name,course=course,language=language,cards=result['cards'])
         except ValueError as exc:st.error(str(exc))
         else:
-            st.success(f"Saved {saved['count']} private PDF sources.");st.session_state.pop('pdf_import_result',None)
-            if st.button('Continue to question generation',type='primary'):
-                st.session_state.pop('pdf_import_open',None);st.session_state.anki_generation_open=True;st.rerun()
+            st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
 
 def anki_generation_screen(client,profile):
     """Select private source cards, generate drafts, then hand reviewed cards to Study."""
