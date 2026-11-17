@@ -192,6 +192,18 @@ def friend_action(friends,action,value=""):
         st.error(str(exc))
         return None
 
+def friend_chat_person(item,repo,client):
+    # An accepted friend's name is a button that opens the private conversation.
+    person=item["person"]
+    left,right=st.columns([1,5],vertical_alignment="center")
+    with left:
+        try: data=repo.image(person.get("image_path"))
+        except Exception:data=None
+        portrait(data or render_avatar(DEFAULT_AVATAR),56)
+    with right:
+        if st.button(person["username"],key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"]):
+            open_private_chat(client,person["id"])
+
 def friends_screen(friends,repo,state):
     if st.session_state.get('study_return_after_friends'):
         if st.button('Back to Study Together',icon=':material/arrow_back:'):
@@ -259,7 +271,8 @@ def friends_screen(friends,repo,state):
         if not items:st.caption("Nothing here yet.")
         for item in items:
             with st.container(border=True):
-                public_person(item["person"],repo)
+                if title=="Your friends":friend_chat_person(item,repo,friends.client)
+                else:public_person(item["person"],repo)
                 for label,action in actions:
                     if action=="remove":
                         with st.expander("Remove friend"):
