@@ -380,6 +380,9 @@ def decks_screen(client,profile):
     if st.session_state.get('anki_import_open'):
         anki_import_screen(client,profile)
         return
+    if st.session_state.get('anki_generation_open'):
+        anki_generation_screen(client,profile)
+        return
     if st.session_state.get('study_library'):
         if st.button('Back to course decks'):
             st.session_state.pop('study_library');st.rerun()
@@ -488,6 +491,8 @@ def decks_screen(client,profile):
         st.write('**Anki import**');st.caption('Import up to 100 Basic text cards. Cloze and image cards are reported, not imported.')
         if st.button('Import from Anki',use_container_width=True):
             st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
+        if st.button('Generate questions from imports',use_container_width=True):
+            st.session_state.anki_generation_open=True;st.rerun()
     with ai:
         st.write('**AI from lecture slides**');st.caption('Coming soon')
         st.button('Generate with AI',disabled=True,use_container_width=True)
@@ -538,8 +543,67 @@ def anki_import_screen(client,profile):
         try: saved=AnkiImportRepository(client).save(name=name,course=course,language=language,cards=cards)
         except ValueError as exc:st.error(str(exc))
         else:
-            st.success(f"Saved {saved['count']} private source cards. You can turn selected cards into reviewed questions in the upcoming generation flow.")
+            st.success(f"Saved {saved['count']} private source cards. You can now select cards and generate reviewable questions.")
             st.session_state.pop('anki_import_result',None)
+            if st.button('Continue to question generation',type='primary'):
+                st.session_state.pop('anki_import_open',None);st.session_state.anki_generation_open=True;st.rerun()
+
+def anki_generation_screen(client,profile):
+    """Select private source cards, generate drafts, then hand reviewed cards to Study."""
+    from uuid import uuid4
+    from db import AnkiImportRepository
+    repository=AnkiImportRepository(client)
+    st.caption('Decks › Anki imports › AI question generation')
+    st.header('Generate reviewed questions')
+    st.info('Select up to 100 private source cards. AI drafts stay private until you review and publish them as a Study deck.')
+    if st.button('Back to Decks'):
+        st.session_state.pop('anki_generation_open',None);st.rerun()
+    try:imports=repository.imports()
+    except ValueError as exc:st.error(str(exc));return
+    if not imports:
+        st.info('Import Basic Anki cards first. Your imports will appear here after saving.');return
+    choices={f"{item['name']} · {len(item['cards'])} source cards":item for item in imports}
+    imported=choices[st.selectbox('Anki import',list(choices))]
+    st.caption(f"{imported['course']} · {imported['language']}")
+    available=[card for card in imported['cards'] if not any(draft['source_card_id']==card['id'] and draft['status'] in ('draft','published') for draft in imported['drafts'])]
+    if available:
+        selected=[];st.subheader('1. Select source cards')
+        for card in available:
+            if st.checkbox(card['front'],help=card['back'],key='anki_source_'+card['id']):selected.append(card['id'])
+        if st.button(f'Generate {len(selected)} question drafts',type='primary',disabled=not selected):
+            try:result=repository.generate(imported['id'],selected)
+            except ValueError as exc:st.error(str(exc))
+            else:st.success(f"Generated {result['count']} private drafts. Review them below.");st.rerun()
+    else:st.caption('All source cards from this import already have a draft or were published.')
+    drafts=[draft for draft in imported['drafts'] if draft['status']=='draft']
+    if not drafts:return
+    st.subheader('2. Review drafts');selected_drafts=[]
+    for number,draft in enumerate(drafts,1):
+        with st.expander(f"Draft {number}: {draft['question'][:70]}",expanded=number==1):
+            question=st.text_area('Question',value=draft['question'],key='ai_question_'+draft['id'])
+            options=[st.text_input(f'Answer {index+1}',value=option,key=f'ai_option_{draft["id"]}_{index}') for index,option in enumerate(draft['options'])]
+            correct=st.radio('Correct answer',range(4),index=draft['correct_option_index'],format_func=lambda value:f'Answer {value+1}',horizontal=True,key='ai_correct_'+draft['id'])
+            edit,discard,include=st.columns(3)
+            if edit.button('Save edits',key='ai_save_'+draft['id']):
+                try:repository.update_draft(draft['id'],question,options,correct)
+                except ValueError as exc:st.error(str(exc))
+                else:st.success('Draft saved.');st.rerun()
+            if discard.button('Discard draft',key='ai_discard_'+draft['id']):
+                try:repository.discard_draft(draft['id'])
+                except ValueError as exc:st.error(str(exc))
+                else:st.rerun()
+            if include.checkbox('Include in Study deck',key='ai_include_'+draft['id']):selected_drafts.append(draft)
+    st.subheader('3. Publish after Study review')
+    name=st.text_input('Study deck name',value=f"{imported['name']} questions",key='ai_study_name_'+imported['id'])
+    if st.button(f'Create editable Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
+        cards=[]
+        for draft in selected_drafts:
+            answer_ids=[str(uuid4()) for _ in draft['options']]
+            cards.append({'id':str(uuid4()),'question':draft['question'],'answers':[{'id':answer_id,'text':option} for answer_id,option in zip(answer_ids,draft['options'])],'correct_answer_id':answer_ids[draft['correct_option_index']],'allow_calculator':False,'chapter':''})
+        st.session_state.study_draft={'id':str(uuid4()),'name':name,'course':imported['course'],'language':imported['language'],'cards':cards}
+        st.session_state.study_revision=0;st.session_state.ai_draft_ids=[draft['id'] for draft in selected_drafts]
+        st.session_state.pop('anki_generation_open',None);st.session_state.study_library=True;st.rerun()
+
 
 def play_request(repository,action,data=None):
     try:return repository.action(action,data)
@@ -767,6 +831,11 @@ def study_editor(client,profile):
         if save.button('Confirm and save Study deck',type='primary'):
             r=study_request(client,'save_deck',{'draft':validate_study_deck(d),'revision':revision,'review_id':st.session_state.study_review['id']})
             if r is not None:
+                draft_ids=st.session_state.pop('ai_draft_ids',[])
+                if draft_ids:
+                    from db import AnkiImportRepository
+                    try:AnkiImportRepository(client).publish_drafts(draft_ids)
+                    except ValueError as exc:st.warning(str(exc))
                 st.session_state.pop('study_draft');st.session_state.pop('study_review');st.session_state.study_deck_open={'id':r['id']};st.rerun()
         return
     for label,field,options in [('Course','course',profile['courses']),('Deck language','language',profile['languages'])]:
