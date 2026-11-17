@@ -17,7 +17,7 @@ begin
  if p_action='list' then
   return jsonb_build_object(
    'published_ids',coalesce((select jsonb_agg(id) from public.study_decks where creator_id=me and published_at is not null),'[]'),
-   'decks',coalesce((select jsonb_agg(jsonb_build_object('id',d.id,'name',d.snapshot->>'name','course',d.snapshot->>'course','language',d.snapshot->>'language','author',p.username,'count',jsonb_array_length(d.snapshot->'cards')) order by d.published_at desc) from public.study_decks d join public.profiles p on p.id=d.creator_id where d.published_at is not null and d.creator_id<>me and p.university=campus and (d.snapshot->>'language')=any(langs) and exists(select 1 from unnest(courses) course_option where lower(trim(course_option))=lower(trim(d.snapshot->>'course')))),'[]')
+   'decks',coalesce((select jsonb_agg(jsonb_build_object('id',d.id,'name',d.snapshot->>'name','course',d.snapshot->>'course','language',d.snapshot->>'language','author',p.username,'count',jsonb_array_length(d.snapshot->'cards'),'owned',d.creator_id=me) order by d.published_at desc) from public.study_decks d join public.profiles p on p.id=d.creator_id where d.published_at is not null and (d.creator_id=me or (p.university=campus and (d.snapshot->>'language')=any(langs) and exists(select 1 from unnest(courses) course_option where lower(trim(course_option))=lower(trim(d.snapshot->>'course')))))),'[]')
   );
  end if;
  did:=(p_data->>'id')::uuid;

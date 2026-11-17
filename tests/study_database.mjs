@@ -27,6 +27,7 @@ try{
  for(const f of ['decks-schema.sql','play-schema.sql','study-schema.sql'])await db.exec((await fs.readFile(new URL('../supabase/'+f,import.meta.url),'utf8')).replace("else 'Study action could not be saved. Check your selections and refresh.'","else sqlerrm"));
  await db.exec(await fs.readFile(new URL('../supabase/calculator-update.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-visibility.sql',import.meta.url),'utf8'));
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
   assert.equal((await ok(A,'deck',{id:d.id})).cards[0].allow_calculator,true);
@@ -48,7 +49,7 @@ try{
   await admin("update profile_private set courses=array['Finance'] where user_id=$1",[B]);
  });
  await test('private decks and mandatory reviewed revision',async()=>{await bad(B,'deck',{id:da.id});await bad(A,'save_deck',{draft:da,revision:1,review_id:randomUUID()});const changed=structuredClone(da);changed.cards[0].question='Edited';await bad(A,'save_deck',{draft:changed,revision:1});await save(A,changed,1);await assert.rejects(()=>save(A,da,1));await save(A,da,2);});
- await test('authors can publish Study decks and compatible students can copy them privately',async()=>{await publicationOk(A,'publish',{id:da.id});assert.equal((await publicationOk(B,'list')).decks.some(d=>d.id===da.id),true);assert.equal((await publicationOk(C,'list')).decks.some(d=>d.id===da.id),false);const visible=await publicationOk(B,'deck',{id:da.id});assert.equal(visible.name,da.name);const copied=await publicationOk(B,'copy',{id:da.id});assert.equal((await ok(B,'list')).decks.some(d=>d.id===copied.id),true);await publicationOk(A,'unpublish',{id:da.id});assert.equal((await publicationOk(B,'list')).decks.some(d=>d.id===da.id),false);await publicationBad(B,'copy',{id:da.id});});
+ await test('authors see their published Study decks and compatible students can copy them privately',async()=>{await publicationOk(A,'publish',{id:da.id});const authorList=await publicationOk(A,'list');assert.equal(authorList.decks.find(d=>d.id===da.id).owned,true);assert.equal((await publicationOk(B,'list')).decks.some(d=>d.id===da.id),true);assert.equal((await publicationOk(C,'list')).decks.some(d=>d.id===da.id),false);const visible=await publicationOk(B,'deck',{id:da.id});assert.equal(visible.name,da.name);const copied=await publicationOk(B,'copy',{id:da.id});assert.equal((await ok(B,'list')).decks.some(d=>d.id===copied.id),true);await publicationOk(A,'unpublish',{id:da.id});assert.equal((await publicationOk(B,'list')).decks.some(d=>d.id===da.id),false);await publicationBad(B,'copy',{id:da.id});});
  let solo;
  await test('solo filters, locked immediate feedback, idempotence and private notes',async()=>{
   solo=await start(A,da,'solo',{chapters:['Lecture 1'],levels:['new'],count:1});let q=await ok(A,'round',{id:solo.id});assert.ok(!JSON.stringify(q).includes('correct_answer_id'));await bad(B,'round',{id:solo.id});

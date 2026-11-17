@@ -515,6 +515,21 @@ def decks_screen(client,profile):
             st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
             if st.button('Open deck',key='open_'+deck['id']):
                 st.session_state.deck_open=deck['id'];st.rerun()
+    public_study=study_public_request(client,'list')
+    if public_study is None:return
+    published=[deck for deck in public_study.get('decks',[]) if deck['course'].strip().lower()==course.strip().lower()]
+    if published:
+        st.subheader('Published Study decks')
+        for deck in published:
+            with st.container(border=True):
+                st.write('**'+deck['name']+'**');st.caption(f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions")
+                if deck.get('owned'):
+                    st.caption('Your published Study deck.')
+                    if st.button('Open your Study deck',key='course_open_study_'+deck['id']):
+                        st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
+                elif st.button('Save private Study copy',key='course_copy_study_'+deck['id']):
+                    if study_public_request(client,'copy',{'id':deck['id']}) is not None:
+                        st.success('Saved a private Study copy.');st.rerun()
 
 
 def anki_import_screen(client,profile):
@@ -986,12 +1001,16 @@ def study_library(client,profile):
                     elif st.button('Publish Study deck',key='study_publish_'+d['id'],type='primary'):
                         if study_public_request(client,'publish',{'id':d['id']}) is not None:st.rerun()
     st.subheader('Published Study decks')
-    st.caption('Published by students at your university for a course and language in your profile.')
+    st.caption('Your published decks and decks published by compatible students at your university.')
     if not public.get('decks'):st.caption('No published Study decks match your profile yet.')
     for d in public.get('decks',[]):
         with st.container(border=True):
             st.write('**'+d['name']+'**');st.caption(f"{d['course']} · {d['language']} · By {d['author']} · {d['count']} questions")
-            if st.button('Save private Study copy',key='study_copy_public_'+d['id']):
+            if d.get('owned'):
+                st.caption('Your published Study deck.')
+                if st.button('Open your Study deck',key='study_open_public_'+d['id']):
+                    st.session_state.study_deck_open={'id':d['id'],'shared':False};st.rerun()
+            elif st.button('Save private Study copy',key='study_copy_public_'+d['id']):
                 copied=study_public_request(client,'copy',{'id':d['id']})
                 if copied is not None:
                     st.success('Saved a private Study copy.');st.rerun()
