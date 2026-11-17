@@ -10,7 +10,7 @@ Native Streamlit appearance settings control the browser's theme preference. Cus
 
 Use consistent vector/Material icons instead of emoji. Book and crossed-swords mode cards and navigation use hover/focus effects, disabled for reduced-motion preferences. The welcome screen shows the animated logo and Start; authentication/session restoration is owned by [Authentication and Profiles](authentication-and-profiles.md).
 
-Top navigation: Decks, Play, Friends, Leaderboard and Study Plan; avatar, Profile and Chats appear in the header. Leaderboard and Study Plan remain placeholders. Clicking Study Mode reveals Study alone and Study together within the mode card before settings open.
+Top navigation: Decks, Play, Friends, Leaderboard and Study Plan; Profile and Chats appear in the header, and the Profile button carries the user's picture (see [Profile button avatar](tasks/profile-button-avatar.md)). Leaderboard and Study Plan remain placeholders. Clicking Study Mode reveals Study alone and Study together within the mode card before settings open.
 
 Play displays Create new session, Ongoing sessions, then Session history. Separate Battle and Study cards; solo cards have no partner actions. Show completed/expired/cancelled Study history and completed Battle history with actions to reopen/review. Partner menus link to Social Connections.
 
