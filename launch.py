@@ -1,7 +1,7 @@
 """Welcome UI and per-browser resume state. Passwords are never stored."""
 import streamlit as st
 
-_bridge=st.components.v2.component('campusduel_resume',html='<span></span>',js="""
+_bridge=st.components.v2.component('uniarena_resume',html='<span></span>',js="""
 export default function({data,setStateValue}) {
   const key='studyduel.resume.v1';
   try {
@@ -34,10 +34,10 @@ def welcome(logo):
     @keyframes duel-arrive{{from{{opacity:0;transform:translateY(18px) scale(.85) rotate(-7deg)}}to{{opacity:1;transform:translateY(0) scale(1) rotate(0)}}}}
     @keyframes duel-float{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-9px)}}}}
     @media(prefers-reduced-motion:reduce){{.welcome-mark{{animation:none}}}}
-    </style><section class="welcome" aria-label="Welcome to CampusDuel">
+    </style><section class="welcome" aria-label="Welcome to UniArena">
     <span class="welcome-tag">LEARN TOGETHER. LEVEL UP.</span><br>
-    <img class="welcome-mark" src="data:image/png;base64,{logo}" alt="CampusDuel flashcard logo">
-    <h1>Campus<span>Duel</span></h1><p>A little competition.<br>A lot of learning.</p>
+    <img class="welcome-mark" src="data:image/png;base64,{logo}" alt="UniArena flashcard logo">
+    <h1>Uni<span>Arena</span></h1><p>A little competition.<br>A lot of learning.</p>
     </section>''')
     _,middle,_=st.columns([1,2,1])
     with middle:

@@ -42,9 +42,9 @@ def test_code_exchange_returns_token_or_explains_failure():
 
 
 def test_event_uses_local_clock_time_and_length():
-    body=gc.event_body('CampusDuel: Winter exams (40 questions)','Finance: 40',date(2026,11,16),'09:00',15,'Europe/Lisbon')
+    body=gc.event_body('UniArena: Winter exams (40 questions)','Finance: 40',date(2026,11,16),'09:00',15,'Europe/Lisbon')
     assert body['start']=={'dateTime':'2026-11-16T09:00:00','timeZone':'Europe/Lisbon'} and body['end']['dateTime']=='2026-11-16T09:15:00'
-    assert body['summary'].startswith('CampusDuel') and body['description']=='Finance: 40'
+    assert body['summary'].startswith('UniArena') and body['description']=='Finance: 40'
 
 
 def test_only_recorded_events_are_removed_and_failures_are_kept():
