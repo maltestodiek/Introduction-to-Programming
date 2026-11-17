@@ -2002,7 +2002,7 @@ if not st.session_state.get("browser_loaded"):
         if auth.restore_session(saved["session"]):
             if saved.get("user_id")==auth.user.id:
                 st.session_state.editing=saved.get("route")=="edit"
-                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Play","Friends","Leaderboard","Study Plan","Profile") else "Profile"
+                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Play","Friends","Leaderboard","Study Plan","Profile") else "Play"
                 if isinstance(saved.get("deck_open"),str):st.session_state.deck_open=saved["deck_open"]
             st.session_state.started=True
         else:
@@ -2019,7 +2019,7 @@ browser_bridge("write",{
     "started":bool(st.session_state.get("started") or auth.user),
     "mode":st.session_state.get("account_mode","Sign in"),
     "route":"edit" if st.session_state.get("editing") else "profile",
-    "page":st.session_state.get("main_page","Profile"),
+    "page":st.session_state.get("main_page","Play"),
     "deck_open":st.session_state.get("deck_open"),
     "user_id":auth.user.id if auth.user else None,
     "session":auth.resumable_session(),
@@ -2098,7 +2098,10 @@ if profile:
     except Exception:pass
 brand,profile_slot,friends_slot,chats_slot=st.columns([3.35,1.2,1.2,1.2],vertical_alignment="center")
 with brand:
-    st.html(f'<div style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,{logo_data}" alt="StudyDuel flashcard logo" style="width:64px;height:56px;object-fit:cover"><span style="font-size:30px;font-weight:800;letter-spacing:-1px;color:var(--sd-text)">Study<span style="color:var(--sd-accent)">Duel</span></span></div>')
+    # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
+    st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_data+'")}</style>')
+    if st.button('Study**Duel**',key='open_home') and profile:
+        navigate('Play')
 with profile_slot:
     st.html('<style>'+profile_button_avatar_css(picture or render_avatar(DEFAULT_AVATAR))+'</style>')
     if st.button('Profile',use_container_width=True,key='open_profile'):
@@ -2113,7 +2116,7 @@ if profile and st.session_state.get('chat_open'):
 if profile:
     tabs=['Decks','Play','Leaderboard','Study Plan']
     columns=st.columns(len(tabs))
-    page=st.session_state.get('main_page','Profile')
+    page=st.session_state.get('main_page','Play')
     if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
     for col,label in zip(columns,tabs):
         if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
