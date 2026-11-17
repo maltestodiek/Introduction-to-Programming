@@ -30,6 +30,11 @@ Deno.test("rejects malformed Requesty JSON without a provider call", () => {
   );
 });
 
+Deno.test("accepts JSON wrapped in a Markdown code fence", () => {
+  const drafts = parseRequestyContent(`\`\`\`json\n${JSON.stringify(valid)}\n\`\`\``, sourceIds);
+  assertEquals(drafts.length, 2);
+});
+
 Deno.test("rejects duplicate options and unknown source IDs", () => {
   const duplicate = structuredClone(valid);
   duplicate.questions[0].options = ["One", " one ", "Three", "Four"];

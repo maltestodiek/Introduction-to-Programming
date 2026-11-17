@@ -105,6 +105,7 @@ serve(async (request) => {
     return json(200, { count: saved.count, status: "draft" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Question generation failed.";
+    console.error("Question generation failed", { message });
     return json(502, { error: message });
   } finally {
     await supabase.rpc("release_ai_generation_lock");
