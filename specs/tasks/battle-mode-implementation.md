@@ -3,10 +3,10 @@
 Parent feature: [Battle Mode](../battle-mode.md).
 
 ## Why
-Implement the approved Battle Deck workflow: creators turn their reviewed published learning decks into public, immutable 15-question competitive decks. Preserve the historical classic 30-question duels and keep Battle completely separate from Study progress.
+Implement the approved Battle Deck workflow: creators turn their reviewed published learning decks into public, immutable 15-question competitive decks. Retire the former 30-question duel workflow from active Play and keep Battle completely separate from Study progress.
 
 ## What
-Build the implementation in reviewed slices on a `feature/battle-mode-implementation` branch created from current `main`. Keep screen rendering in `app.py`, rule validation/sampling/ranking helpers in `logic.py`, and Supabase calls in `db.py`.
+Build the implementation in reviewed slices on a `feature/battle-mode-implementation` branch created from current `main`. Keep screen rendering in `app.py`, rule validation/sampling/ranking helpers in `logic.py`, and Supabase calls in `db.py`. Do not delete existing legacy data without a separately reviewed migration.
 
 ### Player and creator flow
 1. A creator opens **Create Battle Mode Deck** and selects one of their own published source decks.
@@ -40,7 +40,7 @@ The database must enforce creator-only Battle Deck creation, participant-only Ba
 - Top Decks presents up to ten selectable Battle Decks ranked by the parent specification. Missing qualifying places are disabled and labelled **Outstanding**.
 - The profile shows Total XP plus a small blue/violet Game XP and green Creator XP breakdown.
 - A creator may play their own selected Battle Deck, but receives no rating control for it; its non-scoring receipt cannot affect rating totals or Creator XP.
-- Existing classic 30-question history/review screens remain distinguishable from new 15-question Battle results.
+- No active Play screen offers a 30-question duel; every new Battle clearly shows its 15-question format.
 
 ### Required behavior before coding
 Review these scenarios with the group and turn them into tests before implementation:
@@ -52,10 +52,10 @@ Review these scenarios with the group and turn them into tests before implementa
 - **Rejected:** A user cannot alter another user's Battle Deck or rating, rate the same Battle Deck twice, obtain duplicate Creator XP, or create Study progress through Battle.
 - **Automatic:** Abandonment, timeout or non-completion creates exactly one neutral receipt and no Creator XP.
 - **Restart:** A fresh process reopens an active Battle with the same Battle Deck snapshot and progress; settlement and Creator XP remain once-only after retries.
-- **Regression:** Existing classic duels retain 30-question validation, historical results and review behavior.
+- **Regression:** The active Play workflow can create only 15-question Battles; existing legacy rows remain untouched by the additive migration.
 
 ## Out of scope
-Implementing AI generation itself, modifying Study Mode, changing historic classic-duel outcomes, redesigning the leaderboard, adding cross-university Battles, notifications, and an immediate merge into `main`.
+Implementing AI generation itself, modifying Study Mode, deleting legacy duel data or changing historic outcomes, redesigning the leaderboard, adding cross-university Battles, notifications, and an immediate merge into `main`.
 
 ## Done when
 1. The implementation follows the parent specification and all listed scenarios have reviewed expected outcomes.
