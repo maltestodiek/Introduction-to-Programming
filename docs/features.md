@@ -15,7 +15,7 @@ Flexible Study decks of up to 100 questions, four-answer questions, subsection/l
 Solo/together settings, chapter/level preferences, friend/random/open-session matching, shared question sets, 24-hour deadlines, feedback and notes, progress colours, results without XP and immutable earned copies. [Specification](../specs/study-mode.md).
 
 ## Battle Mode — specified; implementation pending
-Battle Mode will offer same-university course quizzes from Random Deck or daily Top Deck sources, a 15-card shared snapshot, existing Game XP/streak settlement and a separate Creator XP reward for positive ratings. It never contributes to Study plans or progress. The historical classic 30-question duel engine remains intact. [Specification](../specs/battle-mode.md) · [Implementation task](../specs/tasks/battle-mode-implementation.md).
+Battle Mode will offer same-university course quizzes from Random Deck or daily Top Deck sources, a 15-card shared snapshot, existing Game XP/streak settlement and a separate Creator XP reward for positive ratings. It never contributes to Study plans or progress. The former 30-question duel workflow is retired from active Play. [Specification](../specs/battle-mode.md) · [Implementation task](../specs/tasks/battle-mode-implementation.md).
 
 ## Appearance and navigation — implemented
 One topic for logo/branding, welcome design, dark/light/system themes, backgrounds, icons, hover effects, responsive layouts, menu cards, progress legend, ongoing/history sections and chat/calculator layout. [Specification](../specs/appearance-and-navigation.md).
