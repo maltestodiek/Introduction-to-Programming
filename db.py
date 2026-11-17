@@ -108,7 +108,7 @@ class AnkiImportRepository:
 
     def imports(self):
         try:
-            imports=self.client.table('anki_imports').select('id,name,course,language,created_at').order('created_at',desc=True).execute().data
+            imports=self.client.table('anki_imports').select('id,name,course,language,source_type,created_at').order('created_at',desc=True).execute().data
             cards=self.client.table('anki_source_cards').select('id,import_id,position,front,back').order('position').execute().data
             drafts=self.client.table('ai_question_drafts').select('id,import_id,source_card_id,question,options,correct_option_index,explanation,status,created_at').order('created_at').execute().data
         except Exception as exc:
