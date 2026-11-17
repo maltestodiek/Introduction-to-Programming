@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 from pathlib import Path
 from streamlit.testing.v1 import AppTest
-from logic import DEFAULT_AVATAR, OPTIONS, render_avatar, validate_profile
+from logic import DEFAULT_AVATAR, OPTIONS, render_avatar, validate_profile, xp_breakdown
 from auth import AuthService
 
 def test_signup_error_keeps_inputs_and_shows_username_guidance():
@@ -44,3 +44,12 @@ def test_skin_color_labels_are_neutral_and_preserve_saved_values():
     assert all(key in OPTIONS["skin"] for key in SKIN_LABELS)
     for value in SKIN_LABELS:
         assert render_avatar(dict(DEFAULT_AVATAR,skin=value))
+
+
+def test_xp_breakdown_keeps_game_and_creator_xp_in_the_total_xp_card():
+    assert xp_breakdown({'xp': 27, 'game_xp': 22, 'creator_xp': 5}) == {
+        'total': 27, 'game': 22, 'creator': 5,
+    }
+    assert xp_breakdown({'game_xp': 7, 'creator_xp': 5}) == {
+        'total': 12, 'game': 7, 'creator': 5,
+    }

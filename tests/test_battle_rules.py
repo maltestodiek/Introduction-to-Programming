@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from logic import battle_creator_reward, battle_rating_score, select_battle_cards
+from logic import battle_creator_reward, battle_rating_score, battle_session_groups, select_battle_cards
 from test_deck_rules import complete_deck
 
 
@@ -40,3 +40,13 @@ def test_creator_reward_only_applies_to_one_good_human_rating():
     assert battle_creator_reward('good', source_origin='ai', creator_is_player=False) == 0
     assert battle_creator_reward('good', source_origin='chatbot', creator_is_player=False) == 0
     assert battle_creator_reward('good', source_origin='human', creator_is_player=True) == 0
+
+
+def test_battle_session_groups_use_new_battle_mode_status_values():
+    groups = battle_session_groups([
+        {'id': 'ongoing', 'status': 'ongoing'},
+        {'id': 'pending', 'status': 'pending'},
+        {'id': 'completed', 'status': 'completed'},
+    ])
+    assert [session['id'] for session in groups['ongoing']] == ['ongoing', 'pending']
+    assert [session['id'] for session in groups['completed']] == ['completed']
