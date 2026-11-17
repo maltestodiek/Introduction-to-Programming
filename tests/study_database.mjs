@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';import os from 'node:os';import path from 'nod
 import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import {spawnSync} from 'node:child_process';
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 if(process.argv[2]==='reload') {const db=new PGlite(process.argv[3]);assert.equal((await db.query('select count(*)::int n from study_answers')).rows[0].n,Number(process.argv[4]));await db.close();console.log('PASS restart preserves study answers');process.exit(0);}
-const dir=await fs.mkdtemp(path.join(os.tmpdir(),'campusduel-study-'));const db=new PGlite(path.join(dir,'db'));
+const dir=await fs.mkdtemp(path.join(os.tmpdir(),'uniarena-study-'));const db=new PGlite(path.join(dir,'db'));
 const A=randomUUID(),B=randomUUID(),C=randomUUID();let passed=0;
 async function admin(sql,args=[]){await db.exec('reset role');return db.query(sql,args);}
 async function who(id,role='authenticated'){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role '+role);}

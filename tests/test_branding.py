@@ -1,4 +1,4 @@
-"""The app is called CampusDuel everywhere a user can see it."""
+"""The app is called UniArena everywhere a user can see it."""
 from pathlib import Path
 
 from test_deck_ui import deck_app
@@ -16,19 +16,20 @@ def test_no_user_facing_text_uses_the_old_name():
     for path in app_sources():
         text=path.read_text()
         for kept in KEPT:text=text.replace(kept,'')
-        assert 'studyduel' not in text.lower().replace(' ',''), path.name
+        squeezed=text.lower().replace(' ','')
+        assert 'studyduel' not in squeezed and 'campusduel' not in squeezed, path.name
 
 
-def test_header_wordmark_and_page_title_say_campusduel(monkeypatch):
+def test_header_wordmark_and_page_title_say_uniarena(monkeypatch):
     at=deck_app(monkeypatch)
-    assert next(b for b in at.button if b.key=='open_home').label=='Campus**Duel**'
-    assert 'page_title="CampusDuel"' in (ROOT/'app.py').read_text()
+    assert next(b for b in at.button if b.key=='open_home').label=='Uni**Arena**'
+    assert 'page_title="UniArena"' in (ROOT/'app.py').read_text()
     assert not at.exception
 
 
-def test_welcome_screen_says_campusduel():
+def test_welcome_screen_says_uniarena():
     from streamlit.testing.v1 import AppTest
     at=AppTest.from_file(str(ROOT/'app.py')).run()
     bodies=' '.join(element.proto.body for element in at.get('html'))
-    assert 'Welcome to CampusDuel' in bodies and 'Campus<span>Duel</span>' in bodies
+    assert 'Welcome to UniArena' in bodies and 'Uni<span>Arena</span>' in bodies
     assert not at.exception

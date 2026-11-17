@@ -1,7 +1,7 @@
 # Appearance and navigation
 
 ## Why
-Keep CampusDuel readable, recognizable and consistent across screens, themes and devices.
+Keep UniArena readable, recognizable and consistent across screens, themes and devices.
 
 ## What
 Group branding, light/dark/system themes, backgrounds, icon design, hover animations, layout and navigation in this feature. Use the facing-flashcards logo, indigo primary actions and mint highlights; mint surfaces use dark text. See [brand assets](../docs/branding.md).

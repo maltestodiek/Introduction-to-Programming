@@ -2,7 +2,7 @@
 
 The parser deliberately accepts a narrow, reviewable subset: two-field Basic
 notes. Cloze and media cards remain in the source file and are reported to the
-user rather than silently converted into incomplete CampusDuel cards.
+user rather than silently converted into incomplete UniArena cards.
 """
 from __future__ import annotations
 

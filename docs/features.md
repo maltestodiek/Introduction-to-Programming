@@ -1,4 +1,4 @@
-# CampusDuel feature index
+# UniArena feature index
 
 Current organization as of 13 November 2026. This is the current product map; the [implementation journal](archive/implementation-journal.md) is chronological history.
 

@@ -1,4 +1,4 @@
-"""CampusDuel authentication and profile setup."""
+"""UniArena authentication and profile setup."""
 import os
 from pathlib import Path
 from PIL import Image
@@ -18,8 +18,8 @@ from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
-LOGO_PATH=Path(__file__).parent / "assets" / "campusduel-icon.png"
-st.set_page_config(page_title="CampusDuel",page_icon=Image.open(LOGO_PATH),layout="centered")
+LOGO_PATH=Path(__file__).parent / "assets" / "uniarena-icon.png"
+st.set_page_config(page_title="UniArena",page_icon=Image.open(LOGO_PATH),layout="centered")
 apply_appearance()
 st.markdown("""<style>
 .block-container{max-width:940px;padding-top:2.5rem}
@@ -1392,10 +1392,10 @@ def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
     import google_calendar as google
     import study_plan as rules
     client_id,secret,redirect=study_plan_google_settings();download,online=st.columns(2)
-    download.download_button('Calendar file',rules.plan_ics(plan,rules.plan_sessions(plan,levels,today)),file_name='campusduel-'+plan['id'][:8]+'.ics',mime='text/calendar',key='plan_ics_'+plan['id'],icon=':material/download:',use_container_width=True,help='Download the planned sessions and import them into any calendar.')
+    download.download_button('Calendar file',rules.plan_ics(plan,rules.plan_sessions(plan,levels,today)),file_name='uniarena-'+plan['id'][:8]+'.ics',mime='text/calendar',key='plan_ics_'+plan['id'],icon=':material/download:',use_container_width=True,help='Download the planned sessions and import them into any calendar.')
     if client_id and secret:
         online.link_button('Update Google Calendar' if recorded else 'Add to Google Calendar',google.authorization_url(client_id,redirect,google.sign_state(secret,'sync',plan['id'],user_id)),icon=':material/event:',use_container_width=True)
-        st.caption((f'{len(recorded)} entries of this plan are in your Google Calendar. After changing the plan or missing a day, choose Update Google Calendar. ' if recorded else '')+'Google asks for permission each time; CampusDuel only changes the entries it created for this plan.')
+        st.caption((f'{len(recorded)} entries of this plan are in your Google Calendar. After changing the plan or missing a day, choose Update Google Calendar. ' if recorded else '')+'Google asks for permission each time; UniArena only changes the entries it created for this plan.')
     else:st.caption('Google Calendar is not connected to this app yet. Use the calendar file instead.')
 
 
@@ -1953,7 +1953,7 @@ try:
 except Exception:
     url=key=""
 if not url or not key:
-    st.info("CampusDuel is waiting for its Supabase connection. Add the project URL and publishable key to .streamlit/secrets.toml.")
+    st.info("UniArena is waiting for its Supabase connection. Add the project URL and publishable key to .streamlit/secrets.toml.")
     st.stop()
 if "auth" not in st.session_state:
     try:
@@ -1962,7 +1962,7 @@ if "auth" not in st.session_state:
         client=create_client(url,key,options=ClientOptions(auto_refresh_token=False,persist_session=True,function_client_timeout=60))
         st.session_state.auth=AuthService(client,app_url=config("APP_URL") or "http://localhost:8501")
     except Exception:
-        st.error("Could not connect to CampusDuel. Please try again shortly.")
+        st.error("Could not connect to UniArena. Please try again shortly.")
         st.stop()
 auth=st.session_state.auth
 # Upgrade an existing session safely when Streamlit hot-reloads a deployment.
@@ -2011,7 +2011,7 @@ if st.session_state.get("recovery_error"):
 if not st.session_state.get("browser_loaded"):
     saved=browser_bridge("read")
     if saved is None:
-        st.caption("Opening CampusDuel…")
+        st.caption("Opening UniArena…")
         st.stop()
     saved=saved if isinstance(saved,dict) else {}
     st.session_state.browser_loaded=True
@@ -2050,7 +2050,7 @@ if not auth.user and not st.session_state.get("started") and not st.session_stat
         st.rerun()
     st.stop()
 if not auth.user:
-    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="CampusDuel flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Campus<span style="color:var(--sd-accent)">Duel</span></span></div>')
+    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="UniArena flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Uni<span style="color:var(--sd-accent)">Arena</span></span></div>')
     st.caption("A little competition. A lot of learning.")
 notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
@@ -2120,7 +2120,7 @@ brand,profile_slot,friends_slot,chats_slot=st.columns([3.35,1.2,1.2,1.2],vertica
 with brand:
     # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
     st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_data+'")}</style>')
-    if st.button('Campus**Duel**',key='open_home') and profile:
+    if st.button('Uni**Arena**',key='open_home') and profile:
         navigate('Play')
 with profile_slot:
     st.html('<style>'+profile_button_avatar_css(picture or render_avatar(DEFAULT_AVATAR))+'</style>')
