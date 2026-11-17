@@ -1659,37 +1659,68 @@ def battle_request(client,action,data=None):
     return play_request(BattleRepository(client),action,data)
 
 
+def battle_progress(client,session_id):
+    from db import BattleRepository
+    try:return BattleRepository(client).progress(session_id)
+    except ValueError as exc:st.error(str(exc));return None
+
+
+def battle_overview(answers,current_index):
+    from battle_ui import battle_progress_tiles
+    symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
+    tiles=battle_progress_tiles(answers,current_index)
+    markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
+    st.html('<aside class="battle-overview"><h3>Overview</h3><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
+
+
+def battle_timer(seconds):
+    from battle_ui import timer_fraction
+    fraction=timer_fraction(seconds);urgent=' urgent' if seconds<=10 else ''
+    st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="width:{fraction*100:.1f}%"></div></div><p class="battle-timer-label">{seconds} seconds remaining · the timer continues if you leave this Battle.</p>')
+
+
 @st.fragment(run_every='1s')
 def battle_round_screen(client,session_id):
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+'</style>')
+    progress=battle_progress(client,session_id)
+    if progress is None:return
+    answers=progress.get('answers',[])
     feedback=st.session_state.get('battle_feedback')
     if feedback and feedback.get('id')==session_id:
         card=feedback['card'];response=feedback['feedback']
-        st.subheader(f"Question {response['index']+1} of 15")
-        st.write(card['question'])
-        if response['correct']:st.success('Correct!')
-        else:st.error('That answer was incorrect.')
-        for answer in card['answers']:
-            if answer['id']==card['correct_answer_id']:st.success(answer['text'])
-            elif answer['id']==response['answer_id']:st.error('Your answer: '+answer['text'])
-            else:st.write(answer['text'])
-        if st.button('Continue',type='primary'):
-            st.session_state.pop('battle_feedback',None);st.rerun()
+        question,overview=st.columns([3,1],gap='large')
+        with question:
+            st.caption(f"Question {response['index']+1} of 15")
+            st.html('<div class="battle-question-card">'+escape(card['question'])+'</div>')
+            if response['correct']:st.success('Correct!')
+            elif response.get('timed_out'):st.error('Time expired.')
+            else:st.error('That answer was incorrect.')
+            choices=st.columns(2)
+            for index,answer in enumerate(card['answers']):
+                if answer['id']==card['correct_answer_id']:choices[index%2].success(answer['text']+' · Correct answer')
+                elif answer['id']==response.get('answer_id'):choices[index%2].error(answer['text']+' · Your answer')
+                else:choices[index%2].write(answer['text'])
+            if st.button('Continue',type='primary'):
+                st.session_state.pop('battle_feedback',None);st.rerun()
+        with overview:battle_overview(answers,response['index']+1)
         return
     result=battle_request(client,'round',{'id':session_id})
     if result is None:return
     state=result['state']
     if state=='question':
-        st.progress(result['index']/15,text=f"Question {result['index']+1} of 15")
-        st.progress(result['seconds']/30,text=f":material/timer: {result['seconds']} seconds remaining")
-        st.caption('The timer continues if you leave this Battle.')
-        st.subheader(result['question'])
-        question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
-        columns=st.columns(2)
-        for i,answer in enumerate(result['options']):
-            if columns[i%2].button(answer['text'],key=f'battle_answer_{session_id}_{result["index"]}_{answer["id"]}',use_container_width=True):
-                response=battle_request(client,'answer',{'id':session_id,'index':result['index'],'answer_id':answer['id']})
-                if response is not None:
-                    st.session_state.battle_feedback={**response,'id':session_id};st.rerun()
+        question,overview=st.columns([3,1],gap='large')
+        with question:
+            st.caption(f"Question {result['index']+1} of 15")
+            st.html('<div class="battle-question-card">'+escape(result['question'])+'</div>')
+            question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
+            columns=st.columns(2)
+            for i,answer in enumerate(result['options']):
+                if columns[i%2].button(answer['text'],key=f'battle_answer_{session_id}_{result["index"]}_{answer["id"]}',use_container_width=True):
+                    response=battle_request(client,'answer',{'id':session_id,'index':result['index'],'answer_id':answer['id']})
+                    if response is not None:
+                        st.session_state.battle_feedback={**response,'id':session_id};st.rerun()
+            battle_timer(result['seconds'])
+        with overview:battle_overview(answers,result['index'])
         return
     if state=='finish':
         st.metric('Correct answers',f"{result['score']} / 15")

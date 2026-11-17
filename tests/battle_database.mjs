@@ -44,6 +44,7 @@ try{
     await db.query("insert into public.profile_private values($1,array['Finance'])",[id]);
   }
   await db.exec(await fs.readFile(new URL('../supabase/battle-mode-schema.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/battle-round-progress.sql',import.meta.url),'utf8'));
   const source=sourceDeck();const sourceId=randomUUID();
   await db.query('insert into public.study_decks(id,creator_id,snapshot) values($1,$2,$3::jsonb)',[sourceId,A,JSON.stringify(source)]);
 
@@ -64,5 +65,12 @@ try{
   await db.query("select battle_rate($1,$2,'good',false,false)",[created.id,B]);
   assert.equal((await db.query('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,B])).rows[0].n,1);
   assert.deepEqual((await db.query('select creator_xp,xp from public.profiles where id=$1',[A])).rows[0],{creator_xp:5,xp:5});
+  const sessionId=randomUUID();
+  await db.exec('reset role');
+  await db.query('insert into public.battle_sessions(id,p1,p2,battle_deck_id,source_kind,cards,course,language) values($1,$2,$3,$4,$5,$6::jsonb,$7,$8)',[sessionId,A,B,created.id,'random',JSON.stringify(stored.cards),'Finance','English']);
+  await db.query("insert into public.battle_rounds(session_id,user_id,answers,cursor,score) values($1,$2,$3::jsonb,2,1),($1,$4,'[]',0,0)",[sessionId,A,JSON.stringify([{index:0,correct:true},{index:1,correct:false,timed_out:true}]),B]);
+  await asUser(A);const progress=(await db.query('select battle_round_progress($1) result',[sessionId])).rows[0].result;
+  assert.deepEqual(progress.answers.map(answer=>answer.correct),[true,false]);
+  await asUser(C);await assert.rejects(()=>db.query('select battle_round_progress($1)',[sessionId]));
   console.log('PASS Battle Deck creation, immutable snapshots, eligibility, ranking and idempotent Creator XP');
 }catch(error){console.error(error.stack||error);process.exitCode=1;}finally{await db.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}
