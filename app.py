@@ -394,11 +394,48 @@ def show_deck_cards(cards):
                 else:st.write(f"{chr(65+n)}. {a['text']}")
 
 
+def battle_deck_creator(client):
+    """Choose a reviewed Study deck and freeze exactly 15 questions for Battle."""
+    from db import BattleRepository
+    repository=BattleRepository(client)
+    st.header('Create Battle Mode Deck')
+    st.caption('Choose 15 questions from one of your reviewed Study decks. After submission, the snapshot can be played by everyone.')
+    if st.button('Back to Decks'):
+        st.session_state.pop('battle_deck_creator',None);st.session_state.pop('battle_source',None);st.rerun()
+    try:data=repository.action('sources')
+    except ValueError as exc:st.error(str(exc));return
+    sources=data.get('sources',[])
+    if not sources:
+        st.info('Create and save a reviewed Study deck first.');return
+    labels={source['id']:f"{source['name']} · {source['course']} · {source['language']} · {source['count']} questions" for source in sources}
+    source_id=st.selectbox('Source Study deck',list(labels),format_func=labels.get)
+    source=next(item for item in sources if item['id']==source_id)
+    if not source.get('battle_capable'):
+        st.warning('This deck is not Battle-capable yet. It needs at least 15 complete questions.');return
+    try:deck=repository.action('source',{'id':source_id})
+    except ValueError as exc:st.error(str(exc));return
+    st.subheader('Choose exactly 15 questions')
+    selected=[]
+    for number,card in enumerate(deck['cards'],1):
+        if st.checkbox(f"{number}. {card['question']}",key='battle_card_'+source_id+'_'+card['id']):selected.append(card['id'])
+    st.caption(f'{len(selected)} of 15 questions selected.')
+    name=st.text_input('Battle Deck name',value=deck['name'],max_chars=120)
+    consent=st.checkbox('By submitting, you accept that the deck can be played by everyone.')
+    if st.button('Submit Battle Deck',type='primary',disabled=len(selected)!=15 or not consent):
+        try:created=repository.action('create_deck',{'source_deck_id':source_id,'card_ids':selected,'name':name,'consent':consent})
+        except ValueError as exc:st.error(str(exc))
+        else:
+            st.success('Your public 15-question Battle Deck is ready.')
+            st.session_state.pop('battle_deck_creator',None);st.session_state.battle_deck_created=created['id'];st.rerun()
+
+
 def decks_screen(client,profile):
     from db import DeckRepository,AnkiImportRepository
     from logic import new_deck,validate_card,validate_deck,add_card,delete_card
     repository=DeckRepository(client)
     st.title('Decks')
+    if st.session_state.get('battle_deck_creator'):
+        battle_deck_creator(client);return
     if st.session_state.get('anki_import_open'):
         anki_import_screen(client,profile)
         return
@@ -518,10 +555,10 @@ def decks_screen(client,profile):
     with ai:
         st.write('**AI from lecture slides**');st.caption('Coming soon')
         st.button('Generate with AI',disabled=True,use_container_width=True)
-    with st.expander('Classic 30-question duels'):
-        st.caption('The original duel format uses exactly 15 questions from each player. Create a separate deck for this format here.')
-        if st.button('Create 15-question duel deck'):
-            st.session_state.deck_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.deck_index=0;st.rerun()
+    with st.expander('Battle Mode Decks'):
+        st.caption('Turn one of your reviewed Study decks into an immutable public 15-question Battle Deck.')
+        if st.button('Create Battle Mode Deck'):
+            st.session_state.battle_deck_creator=True;st.rerun()
     st.subheader('Your courses')
     st.caption('Decks are shared with signed-in students at your university. Add courses in Edit profile.')
     course=st.selectbox('Browse course',profile['courses'],key='deck_browse_course')
@@ -1607,6 +1644,134 @@ def ongoing_sessions(client):
                     st.session_state.study_active=True;st.session_state.study_session=session['id'];st.rerun()
 
 
+def battle_request(client,action,data=None):
+    from db import BattleRepository
+    return play_request(BattleRepository(client),action,data)
+
+
+@st.fragment(run_every='1s')
+def battle_round_screen(client,session_id):
+    feedback=st.session_state.get('battle_feedback')
+    if feedback and feedback.get('id')==session_id:
+        card=feedback['card'];response=feedback['feedback']
+        st.subheader(f"Question {response['index']+1} of 15")
+        st.write(card['question'])
+        if response['correct']:st.success('Correct!')
+        else:st.error('That answer was incorrect.')
+        for answer in card['answers']:
+            if answer['id']==card['correct_answer_id']:st.success(answer['text'])
+            elif answer['id']==response['answer_id']:st.error('Your answer: '+answer['text'])
+            else:st.write(answer['text'])
+        if st.button('Continue',type='primary'):
+            st.session_state.pop('battle_feedback',None);st.rerun()
+        return
+    result=battle_request(client,'round',{'id':session_id})
+    if result is None:return
+    state=result['state']
+    if state=='question':
+        st.progress(result['index']/15,text=f"Question {result['index']+1} of 15")
+        st.caption(f":material/timer: {result['seconds']} seconds remaining · Closing this page does not reset the timer.")
+        st.subheader(result['question'])
+        question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
+        columns=st.columns(2)
+        for i,answer in enumerate(result['options']):
+            if columns[i%2].button(answer['text'],key=f'battle_answer_{session_id}_{result["index"]}_{answer["id"]}',use_container_width=True):
+                response=battle_request(client,'answer',{'id':session_id,'index':result['index'],'answer_id':answer['id']})
+                if response is not None:
+                    st.session_state.battle_feedback={**response,'id':session_id};st.rerun()
+        return
+    if state=='finish':
+        st.metric('Correct answers',f"{result['score']} / 15")
+        if st.button('Finish Battle',type='primary'):
+            if battle_request(client,'finish',{'id':session_id}) is not None:st.rerun()
+        return
+    if state=='rating':
+        st.subheader('Battle round finished')
+        st.metric('Correct answers',f"{result['score']} / 15")
+        if result.get('can_rate'):
+            rating=st.radio('How was this Battle Deck?',('good','neutral','bad'),format_func=lambda value:{'good':'Good','neutral':'Neutral','bad':'Bad'}[value],horizontal=True)
+            if st.button('Save rating',type='primary'):
+                if battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:st.success('Your anonymous rating was saved.')
+        else:st.info('You played your own Battle Deck. It does not receive a rating or Creator XP from you.')
+        if st.button('Back to Battle Mode'):
+            st.session_state.pop('battle_session',None);st.rerun()
+        return
+    st.info('This Battle is complete.')
+    if st.button('Back to Battle Mode'):st.session_state.pop('battle_session',None);st.rerun()
+
+
+def battle_screen(client,profile):
+    st.subheader('Battle Mode')
+    st.caption('15 shared questions · 30 seconds per question · Game XP and Creator XP · Battle never changes Study progress.')
+    if st.session_state.get('battle_session'):
+        if st.button('Save and leave Battle'):st.session_state.pop('battle_session',None);st.rerun()
+        battle_round_screen(client,st.session_state.battle_session);return
+    state=battle_request(client,'list')
+    if state is None:return
+    if state.get('search'):
+        search=state['search'];st.info(f"Searching for a random player in {search['course']} · {search['language']} until {search['expires_at']}.")
+    st.subheader('Start a Battle')
+    course=st.selectbox('Course',profile['courses'],key='battle_course')
+    language=st.selectbox('Language',profile['languages'],key='battle_language')
+    source=st.radio('Battle Deck source',('Random Deck','Top Decks'),horizontal=True)
+    selected=None
+    if source=='Top Decks':
+        top=battle_request(client,'top',{'course':course,'language':language})
+        ranked=(top or {}).get('decks',[])
+        if ranked:
+            labels={item['id']:f"{item['name']} · {item['score']:+d} today · {item['rating_count']} ratings" for item in ranked}
+            selected=st.selectbox('Top Deck',list(labels),format_func=labels.get)
+        else:st.info('No Top Deck qualifies today yet.')
+        for position in range(len(ranked)+1,11):st.button(f'{position}. Outstanding',disabled=True,key='battle_outstanding_'+str(position),use_container_width=True)
+    else:st.caption('The server will choose an eligible public 15-question Battle Deck uniformly after it finds a compatible opponent.')
+    opponent=st.radio('Opponent',('Random player','Friend'),horizontal=True)
+    payload={'course':course,'language':language,'source_kind':'random' if source=='Random Deck' else 'top'}
+    if selected:payload['deck_id']=selected
+    if opponent=='Random player':
+        if st.button('Find random player',type='primary',disabled=source=='Top Decks' and selected is None):
+            result=battle_request(client,'join',payload)
+            if result is not None:
+                if result.get('session_id'):st.session_state.battle_session=result['session_id']
+                else:st.session_state.battle_notice=result.get('message','Searching for a player.')
+                st.rerun()
+    else:
+        friend_options=battle_request(client,'friend_options',{'course':course,'language':language})
+        friends=(friend_options or {}).get('friends',[])
+        if not friends:st.info('No accepted friend currently has this course and language at your university.')
+        else:
+            friend_id=st.selectbox('Friend',[friend['id'] for friend in friends],format_func=lambda value:next(friend['username'] for friend in friends if friend['id']==value))
+            if st.button('Send Battle invitation',type='primary',disabled=source=='Top Decks' and selected is None):
+                result=battle_request(client,'invite',{**payload,'friend_id':friend_id})
+                if result is not None:st.success(result.get('message','Battle invitation sent.'))
+    if state.get('invites'):
+        st.subheader('Battle invitations')
+        for invite in state['invites']:
+            with st.container(border=True):
+                st.write(('From ' if invite['incoming'] else 'To ')+invite['username'])
+                deck_name=invite.get('deck_name') or 'Random Deck'
+                st.caption(f"{deck_name} · {invite['course']} · {invite['language']}")
+                if invite['incoming']:
+                    accept,decline=st.columns(2)
+                    if accept.button('Accept',key='battle_accept_'+invite['id']):
+                        result=battle_request(client,'accept_invite',{'invite_id':invite['id']})
+                        if result is not None:st.session_state.battle_session=result['session_id'];st.rerun()
+                    if decline.button('Decline',key='battle_decline_'+invite['id']):
+                        if battle_request(client,'decline_invite',{'invite_id':invite['id']}) is not None:st.rerun()
+                elif st.button('Cancel invitation',key='battle_cancel_'+invite['id']):
+                    if battle_request(client,'cancel_invite',{'invite_id':invite['id']}) is not None:st.rerun()
+    st.subheader('Your Battle sessions')
+    sessions=state.get('sessions',[])
+    if not sessions:st.caption('No Battle sessions yet.')
+    for session in sessions:
+        with st.container(border=True):
+            st.write('**'+session['deck_name']+'**')
+            st.caption(f"{session['course']} · {session['language']} · 15 questions · {session['status'].title()}")
+            if session['status']!='completed':
+                if st.button('Resume Battle',key='resume_battle_'+session['id'],type='primary'):
+                    st.session_state.battle_session=session['id'];st.rerun()
+            else:st.caption(f"{session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Game XP · {session['score']}/15")
+
+
 def play_screen(client,profile):
     from db import PlayRepository
     st.title('Play')
@@ -1641,8 +1806,8 @@ def play_screen(client,profile):
                 st.subheader('Battle Mode')
                 st.caption('Compete, test your knowledge and earn XP.')
                 if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
-                    st.session_state.play_mode_preview='Battle'
-                st.caption('Coming soon')
+                    st.session_state.play_mode_preview='Battle';st.rerun()
+                st.caption('15 questions · earn XP')
         with study:
             with st.container(border=True,key='study_mode_card'):
                 st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
@@ -1660,7 +1825,8 @@ def play_screen(client,profile):
                                 st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_session',None);st.session_state.pop('study_join',None);st.session_state.pop('study_choose',None);st.rerun()
         selected=st.session_state.get('play_mode_preview')
         if selected=='Battle':
-            st.info('Battle Mode is coming soon. Its competitive workflow is not available yet.')
+            if st.button('Back to play modes'):st.session_state.pop('play_mode_preview',None);st.rerun()
+            battle_screen(client,profile);return
         st.divider()
         ongoing_sessions(client)
 
@@ -1919,7 +2085,8 @@ if not editing:
         st.caption(" · ".join(profile["languages"]))
         if st.button("Edit profile"):st.session_state.editing=True;st.rerun()
     a,b,c=st.columns(3)
-    a.metric("XP",profile.get("xp",0));b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
+    a.metric("Total XP",profile.get("xp",0));b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
+    st.caption(f":violet[Game XP: {profile.get('game_xp',profile.get('xp',0))}] · :green[Creator XP: {profile.get('creator_xp',0)}]")
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:st.write(":material/school: "+course)
