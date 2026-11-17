@@ -64,3 +64,22 @@ Battle must not create or update Study-plan entries, Study progress, learning le
 6. Good ratings grant exactly 5 Creator XP once to eligible human creators; AI-/Chatbot-derived Battle Decks, neutral ratings and bad ratings grant none. Existing Game XP and streak rules settle once; all XP types appear correctly in the profile Total XP breakdown.
 7. Battle writes do not change Study-plan or Study-progress state. Unauthorized users cannot create/alter another user's Battle Deck, ratings, rewards or Battle.
 8. Behavioral Python/UI checks and isolated database checks cover allowed, rejected and restart scenarios, including public consent, snapshot immutability, daily ranking, rating idempotency, reward idempotency and Battle/Study separation. They also confirm that the active Play workflow creates only 15-question Battles.
+
+
+## Implementation and verification basis
+Implement Battle in a dedicated feature branch. Keep Streamlit screens in `app.py`, selection/ranking validation in `logic.py`, and Supabase access in `db.py`. Use an additive database migration: do not delete existing legacy rows or rewrite applied SQL files.
+
+The durable state must include the public Battle Deck snapshot and its source/version, public-play consent, selected source (`random` or `top`), one rating receipt per participant and Battle Deck, daily `Europe/Berlin` aggregates, the source origin needed to suppress AI-/Chatbot Creator XP, and idempotent Game XP/Creator XP settlement. Preserve Total XP while showing its separate Game XP and Creator XP components.
+
+Before code is written, translate these required scenarios into behavioral Python/UI checks and isolated database checks:
+
+- A creator can choose exactly 15 questions from their own published source deck, accept public-play consent, and create an immutable Battle Deck.
+- A reviewed/published AI-/Chatbot source deck may create a Battle Deck but never earns Creator XP.
+- Random Deck selects uniformly from eligible Battle Decks; Top Decks ranks daily scores and renders Outstanding placeholders.
+- Another user's source deck, a raw import, a private AI draft, fewer than 15 questions, missing consent, a different university/course, or an unsupported language is rejected without saved changes.
+- A participant cannot rate twice, alter another participant's rating, duplicate Creator XP, or create Study progress through Battle.
+- Abandonment, timeout or other non-completion stores exactly one neutral receipt and no Creator XP.
+- After a full application/process restart, an active Battle resumes with the same 15-question snapshot and progress; later retries cannot settle Game XP or Creator XP twice.
+- The active Play workflow creates only 15-question Battles.
+
+Run focused Python/UI tests, isolated database tests, and existing shared regression tests. Manually verify a two-participant Battle, a rejection path and a full restart before any merge. Record commands, results and remaining manual limitations in the pull request.
