@@ -23,6 +23,14 @@
 /* The Profile button shows the user's own picture; app.py supplies the image itself. */
 .st-key-open_profile button::before{width:28px;height:28px;border-radius:50%;background-color:var(--sd-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;mask-image:none;-webkit-mask-image:none}
 .st-key-open_profile button:is(:hover,:focus-visible)::before{animation:nav-pulse .65s ease both}
+/* The StudyDuel logo and wordmark are one button that opens Play; app.py supplies the logo image. */
+.st-key-open_home button,.st-key-open_home button:is(:hover,:active,:focus){background:transparent!important;border:none!important;box-shadow:none!important;color:var(--sd-text)!important}
+.st-key-open_home button{padding:0;min-height:56px;gap:8px;justify-content:flex-start;border-radius:12px;transition:transform .2s ease}
+.st-key-open_home button::before{content:"";display:block;width:64px;height:56px;flex-shrink:0;background-size:cover;background-position:center;background-repeat:no-repeat}
+.st-key-open_home button p{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1.1;white-space:nowrap;color:var(--sd-text)}
+.st-key-open_home button p strong{font-weight:800;color:var(--sd-accent)}
+.st-key-open_home button:hover{transform:translateY(-2px)}
+.st-key-open_home button:focus-visible{outline:3px solid var(--sd-text)!important;outline-offset:3px}
 @keyframes nav-tilt{0%,100%{transform:rotate(0)}35%{transform:rotate(-13deg)}70%{transform:rotate(7deg)}}
 @keyframes nav-pulse{0%,100%{transform:scale(1)}45%{transform:scale(1.2)}75%{transform:scale(.96)}}
 @keyframes nav-sway{0%,100%{transform:translateX(0)}35%{transform:translateX(-3px)}70%{transform:translateX(3px)}}
@@ -32,6 +40,7 @@
  [class*="st-key-nav_"] button p{font-size:.84rem}
 }
 @media(prefers-reduced-motion:reduce){
+ .st-key-open_home button{transition:none!important;transform:none!important}
  :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends) button{transition:none!important;transform:none!important}
  :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends) button::before{animation:none!important}
 }
