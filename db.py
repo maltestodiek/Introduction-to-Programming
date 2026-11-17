@@ -176,10 +176,30 @@ class BattleRepository:
 
     def action(self,action,data=None):
         try:result=self.client.rpc('battle_action',{'p_action':action,'p_data':data or {}}).execute().data
-        except Exception as exc:raise ValueError('Battle Mode could not be reached. Refresh and retry after its database migration is applied.') from exc
+        except Exception as exc:raise ValueError(battle_error_message(exc)) from exc
         if not isinstance(result,dict):raise ValueError('Battle Mode returned an unexpected result.')
         if result.get('error'):raise ValueError(result['error'])
         return result
+
+
+def battle_error_message(error):
+    """Expose approved Battle eligibility feedback without leaking database details."""
+    message=str(error)
+    known={
+        'No eligible Battle Deck is available for this course and language':'Not able to start this Battle: no public 15-question Battle Deck matches the selected course and language yet.',
+        'There is already a pending Battle invitation between you':'Outstanding invitation: you already have a pending Battle invitation with this friend.',
+        'Your friend needs this course, language and university in their profile':'Not able to invite this friend: they have not selected this course, language, or university in their profile.',
+        'Choose an accepted friend':'Not able to invite this user: they are not an accepted friend.',
+        'Choose an eligible Top Deck':'Not able to start this Battle: choose a currently eligible Top Deck.',
+        'Choose one of your courses and languages':'Not able to start this Battle: choose a course and language from your profile.',
+        'Complete your profile first':'Not able to use Battle Mode: complete your university, course, and language profile first.',
+        'Battle invitation unavailable':'This Battle invitation is no longer available.',
+        'Only the invited friend can respond':'Only the invited friend can accept or decline this invitation.',
+        'Only the sender can cancel':'Only the sender can cancel this invitation.',
+    }
+    for item,feedback in known.items():
+        if item in message:return feedback
+    return 'Battle Mode could not be reached. Refresh and retry after its database migration is applied.'
 
 
 class StudyRepository:
