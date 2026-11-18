@@ -20,6 +20,8 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Start a chat from the friend list](tasks/friend-list-chat.md): clicking a friend on the Friends page opens the private conversation.
 - [Calculator result rounding](tasks/calculator-rounding.md): the question calculator shows results rounded to four decimal places, with a note saying so.
 - [Arena logo](tasks/arena-logo.md): the two flashcards stand in an arena.
+- [University, field-of-study and course selectors](tasks/study-fields-and-shared-courses.md): type-ahead university search, field of study from a list of common degree subjects, and a course selector that lists courses already saved at the student's university.
+- [Profile figures beside the avatar](tasks/profile-stats-beside-avatar.md): Total XP, Win streak and Friends as a compact row next to the avatar.
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
 
 A feature can require several small implementation branches. Add a task spec under `specs/tasks/` when a change needs its own acceptance scenarios; link it to its parent topic. Do not duplicate a rule across multiple feature specs. Before implementation, list state, persistence, an allowed action, a rejected action and restart verification; review expected outcomes with the group.
