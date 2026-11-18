@@ -26,7 +26,7 @@ def browser_bridge(action,value=None):
 def welcome(logo):
     st.html(f'''<style>
     .welcome{{text-align:center;padding:30px 16px 8px;color:var(--sd-text)}}
-    .welcome-mark{{width:min(320px,70vw);height:220px;object-fit:cover;animation:duel-arrive .8s ease-out both,duel-float 4s ease-in-out .8s infinite}}
+    .welcome-mark{{width:min(340px,74vw);height:210px;object-fit:contain;animation:duel-arrive .8s ease-out both,duel-float 4s ease-in-out .8s infinite}}
     .welcome h1{{font-size:clamp(44px,8vw,68px);font-weight:850;letter-spacing:-3px;margin:0!important;line-height:1.15}}
     .welcome h1 span{{color:var(--sd-accent)}}
     .welcome p{{font-size:20px;color:var(--sd-muted);margin:20px auto 14px;max-width:480px}}
@@ -36,7 +36,7 @@ def welcome(logo):
     @media(prefers-reduced-motion:reduce){{.welcome-mark{{animation:none}}}}
     </style><section class="welcome" aria-label="Welcome to UniArena">
     <span class="welcome-tag">LEARN TOGETHER. LEVEL UP.</span><br>
-    <img class="welcome-mark" src="data:image/png;base64,{logo}" alt="UniArena flashcard logo">
+    <img class="welcome-mark" src="data:image/png;base64,{logo}" alt="UniArena logo: two flashcards in an arena">
     <h1>Uni<span>Arena</span></h1><p>A little competition.<br>A lot of learning.</p>
     </section>''')
     _,middle,_=st.columns([1,2,1])
