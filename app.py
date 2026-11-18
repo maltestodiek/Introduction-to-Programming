@@ -39,7 +39,11 @@ h1{letter-spacing:-.04em}div[data-testid="stForm"]{border-radius:18px;padding:24
 .sd-xp-summary{background:var(--sd-surface);border:1px solid var(--sd-border);border-radius:16px;border-top:4px solid #6EE7B7;padding:20px;min-height:126px}.sd-xp-summary__label{font-size:1rem;font-weight:500}.sd-xp-summary__total{font-size:2.6rem;font-weight:600;line-height:1.15;margin:14px 0}.sd-xp-summary__breakdown{font-size:.92rem;line-height:1.35}.sd-xp-summary__game{color:#7C3AED}.sd-xp-summary__creator{color:#047857}
 </style>""",unsafe_allow_html=True)
 st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
-logo_data=base64.b64encode(LOGO_PATH.read_bytes()).decode()
+import time
+page_speed=fresh_module("page_speed")
+logo_copies=page_speed.logo_variants(str(LOGO_PATH),LOGO_PATH.stat().st_mtime)
+logo_data=logo_copies["medium"]   # welcome screen
+logo_small=logo_copies["small"]   # header and sign-in
 # The invitation remains in the URL across signup, email confirmation and login.
 if "invite" in st.query_params:
     try:st.session_state.pending_invite=invitation_token(st.query_params["invite"])
@@ -86,7 +90,7 @@ def session_partner_chat(client,kind,session_id,location='round'):
             open_private_chat(client,person['id'])
 
 
-@st.fragment(run_every='5s')
+@st.fragment(run_every='15s')
 def chat_dropdown(client):
     # Unmount the inbox popover so its portal cannot cover the conversation.
     if st.session_state.get('chat_open'):
@@ -2044,7 +2048,10 @@ if not st.session_state.get("browser_loaded"):
             st.session_state.started=True
             st.session_state.notice="Please sign in again to continue. Your saved profile is still here."
     st.rerun()
-if auth.user and not auth.verify():
+# Confirm the signed-in user with Supabase at most once a minute; token refresh still runs on every interaction below.
+verification_due=bool(auth.user) and page_speed.should_verify(time.time(),st.session_state.get("verified_at"))
+if verification_due and auth.verify():st.session_state.verified_at=time.time()
+elif verification_due:
     for k in list(st.session_state):
         if k!="auth": del st.session_state[k]
     st.session_state.browser_loaded=True
@@ -2065,7 +2072,7 @@ if not auth.user and not st.session_state.get("started") and not st.session_stat
         st.rerun()
     st.stop()
 if not auth.user:
-    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="UniArena logo: two flashcards in an arena" style="width:112px;height:70px;object-fit:contain"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Uni<span style="color:var(--sd-accent)">Arena</span></span></div>')
+    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_small}" alt="UniArena logo: two flashcards in an arena" style="width:112px;height:70px;object-fit:contain"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Uni<span style="color:var(--sd-accent)">Arena</span></span></div>')
     st.caption("A little competition. A lot of learning.")
 notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
@@ -2122,23 +2129,35 @@ if not auth.user:
 for credential_key in ("account_password","account_confirmation"):
     st.session_state.pop(credential_key,None)
 repo=ProfileRepository(auth.client,auth.user.id)
-try: profile=repo.load()
+profile_cache=st.session_state.setdefault("profile_cache",page_speed.ProfileCache())
+# Always read fresh where the profile itself is shown or edited; elsewhere a recent read is reused.
+profile_is_shown=st.session_state.get("editing") or st.session_state.get("main_page","Play")=="Profile" or st.session_state.pop("profile_changed",False)
+try: profile=profile_cache.get(auth.user.id,repo.load,time.time(),fresh=bool(profile_is_shown))
 except Exception:
     st.error("We couldn’t load your profile. Please retry; your saved information hasn’t changed.")
     if st.button("Retry"):st.rerun()
     st.stop()
 picture=None
 if profile:
-    try:picture=render_avatar(profile.get("avatar") or DEFAULT_AVATAR) if profile.get("image_mode")=="Avatar" else repo.image(profile.get("image_path"))
+    try:
+        if profile.get("image_mode")=="Avatar":
+            picture=page_speed.rendered_avatar(tuple(sorted((profile.get("avatar") or DEFAULT_AVATAR).items())))
+        else:
+            # A photo is downloaded once per session and again only when its path changes.
+            photos=st.session_state.setdefault("own_photo",{})
+            path=profile.get("image_path")
+            if path not in photos:
+                photos.clear();photos[path]=repo.image(path)
+            picture=photos[path]
     except Exception:pass
 brand,profile_slot,friends_slot,chats_slot=st.columns([3.35,1.2,1.2,1.2],vertical_alignment="center")
 with brand:
     # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
-    st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_data+'")}</style>')
+    st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_small+'")}</style>')
     if st.button('Uni**Arena**',key='open_home') and profile:
         navigate('Play')
 with profile_slot:
-    st.html('<style>'+profile_button_avatar_css(picture or render_avatar(DEFAULT_AVATAR))+'</style>')
+    st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
     if st.button('Profile',use_container_width=True,key='open_profile'):
         navigate('Profile')
 with friends_slot:
@@ -2242,7 +2261,7 @@ if not editing:
                                degree=profile.get("degree","Not specified"),area=profile.get("area",""),graduation_year=profile.get("graduation_year")),
                           profile.get("image_mode","Avatar"),None,profile.get("image_path"))
                 st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.session_state.pop("shared_courses_for",None)
-                st.session_state.notice="Your courses are saved.";st.rerun()
+                st.session_state.profile_changed=True;st.session_state.notice="Your courses are saved.";st.rerun()
             except ValueError as exc:st.error(str(exc))
         if cancel_courses.button("Cancel",use_container_width=True):
             st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.rerun()
@@ -2343,7 +2362,7 @@ if st.button("Save profile",type="primary",disabled=not image_valid,use_containe
         repo.save(dict(username=name,university=university,courses=courses,languages=languages,avatar=avatar,degree=degree,area=area,graduation_year=graduation_year),
                   mode,image,profile.get("image_path"))
         st.session_state.editing=False
-        st.session_state.notice="Your profile is saved."
+        st.session_state.profile_changed=True;st.session_state.notice="Your profile is saved."
         st.rerun()
     except ValueError as exc:
         if "username" in str(exc).lower():
