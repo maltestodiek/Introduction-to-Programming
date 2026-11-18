@@ -13,6 +13,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Question notepad](tasks/question-notepad.md): unsaved 500-character scratch notepad beside the calculator during questions.
 - [Leaderboard](tasks/leaderboard.md): global top ten with own place and a friends ranking, by Battle XP, read-only.
 - [Battle round layout](tasks/battle-round-layout.md): active-round overview and server-timed countdown display.
+- [Study round layout](tasks/study-round-layout.md): active-round overview without a per-question timer.
 - [Profile button avatar](tasks/profile-button-avatar.md): the header Profile button shows the user's own picture instead of an icon and a separate portrait.
 - [Friends header button](tasks/friends-header-button.md): Friends moves from the large tabs into the header between Profile and Chats.
 - [Play landing page and logo button](tasks/play-landing-and-logo.md): sign-in lands on Play, and the header logo opens Play.
