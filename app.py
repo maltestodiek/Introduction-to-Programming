@@ -1117,7 +1117,7 @@ def study_round_screen(client,sid):
                 c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
                 if r['correct']:st.success('Correct!')
                 else:st.error('Not quite. Review the correct answer below.')
-                answer_markup=''.join('<div class="study-answer-card '+('is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in c['answers'])
+                answer_markup=''.join('<div class="study-answer-card '+('is-correct is-correct-animated' if a['id']==c['correct_answer_id'] and r['correct'] else 'is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in c['answers'])
                 st.html('<div class="study-answer-grid">'+answer_markup+'</div>')
                 prefix=f"{sid}_{r['index']}"
                 with st.expander('Private note / feedback to author'):
