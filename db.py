@@ -231,6 +231,12 @@ class StudyRepository:
         if result.get('error'):raise ValueError(result['error'])
         return result
 
+    def progress(self,session_id):
+        try:result=self.client.rpc('study_session_progress',{'p_session':session_id}).execute().data
+        except Exception as exc:raise ValueError('Study progress could not be loaded. Refresh and retry.') from exc
+        if not isinstance(result,dict):raise ValueError('Study progress returned an unexpected result.')
+        return result
+
     def publication(self,action,data=None):
         try:result=self.client.rpc('study_public_action',{'p_action':action,'p_data':data or {}}).execute().data
         except Exception as exc:raise ValueError('Could not update Study deck publishing. Refresh and retry.') from exc
