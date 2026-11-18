@@ -561,7 +561,7 @@ def decks_screen(client,profile):
             if st.button('Create Battle Mode Deck',use_container_width=True):
                 st.session_state.battle_deck_creator=True;st.rerun()
     with anki:
-        st.write('**Anki import**');st.caption('Upload an Anki deck, select up to 100 Basic text cards, then turn them into AI-generated questions to review. Cloze and media cards are not imported.')
+        st.write('**AI Anki import**');st.caption('Import Anki cards, then review AI-generated questions.')
         if st.button('Import Anki deck',use_container_width=True):
             st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
     with ai:
