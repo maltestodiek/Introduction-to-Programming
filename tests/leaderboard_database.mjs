@@ -10,12 +10,12 @@ async function admin(sql,args=[]){await db.exec('reset role');return db.query(sq
 async function test(name,f){await f();passed++;console.log('PASS '+name);}
 try{
  await db.exec(`create role anon;create role authenticated;create schema auth;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
- create table profiles(id uuid primary key,username text,image_path text,xp integer not null default 0,email text);
+ create table profiles(id uuid primary key,username text,image_path text,xp integer not null default 0,game_xp integer not null default 0,email text);
  create table friend_edges(id uuid primary key default gen_random_uuid(),low_id uuid,high_id uuid,sender uuid,state text);create table friend_codes(user_id uuid,code text);`);
- for(const [n,u] of Object.entries(users)){await db.query('insert into profiles values($1,$2,$3,$4,$5)',[u,n,u+'/avatar.png',xp[n],n+'@example.com']);await db.query('insert into friend_codes values($1,$2)',[u,'CODE'+n]);}
+ for(const [n,u] of Object.entries(users)){await db.query('insert into profiles values($1,$2,$3,$4,$5,$6)',[u,n,u+'/avatar.png',xp[n],xp[n],n+'@example.com']);await db.query('insert into friend_codes values($1,$2)',[u,'CODE'+n]);}
  const edge=async(a,b,state)=>{const [low,high]=[users[a],users[b]].sort();await db.query('insert into friend_edges(low_id,high_id,sender,state) values($1,$2,$3,$4)',[low,high,users[a],state]);};
  await edge('lea','anna','accepted');await edge('mo','lea','accepted');await edge('lea','ben','pending');
- await db.exec(await fs.readFile(new URL('../supabase/leaderboard-schema.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/leaderboard-game-xp.sql',import.meta.url),'utf8'));
  await test('global top ten with shared places and own row marked',async()=>{
   const r=await board('anna');assert.equal(r.top.length,10);
   assert.deepEqual(r.top.map(x=>[x.rank,x.username,x.xp]).slice(0,4),[[1,'anna',500],[2,'ben',400],[2,'cleo',400],[4,'dan',300]]);
@@ -38,8 +38,8 @@ try{
   await who('','anon');await assert.rejects(()=>db.query('select leaderboard()'));
   const r=await board(NOPROFILE);assert.ok(r.error);assert.equal(r.top,undefined);
  });
- await test('only stored XP moves a place',async()=>{
-  await admin('update profiles set xp=450 where username=$1',['lea']);const r=await board('lea');assert.deepEqual([r.me.rank,r.top.find(x=>x.me).rank],[2,2]);assert.equal(r.top.length,10);
+ await test('only stored Battle XP moves a place',async()=>{
+  await admin('update profiles set game_xp=450 where username=$1',['lea']);const r=await board('lea');assert.deepEqual([r.me.rank,r.top.find(x=>x.me).rank],[2,2]);assert.equal(r.top.length,10);
  });
  await db.exec('reset role');await db.close();
  const r=spawnSync(process.execPath,[fileURLToPath(import.meta.url),'reload',path.join(dir,'db'),users.lea,'2'],{encoding:'utf8',env:process.env});process.stdout.write(r.stdout);assert.equal(r.status,0,r.stderr);passed++;

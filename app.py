@@ -1682,7 +1682,7 @@ def ongoing_sessions(client):
         for session in finished:
             with st.container(border=True):
                 st.write('**'+session['deck_name']+'**')
-                st.caption(f"{session['course']} · {session['language']} · Completed · {session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Game XP · {session['score']}/15")
+                st.caption(f"{session['course']} · {session['language']} · Completed · {session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Battle XP · {session['score']}/15")
     with study_history:
         st.markdown('**:material/menu_book: Study**')
         finished=[s for s in (study_data or {}).get('sessions',[]) if s['state'] not in ('own','waiting','paired')]
@@ -1774,7 +1774,7 @@ def battle_round_screen(client,session_id):
             if st.button('Save rating',type='primary'):
                 if battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:
                     st.session_state.pop('battle_session',None);st.session_state.pop('battle_feedback',None);st.session_state.main_page='Play';st.rerun()
-        else:st.info('You played your own Battle Deck. It does not receive a rating or Creator XP from you.')
+        else:st.info('You played your own Battle Deck. It does not receive a rating from you.')
         if st.button('Back to Battle Mode'):
             st.session_state.pop('battle_session',None);st.rerun()
         return
@@ -1791,7 +1791,7 @@ def battle_game_dialog(client,session_id):
 
 def battle_screen(client,profile):
     st.subheader('Battle Mode')
-    st.caption('15 shared questions · 30 seconds per question · Game XP and Creator XP · Battle never changes Study progress.')
+    st.caption('15 shared questions · 30 seconds per question · Battle XP · Battle never changes Study progress.')
     if st.session_state.get('battle_session'):
         battle_game_dialog(client,st.session_state.battle_session);return
     state=battle_request(client,'list')
@@ -1857,7 +1857,7 @@ def battle_screen(client,profile):
             if session['status']!='completed':
                 if st.button('Resume Battle',key='resume_battle_'+session['id'],type='primary'):
                     st.session_state.battle_session=session['id'];st.rerun()
-            else:st.caption(f"{session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Game XP · {session['score']}/15")
+            else:st.caption(f"{session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Battle XP · {session['score']}/15")
 
 
 LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-name{flex:1}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
@@ -1888,7 +1888,7 @@ def leaderboard_screen(client,repo,profile=None):
     else:
         try:data=LeaderboardRepository(client).load()
         except ValueError as exc:st.error(str(exc));return
-    st.caption('Ranks are based on Game XP earned in Battle Mode. Study Mode and Creator XP do not affect them.')
+    st.caption('Ranks are based on Battle XP earned in Battle Mode. Study Mode does not affect them.')
     global_tab,friends_tab=st.tabs(['Global top 10','Friends'])
     for tab,rows in ((global_tab,data.get('top',[])),(friends_tab,data.get('friends',[]))):
         with tab:
@@ -1896,7 +1896,7 @@ def leaderboard_screen(client,repo,profile=None):
             if tab is global_tab and data.get('me') and not any(row.get('me') for row in rows):
                 st.caption('Your place')
                 leaderboard_rows([data['me']],repo)
-            if tab is friends_tab and len(rows)<2:st.caption('Add friends to compare your Game XP.')
+            if tab is friends_tab and len(rows)<2:st.caption('Add friends to compare your Battle XP.')
 
 
 def play_screen(client,profile):

@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from logic import battle_creator_reward, battle_rating_score, battle_session_groups, select_battle_cards
+from logic import battle_rating_score, battle_session_groups, select_battle_cards
 from test_deck_rules import complete_deck
 
 
@@ -31,15 +31,6 @@ def test_battle_snapshot_is_a_copy_not_a_live_study_deck_reference():
 @pytest.mark.parametrize('rating, expected', [('good', 1), ('neutral', 0), ('bad', -1)])
 def test_battle_rating_score_uses_three_level_traffic_light(rating, expected):
     assert battle_rating_score(rating) == expected
-
-
-def test_creator_reward_only_applies_to_one_good_human_rating():
-    assert battle_creator_reward('good', source_origin='human', creator_is_player=False) == 5
-    assert battle_creator_reward('neutral', source_origin='human', creator_is_player=False) == 0
-    assert battle_creator_reward('bad', source_origin='human', creator_is_player=False) == 0
-    assert battle_creator_reward('good', source_origin='ai', creator_is_player=False) == 0
-    assert battle_creator_reward('good', source_origin='chatbot', creator_is_player=False) == 0
-    assert battle_creator_reward('good', source_origin='human', creator_is_player=True) == 0
 
 
 def test_battle_session_groups_use_new_battle_mode_status_values():
