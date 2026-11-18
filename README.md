@@ -1,6 +1,6 @@
 # UniArena
 
-UniArena is a Python/Streamlit app for creating course decks, studying alone or together, and connecting with classmates. Supabase provides authentication, shared PostgreSQL data and private image storage. The live app is [studyduel-nova-main.streamlit.app](https://studyduel-nova-main.streamlit.app/).
+UniArena is a Python/Streamlit app for creating course decks, studying alone or together, and connecting with classmates. Supabase provides authentication, shared PostgreSQL data and private image storage. The live app is [uniarena.net](https://uniarena.net), which forwards to [uniarena.streamlit.app](https://uniarena.streamlit.app/).
 
 ## Start here
 
