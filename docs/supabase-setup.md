@@ -22,6 +22,9 @@ Account records belong to Supabase Auth. Do not create a custom password table. 
 ## Password recovery
 The login screen now sends Supabase reset emails. The default Supabase recovery link redirects to http://localhost:8501; keep this URL allowed and the local app running. The app consumes the recovery fragment, removes it from the browser URL, verifies the session with Supabase, and displays the new-password form. Password changes use Supabase Auth only. No real recovery email or account password was changed during automated checks; verify delivery and a complete reset with your own test account. Expired-link UI and token removal were manually verified.
 
+## Shared university courses
+Apply `supabase/university-courses.sql` in the Supabase SQL Editor after the profile migrations. It adds the read-only `university_courses(p_university)` function, which returns the course names saved by students at one university and nothing else. It creates no table and changes no data. Verify with `tests/university_courses_database.mjs`.
+
 ## AI question generation
 Apply `supabase/ai-question-generation-schema.sql` in the Supabase SQL Editor after `anki-import-schema.sql`. The SQL creates private AI drafts, validates every save atomically, and adds a per-user generation lock.
 
