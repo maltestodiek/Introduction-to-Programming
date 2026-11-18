@@ -1092,42 +1092,53 @@ def study_library(client,profile):
 def study_round_screen(client,sid):
     r=study_request(client,'round',{'id':sid})
     if r is None:return
+    from db import StudyRepository
+    try:progress=StudyRepository(client).progress(sid)
+    except ValueError as exc:st.error(str(exc));return
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+'</style>')
     session_partner_chat(client,'study',sid)
     if st.button('Save and leave Study session'):
         st.session_state.pop('study_session',None);st.rerun()
     state=r['state']
     if state in ('question','feedback'):
-        st.progress(r['index']/r['total'],text=f"Question {r['index']+1} of {r['total']}")
-        if state=='question':
-            st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
-            if r.get('deadline'):st.caption('Finish by '+r['deadline'])
-            st.subheader(r['question'])
-            question_tools(f'study_{sid}_{r["index"]}',r.get('allow_calculator') is True)
-            cols=st.columns(2)
-            for i,a in enumerate(r['options']):
-                if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):
-                    if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:
-                        clear_notepads();st.rerun()
-        else:
-            c=r['card'];st.caption(c.get('chapter') or 'General');st.subheader(c['question'])
-            if r['correct']:st.success('Correct!')
-            else:st.error('Not quite. Review the correct answer below.')
-            for a in c['answers']:
-                text=a['text']+(' — Your answer' if a['id']==r['answer_id'] else '')
-                if a['id']==c['correct_answer_id']:st.success(text+' — Correct answer')
-                else:st.write(text)
-            study_progress_summary([c])
-            prefix=f"{sid}_{r['index']}"
-            with st.expander('Private note / feedback to author'):
-                note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
-                if st.button('Save private note',key='study_save_note_'+prefix):
-                    if study_request(client,'annotate',{'id':sid,'index':r['index'],'note':note}) is not None:st.success('Private note saved.')
-                feedback=st.text_area('Feedback for the author',max_chars=2000,key='study_feedback_'+prefix)
-                st.caption('Sent feedback is visible to the author and kept with this question for you. Your private note is not sent.')
-                if st.button('Send feedback to author',key='study_send_'+prefix,disabled=not feedback.strip()):
-                    if study_request(client,'annotate',{'id':sid,'index':r['index'],'feedback':feedback}) is not None:st.success('Feedback sent.')
-            if st.button('Next question' if r['index']+1<r['total'] else 'See session result',type='primary'):
-                if study_request(client,'next',{'id':sid,'index':r['index']}) is not None:st.rerun()
+        from study_ui import study_progress_tiles
+        symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
+        current_index=r['index'] if state=='question' else r['index']+1
+        tiles=study_progress_tiles(progress.get('answers',[]),current_index,r['total'])
+        markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
+        question,overview=st.columns([3,1],gap='large')
+        with overview:
+            st.html('<aside class="study-overview"><h3>Overview</h3><div class="study-overview-grid">'+markup+'</div></aside>')
+        with question:
+            st.caption(f"Question {r['index']+1} of {r['total']}")
+            if state=='question':
+                st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
+                if r.get('deadline'):st.caption('Finish by '+r['deadline'])
+                st.html('<div class="study-question-card">'+escape(r['question'])+'</div>')
+                question_tools(f'study_{sid}_{r["index"]}',r.get('allow_calculator') is True)
+                cols=st.columns(2)
+                for i,a in enumerate(r['options']):
+                    if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):
+                        if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:
+                            clear_notepads();st.rerun()
+            else:
+                c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
+                if r['correct']:st.success('Correct!')
+                else:st.error('Not quite. Review the correct answer below.')
+                answer_markup=''.join('<div class="study-answer-card '+('is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in c['answers'])
+                st.html('<div class="study-answer-grid">'+answer_markup+'</div>')
+                prefix=f"{sid}_{r['index']}"
+                with st.expander('Private note / feedback to author'):
+                    note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
+                    if st.button('Save private note',key='study_save_note_'+prefix):
+                        if study_request(client,'annotate',{'id':sid,'index':r['index'],'note':note}) is not None:st.success('Private note saved.')
+                    feedback=st.text_area('Feedback for the author',max_chars=2000,key='study_feedback_'+prefix)
+                    st.caption('Sent feedback is visible to the author and kept with this question for you. Your private note is not sent.')
+                    if st.button('Send feedback to author',key='study_send_'+prefix,disabled=not feedback.strip()):
+                        if study_request(client,'annotate',{'id':sid,'index':r['index'],'feedback':feedback}) is not None:st.success('Feedback sent.')
+                if st.button('Next question' if r['index']+1<r['total'] else 'See session result',type='primary'):
+                    if study_request(client,'next',{'id':sid,'index':r['index']}) is not None:st.rerun()
+        return
     elif state=='completed':
         st.subheader(r['result']);st.metric('Your correct answers',f"{r['score']} / {r['total']}")
         if r.get('opponent_score') is not None:st.metric('Partner’s correct answers',f"{r['opponent_score']} / {r['total']}")

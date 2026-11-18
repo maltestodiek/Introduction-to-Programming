@@ -29,6 +29,7 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-visibility.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-course-variable.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/study-session-progress.sql',import.meta.url),'utf8'));
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
   assert.equal((await ok(A,'deck',{id:d.id})).cards[0].allow_calculator,true);
@@ -55,6 +56,7 @@ try{
  await test('solo filters, locked immediate feedback, idempotence and private notes',async()=>{
   solo=await start(A,da,'solo',{chapters:['Lecture 1'],levels:['new'],count:1});let q=await ok(A,'round',{id:solo.id});assert.ok(!JSON.stringify(q).includes('correct_answer_id'));await bad(B,'round',{id:solo.id});
   const c=(await admin('select cards from study_sessions where id=$1',[solo.id])).rows[0].cards[0];await ok(A,'answer',{id:solo.id,index:0,answer_id:c.correct_answer_id});await ok(A,'answer',{id:solo.id,index:0,answer_id:c.answers[1].id});
+  await who(A);const progress=(await db.query('select study_session_progress($1) r',[solo.id])).rows[0].r;assert.deepEqual(progress.answers,[{index:0,correct:true}]);await who(B);await assert.rejects(()=>db.query('select study_session_progress($1)',[solo.id]));
   assert.equal((await ok(A,'round',{id:solo.id})).state,'feedback');await ok(A,'annotate',{id:solo.id,index:0,note:'Private thought',feedback:'Explain please'});assert.equal((await admin('select count(*)::int n from study_answers where session_id=$1',[solo.id])).rows[0].n,1);await ok(A,'next',{id:solo.id,index:0});assert.equal((await ok(A,'round',{id:solo.id})).state,'completed');
  });
  await test('size requires enough distinct questions and consent',async()=>{const small=draft(10);await save(A,small);await bad(A,'start',{request_id:randomUUID(),deck_id:small.id,mode:'random',count:100,consent:true});await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'random',count:20,consent:false});});
