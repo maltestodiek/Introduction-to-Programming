@@ -1100,7 +1100,7 @@ def study_round_screen(client,sid):
         markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
         question,overview=st.columns([3,1],gap='large')
         with overview:
-            st.html('<aside class="study-overview"><h3>Overview</h3><div class="study-overview-grid">'+markup+'</div><div class="study-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect</span></div></aside>')
+            st.html('<aside class="study-overview"><h3>Overview</h3><div class="study-overview-grid">'+markup+'</div></aside>')
         with question:
             st.caption(f"Question {r['index']+1} of {r['total']}")
             if state=='question':
@@ -1117,12 +1117,8 @@ def study_round_screen(client,sid):
                 c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
                 if r['correct']:st.success('Correct!')
                 else:st.error('Not quite. Review the correct answer below.')
-                cols=st.columns(2)
-                for i,a in enumerate(c['answers']):
-                    text=a['text']+(' · Your answer' if a['id']==r['answer_id'] else '')
-                    if a['id']==c['correct_answer_id']:cols[i%2].success(text+' · Correct answer')
-                    elif a['id']==r['answer_id']:cols[i%2].error(text)
-                    else:cols[i%2].write(text)
+                answer_markup=''.join('<div class="study-answer-card '+('is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in c['answers'])
+                st.html('<div class="study-answer-grid">'+answer_markup+'</div>')
                 prefix=f"{sid}_{r['index']}"
                 with st.expander('Private note / feedback to author'):
                     note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
