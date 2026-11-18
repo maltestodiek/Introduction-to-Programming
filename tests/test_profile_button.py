@@ -35,7 +35,9 @@ def test_header_shows_the_picture_inside_the_profile_button_only(monkeypatch):
     at=deck_app(monkeypatch)
     bodies=html_bodies(at)
     default_picture=base64.b64encode(render_avatar(DEFAULT_AVATAR)).decode()
-    assert any(profile_button_avatar_css(render_avatar(DEFAULT_AVATAR)) in body for body in bodies)
+    # The button carries a small copy of the picture (specs/tasks/faster-page-loads.md), not the full-size image.
+    from page_speed import thumbnail
+    assert any(profile_button_avatar_css(thumbnail(render_avatar(DEFAULT_AVATAR),84)) in body for body in bodies)
     assert not any('alt="Profile picture"' in body and default_picture in body for body in bodies)
     assert not at.exception
 
