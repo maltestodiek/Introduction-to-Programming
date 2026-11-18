@@ -1735,11 +1735,8 @@ def battle_round_screen(client,session_id):
             if response['correct']:st.success('Correct!')
             elif response.get('timed_out'):st.error('Time expired.')
             else:st.error('That answer was incorrect.')
-            choices=st.columns(2)
-            for index,answer in enumerate(card['answers']):
-                if answer['id']==card['correct_answer_id']:choices[index%2].success(answer['text']+' · Correct answer')
-                elif answer['id']==response.get('answer_id'):choices[index%2].error(answer['text']+' · Your answer')
-                else:choices[index%2].write(answer['text'])
+            answer_markup=''.join('<div class="battle-answer-card '+('is-correct is-correct-animated' if answer['id']==card['correct_answer_id'] and response['correct'] else 'is-correct' if answer['id']==card['correct_answer_id'] else 'is-incorrect' if answer['id']==response.get('answer_id') else 'is-neutral')+'">'+escape(answer['text'])+'</div>' for answer in card['answers'])
+            st.html('<div class="battle-answer-grid">'+answer_markup+'</div>')
             if st.button('Continue',type='primary'):
                 st.session_state.pop('battle_feedback',None);st.rerun()
         with overview:battle_overview(answers,response['index']+1)
