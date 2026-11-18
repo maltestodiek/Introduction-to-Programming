@@ -1,7 +1,7 @@
 """UniArena authentication and profile setup."""
 import os
 from pathlib import Path
-from PIL import Image
+from PIL import Image,ImageOps
 import base64
 from html import escape
 import streamlit as st
@@ -19,7 +19,8 @@ from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
 LOGO_PATH=Path(__file__).parent / "assets" / "uniarena-icon.png"
-st.set_page_config(page_title="UniArena",page_icon=Image.open(LOGO_PATH),layout="centered")
+# The logo is wider than tall; the browser-tab icon needs a square, so pad it with transparency.
+st.set_page_config(page_title="UniArena",page_icon=ImageOps.pad(Image.open(LOGO_PATH).convert("RGBA"),(256,256),color=(0,0,0,0)),layout="centered")
 apply_appearance()
 st.markdown("""<style>
 .block-container{max-width:940px;padding-top:2.5rem}
@@ -2050,7 +2051,7 @@ if not auth.user and not st.session_state.get("started") and not st.session_stat
         st.rerun()
     st.stop()
 if not auth.user:
-    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="UniArena flashcard logo" style="width:90px;height:80px;object-fit:cover"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Uni<span style="color:var(--sd-accent)">Arena</span></span></div>')
+    st.html(f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px"><img src="data:image/png;base64,{logo_data}" alt="UniArena logo: two flashcards in an arena" style="width:112px;height:70px;object-fit:contain"><span style="font-size:36px;font-weight:800;letter-spacing:-1.5px;color:var(--sd-text)">Uni<span style="color:var(--sd-accent)">Arena</span></span></div>')
     st.caption("A little competition. A lot of learning.")
 notice=st.session_state.pop("notice",None)
 if notice: st.success(notice)
