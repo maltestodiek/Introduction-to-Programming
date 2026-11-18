@@ -209,7 +209,7 @@ def battle_error_message(error):
 
 
 class LeaderboardRepository:
-    """Read-only Game XP rankings through the authenticated database function."""
+    """Read-only Battle XP rankings through the authenticated database function."""
     def __init__(self,client):self.client=client
 
     def load(self):

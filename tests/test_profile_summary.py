@@ -4,17 +4,18 @@ from profile_summary import profile_stats_html
 
 
 def test_stats_row_holds_the_three_figures_with_the_xp_breakdown():
-    html=profile_stats_html({'total':27,'game':22,'creator':5},3,4)
-    for part in ('Total XP','>27<','Game XP: 22','Creator XP: 5','Win streak','>3<','Friends','>4<'):
+    html=profile_stats_html({'total':22,'battle':22},3,4)
+    for part in ('Battle XP','>22<','Win streak','>3<','Friends','>4<'):
         assert part in html
-    assert html.index('Total XP')<html.index('Win streak')<html.index('Friends')
+    assert 'Total XP' not in html
+    assert html.index('Battle XP')<html.index('Win streak')<html.index('Friends')
     assert 'aria-label="Profile figures"' in html
 
 
 def test_friends_shows_a_dash_when_the_list_is_unavailable_and_values_are_escaped():
-    html=profile_stats_html({'total':0,'game':0,'creator':0},0,None)
+    html=profile_stats_html({'total':0,'battle':0},0,None)
     assert '>—<' in html
-    assert '<script>' not in profile_stats_html({'total':'<script>','game':0,'creator':0},0,1)
+    assert '<script>' not in profile_stats_html({'total':'<script>','battle':0},0,1)
 
 
 def profile_page(monkeypatch,friends):
@@ -30,7 +31,7 @@ def test_profile_shows_the_figures_beside_the_avatar_and_no_large_cards(monkeypa
     assert len(at.metric)==0
     bodies=[element.proto.body for element in at.get('html')]
     stats=next(body for body in bodies if 'sd-profile-stats' in body)
-    assert 'Friends' in stats and '>1<' in stats and 'Win streak' in stats and 'Total XP' in stats
+    assert 'Friends' in stats and '>1<' in stats and 'Win streak' in stats and 'Battle XP' in stats
     assert not any('sd-xp-summary"' in body for body in bodies)
     # the row sits in the summary beside the avatar: after the username heading and before the courses
     name=next(i for i,body in enumerate(bodies) if 'student_a' in body and '<h1' in body)

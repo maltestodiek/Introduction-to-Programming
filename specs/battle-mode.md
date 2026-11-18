@@ -39,20 +39,20 @@ Each completed Battle participant may rate its selected Battle Deck once, anonym
 
 Show up to ten ranked decks. If fewer than ten qualify, render the remaining positions as disabled **Outstanding** placeholders. Ratings are visible only as aggregates: the deck creator and other users cannot see which participant supplied a rating.
 
-A participant may submit at most one lifetime rating for a given Battle Deck. A participant who completes their Battle chooses the rating. If they abandon, time out, or otherwise fail to finish, the server automatically records that participant's one neutral rating. It changes neither the daily score nor creator rewards and cannot later be replaced. A creator playing their own Battle Deck receives no rating control; the resulting non-scoring receipt affects neither ratings nor rewards.
+A participant may submit at most one lifetime rating for a given Battle Deck. A participant who completes their Battle chooses the rating. If they abandon, time out, or otherwise fail to finish, the server automatically records that participant's one neutral rating. It changes neither the daily score nor XP and cannot later be replaced. A creator playing their own Battle Deck receives no rating control; the resulting non-scoring receipt affects neither ratings nor XP.
 
 ### Rewards and progress
-Battle uses the existing Game XP, result and streak settlement rules. Game XP and Creator XP both contribute to Total XP, while the profile displays the two components separately: Game XP in blue/violet and Creator XP in green.
+Battle uses the existing Battle XP, result and streak settlement rules. Battle XP is the only XP shown in the profile and is the sole value used by the leaderboard.
 
-A good rating awards the original human creator 5 Creator XP exactly once per participant and Battle Deck. Neutral and bad ratings award no Creator XP. A Battle Deck whose source deck is AI-/Chatbot-generated may be played and ranked after the existing review/publication workflow, but never awards Creator XP, even after a good rating. Creator rewards are separate from Game XP and must be transactional and retry-safe.
+Ratings affect only the daily Top Deck score. Good, neutral and bad ratings never award XP to a deck creator or participant, regardless of source origin.
 
-Battle must not create or update Study-plan entries, Study progress, learning levels, earned copies, or Study feedback. It uses no Study-mode creator reward logic.
+Battle must not create or update Study-plan entries, Study progress, learning levels, earned copies, or Study feedback.
 
 ## Out of scope
 - Changing the existing AI-/Chatbot-generation, review or publication workflow; Battle only consumes its already published decks.
 - Changing Study Mode rules, learning progress, Study Plan or real saved Study sessions.
 - Deleting existing legacy duel rows or retroactively changing their saved results.
-- Leaderboard design beyond the profile's Game XP, Creator XP and Total XP display.
+- Leaderboard design beyond the profile's Battle XP display.
 - Cross-university Battles, moderation workflows, notifications or new social matching rules.
 
 ## Done when
@@ -61,7 +61,7 @@ Battle must not create or update Study-plan entries, Study progress, learning le
 3. The server selects only published, same-university, same-course, language-compatible Battle Decks. Random selection is uniform; Top Decks follows the daily scoring rule, uses `Europe/Berlin` day boundaries and shows disabled Outstanding placeholders when fewer than ten qualify.
 4. Both participants receive the same 15-question snapshot with the existing 30-second question timer. No new 30-question duel can be created or started.
 5. Completion enables one anonymous good/neutral/bad rating per participant and Battle Deck. Abandonment, timeout or non-completion writes the one neutral rating automatically. Repeats, retries and reopening cannot create a second rating.
-6. Good ratings grant exactly 5 Creator XP once to eligible human creators; AI-/Chatbot-derived Battle Decks, neutral ratings and bad ratings grant none. Existing Game XP and streak rules settle once; all XP types appear correctly in the profile Total XP breakdown.
+6. Ratings change only daily Top Deck scoring and never award XP. Existing Battle XP and streak rules settle once; Battle XP appears correctly in the profile and leaderboard.
 7. Battle writes do not change Study-plan or Study-progress state. Unauthorized users cannot create/alter another user's Battle Deck, ratings, rewards or Battle.
 8. Behavioral Python/UI checks and isolated database checks cover allowed, rejected and restart scenarios, including public consent, snapshot immutability, daily ranking, rating idempotency, reward idempotency and Battle/Study separation. They also confirm that the active Play workflow creates only 15-question Battles.
 
@@ -69,17 +69,17 @@ Battle must not create or update Study-plan entries, Study progress, learning le
 ## Implementation and verification basis
 Implement Battle in a dedicated feature branch. Keep Streamlit screens in `app.py`, selection/ranking validation in `logic.py`, and Supabase access in `db.py`. Use an additive database migration: do not delete existing legacy rows or rewrite applied SQL files.
 
-The durable state must include the public Battle Deck snapshot and its source/version, public-play consent, selected source (`random` or `top`), one rating receipt per participant and Battle Deck, daily `Europe/Berlin` aggregates, the source origin needed to suppress AI-/Chatbot Creator XP, and idempotent Game XP/Creator XP settlement. Preserve Total XP while showing its separate Game XP and Creator XP components.
+The durable state must include the public Battle Deck snapshot and its source/version, public-play consent, selected source (`random` or `top`), one rating receipt per participant and Battle Deck, daily `Europe/Berlin` aggregates, and idempotent Battle XP settlement.
 
 Before code is written, translate these required scenarios into behavioral Python/UI checks and isolated database checks:
 
 - A creator can choose exactly 15 questions from their own published source deck, accept public-play consent, and create an immutable Battle Deck.
-- A reviewed/published AI-/Chatbot source deck may create a Battle Deck but never earns Creator XP.
+- A reviewed/published AI-/Chatbot source deck may create a Battle Deck and is rated by the same daily-ranking rules.
 - Random Deck selects uniformly from eligible Battle Decks; Top Decks ranks daily scores and renders Outstanding placeholders.
 - Another user's source deck, a raw import, a private AI draft, fewer than 15 questions, missing consent, a different university/course, or an unsupported language is rejected without saved changes.
-- A participant cannot rate twice, alter another participant's rating, duplicate Creator XP, or create Study progress through Battle.
-- Abandonment, timeout or other non-completion stores exactly one neutral receipt and no Creator XP.
-- After a full application/process restart, an active Battle resumes with the same 15-question snapshot and progress; later retries cannot settle Game XP or Creator XP twice.
+- A participant cannot rate twice, alter another participant's rating, receive rating XP, or create Study progress through Battle.
+- Abandonment, timeout or other non-completion stores exactly one neutral receipt and no XP.
+- After a full application/process restart, an active Battle resumes with the same 15-question snapshot and progress; later retries cannot settle Battle XP twice.
 - The active Play workflow creates only 15-question Battles.
 
 Run focused Python/UI tests, isolated database tests, and existing shared regression tests. Manually verify a two-participant Battle, a rejection path and a full restart before any merge. Record commands, results and remaining manual limitations in the pull request.
