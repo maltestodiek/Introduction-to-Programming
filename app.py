@@ -14,6 +14,14 @@ from recovery import recovery_callback
 from db import ProfileRepository, FriendsRepository
 from launch import browser_bridge, welcome
 from appearance import apply_appearance,profile_button_avatar_css
+import importlib
+def fresh_module(name):
+    """Import a helper module, reloading it if its file changed since a long-running server loaded it."""
+    module=importlib.import_module(name)
+    if getattr(module,"_file_stamp",None)!=Path(module.__file__).stat().st_mtime:module=importlib.reload(module)
+    return module
+fresh_module("course_catalog")
+from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
@@ -2194,6 +2202,7 @@ if not editing:
     with right:
         code_label=("#"+friend_state["code"]) if friend_state else ""
         st.html(f'<h1 style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;color:var(--sd-text)"><span>{escape(profile["username"])}</span><span aria-label="Your friend code" style="font-size:16px;font-weight:400;letter-spacing:.03em;color:var(--sd-muted)">{escape(code_label)}</span></h1>')
+        st.html(fresh_module("profile_summary").profile_stats_html(xp_breakdown(profile),profile.get("win_streak",0),len(friend_state["friends"]) if friend_state else None))
         st.write(profile["university"])
         degree_labels={"Bachelor's":"Bachelor","Master's":"Master","Doctorate":"Doctorate","Associate":"Associate degree","Diploma / certificate":"Diploma / certificate"}
         degree=degree_labels.get(profile.get("degree"),"")
@@ -2204,18 +2213,35 @@ if not editing:
         if study:st.write(study)
         st.caption(" · ".join(profile["languages"]))
         if st.button("Edit profile"):st.session_state.editing=True;st.rerun()
-    a,b,c=st.columns(3)
-    xp=xp_breakdown(profile)
-    with a:
-        st.html(f'<section class="sd-xp-summary" aria-label="Total XP"><div class="sd-xp-summary__label">Total XP</div><div class="sd-xp-summary__total">{xp["total"]}</div><div class="sd-xp-summary__breakdown"><span class="sd-xp-summary__game">Game XP: {xp["game"]}</span> · <span class="sd-xp-summary__creator">Creator XP: {xp["creator"]}</span></div></section>')
-    b.metric("Win streak",profile.get("win_streak",0));c.metric("Friends",len(friend_state["friends"]) if friend_state else "—")
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:st.write(":material/school: "+course)
     if st.session_state.get("pending_invite"):
         st.info("You have a friend invitation. Open Friends to review and accept it.")
-    if st.button("Open friends"):
-        st.session_state.main_page="Friends";st.rerun()
+    if st.session_state.get("adding_courses"):
+        # The same course selector as in Edit profile; only the courses change, everything else is saved back as it is.
+        from course_catalog import course_options,load_university_courses,match_courses
+        if st.session_state.get("shared_courses_for")!=profile["university"]:
+            st.session_state.shared_courses=load_university_courses(auth.client,profile["university"])
+            st.session_state.shared_courses_for=profile["university"]
+        listed_courses=[*CATALOG.get(profile["university"],[]),*st.session_state.get("shared_courses",[])]
+        own_courses=match_courses(profile["courses"],listed_courses)
+        chosen_courses=st.multiselect("Your courses",course_options(listed_courses,own_courses),default=own_courses,accept_new_options=True,placeholder="Choose courses or type a new one",key="profile_course_editor")
+        chosen_courses=match_courses(chosen_courses,listed_courses)
+        st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too.")
+        save_courses,cancel_courses=st.columns(2)
+        if save_courses.button("Save courses",type="primary",use_container_width=True):
+            try:
+                repo.save(dict(username=profile["username"],university=profile["university"],courses=chosen_courses,languages=profile["languages"],avatar=profile.get("avatar") or DEFAULT_AVATAR,
+                               degree=profile.get("degree","Not specified"),area=profile.get("area",""),graduation_year=profile.get("graduation_year")),
+                          profile.get("image_mode","Avatar"),None,profile.get("image_path"))
+                st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.session_state.pop("shared_courses_for",None)
+                st.session_state.notice="Your courses are saved.";st.rerun()
+            except ValueError as exc:st.error(str(exc))
+        if cancel_courses.button("Cancel",use_container_width=True):
+            st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.rerun()
+    elif st.button("Add courses",icon=":material/add:"):
+        st.session_state.adding_courses=True;st.rerun()
     st.caption("Your username, university, languages, chosen image, XP and streak are visible to signed-in students. Your email and courses are private.")
     st.stop()
 
@@ -2230,44 +2256,55 @@ if "chosen_university" not in st.session_state:
     saved_university=st.session_state.get("university_selection") or profile.get("university","")
     st.session_state.chosen_university="" if "prototype catalog" in saved_university else saved_university
 university=st.session_state.chosen_university
-with st.popover(university or "Select your university",use_container_width=True):
-    with st.form("university_lookup"):
-        university_query=st.text_input("Search universities",placeholder="Type a university name",key="university_query")
-        search_clicked=st.form_submit_button("Search")
-    if search_clicked:
+# Type-ahead field: suggestions from universities already in use and, live, from the ROR directory.
+if "known_universities" not in st.session_state:
+    st.session_state.known_universities=load_universities(auth.client)
+known_universities=st.session_state.known_universities
+picked,picked_from=fresh_module("university_picker").university_picker(known_universities,university,key="university_picker_"+str(st.session_state.get("university_pick",0)))
+if picked!=university:
+    st.session_state.chosen_university=university=picked
+    st.session_state.university_results=[];st.session_state.university_search_error=None;st.session_state.university_lookup=None
+    # A name picked from the suggestions is final; one that was only typed is also looked up on the server.
+    if picked and picked_from=="typed" and picked.lower() not in {name.lower() for name in known_universities}:
+        st.session_state.university_lookup=picked
         try:
-            with st.spinner("Searching universities…"):
-                st.session_state.university_results=search_universities(university_query)
-            st.session_state.university_search_error=None
+            with st.spinner("Looking up universities…"):
+                st.session_state.university_results=search_universities(picked)
         except (ValueError,UniversitySearchError) as exc:
             st.session_state.university_search_error=str(exc)
-            st.session_state.university_results=[]
+    st.rerun()  # redraw so the selector lists the new choice and the course list follows the university
+if university and st.session_state.get("university_lookup")==university:
     results=st.session_state.get("university_results",[])
     if st.session_state.get("university_search_error"):
         st.warning(st.session_state.university_search_error)
-    elif search_clicked and not results:
-        st.info("No match found. You can add your university below.")
+    elif results:
+        st.caption(f"Official names matching “{university}”. Choose one, or keep what you typed.")
+    else:
+        st.info("No match found in the directory. Your university is kept as you typed it.")
     for record in results:
         if st.button(record["label"],key="uni_"+record["id"],use_container_width=True):
             st.session_state.chosen_university=record["label"]
+            st.session_state.university_results=[];st.session_state.university_lookup=None
+            st.session_state.university_pick=st.session_state.get("university_pick",0)+1
             st.rerun()
-    with st.expander("University not listed? Add it yourself"):
-        custom_university=st.text_input("University name",max_chars=160)
-        if st.button("Use this university"):
-            if len(custom_university.strip())<2:
-                st.error("Enter your university's full name.")
-            else:
-                st.session_state.chosen_university=" ".join(custom_university.split())
-                st.rerun()
 degree=st.selectbox("Degree level (optional)",DEGREES,index=DEGREES.index(profile.get("degree","Not specified")))
-area=st.text_input("Field of study (optional)",value=profile.get("area",""),placeholder="For example: Finance, Computer Science or Psychology",max_chars=120)
+saved_area=" ".join(str(profile.get("area") or "").split())
+area_options=field_options(saved_area)
+area=st.selectbox("Field of study (optional)",area_options,index=area_options.index(saved_area) if saved_area else None,placeholder="Search the list or type your own",accept_new_options=True,help="Common degree subjects. Type your field if it is not listed.")
+area=" ".join(str(area or "").split())[:120]
 graduation_year=st.number_input("Expected graduation year (optional)",min_value=2000,max_value=2100,value=profile.get("graduation_year"),step=1,placeholder="For example: 2028",help="Your planned graduation year. Private and editable later.")
 st.caption("Degree level and field of study are private for now, ready for future matching.")
-course_options=list(dict.fromkeys([*CATALOG.get(university,[]),*profile.get("courses",[])]))
-courses=st.multiselect("Your courses",course_options,default=profile.get("courses",[]),accept_new_options=True)
-st.caption("Type a missing course and press Enter. If you change university, review your courses before saving. Shared university course search comes later.")
+if st.session_state.get("shared_courses_for")!=university:
+    st.session_state.shared_courses=load_university_courses(auth.client,university)
+    st.session_state.shared_courses_for=university
+shared_courses=st.session_state.get("shared_courses",[])
+listed_courses=[*CATALOG.get(university,[]),*shared_courses]
+own_courses=match_courses(profile.get("courses",[]),listed_courses)
+courses=st.multiselect("Your courses",course_options(listed_courses,own_courses),default=own_courses,accept_new_options=True,placeholder="Choose courses or type a new one")
+courses=match_courses(courses,listed_courses)
+st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too. If you change university, review your courses before saving.")
 languages=st.multiselect("Languages",LANGUAGES,default=profile.get("languages",[]))
-st.caption("University and languages are visible to signed-in students. Your courses remain private.")
+st.caption("University and languages are visible to signed-in students. Which courses you take stays private; only the course names in use at a university are shared.")
 st.subheader("Your look")
 mode=st.radio("Profile image",["Avatar","Photo"],horizontal=True,index=1 if profile.get("image_mode")=="Photo" else 0)
 avatar=dict(st.session_state.get("avatar_draft") or profile.get("avatar") or DEFAULT_AVATAR)

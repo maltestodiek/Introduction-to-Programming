@@ -61,7 +61,7 @@ The avatar editor offers category tabs and sideways swipe, arrow, keyboard, and 
 
 Universities and courses can be entered manually when absent from the starter catalog. Live worldwide search uses the ROR v2 API with the education filter and displays institution names with countries. Only the search text is sent to ROR. Missing institutions can be entered manually, including during an API outage. ROR is not a complete university/department directory.
 
-Optional degree level and field of study are editable, saved privately, and reserved for later matching. Courses remain private. Later shared course discovery will list university-scoped course names, not enrollment identities. Catalog moderation, aliases and duplicate merging will need rules before that shared feature is built.
+Optional degree level and field of study are editable, saved privately, and reserved for later matching. Courses remain private. Shared course discovery lists university-scoped course names, not enrollment identities, and field of study is chosen from a list of common degree subjects; see [the task spec](../specs/tasks/study-fields-and-shared-courses.md). Catalog moderation, aliases and duplicate merging will need rules before that shared feature is built.
 
 The former tests rejecting every unknown university/course were updated to reject blank names instead, reflecting the user's explicit custom-entry requirement.
 
