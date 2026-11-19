@@ -301,6 +301,15 @@ class StudyRepository:
         if result.get('error'):raise ValueError(result['error'])
         return result
 
+    def studio(self):
+        """The signed-in student's own Study and Battle decks with creation, edit and publication times."""
+        message='Your decks could not be loaded. Refresh and retry.'
+        try:result=self.client.rpc('deck_studio',{}).execute().data
+        except Exception as exc:raise ValueError(message) from exc
+        decks=result.get('decks') if isinstance(result,dict) else None
+        if not isinstance(decks,list):raise ValueError(message)
+        return decks
+
     def progress(self,session_id):
         try:result=self.client.rpc('study_session_progress',{'p_session':session_id}).execute().data
         except Exception as exc:raise ValueError('Study progress could not be loaded. Refresh and retry.') from exc
