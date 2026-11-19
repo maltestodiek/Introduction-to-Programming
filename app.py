@@ -271,15 +271,17 @@ def friends_screen(friends,repo,state):
                 st.rerun()
         if state.get("invite_expires"):
             st.caption("Your current link expires: "+state["invite_expires"][:10])
-            if st.session_state.get("share_invite_token"):
-                try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",st.session_state.share_invite_token))
-                except ValueError as exc:st.info(str(exc))
-            else:st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
+            if not st.session_state.get("share_invite_token"):
+                st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
             if st.button("Revoke invitation link"):
                 if friend_action(friends,"revoke_invite"):
                     st.session_state.pop("share_invite_token",None)
                     st.rerun()
         st.caption("Links expire after seven days. Creating a new link replaces the previous one.")
+    if token:=st.session_state.get("share_invite_token"):
+        st.subheader("Your invitation link")
+        try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",token))
+        except ValueError as exc:st.info(str(exc))
     for title,items,actions in [("Incoming requests",state["incoming"],[("Accept","accept"),("Decline","decline")]),("Sent requests",state["sent"],[("Cancel request","cancel")]),("Your friends",state["friends"],[("Remove friend","remove")])]:
         st.subheader(f"{title} ({len(items)})")
         if not items:st.caption("Nothing here yet.")

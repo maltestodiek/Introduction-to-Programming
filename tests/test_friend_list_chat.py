@@ -61,3 +61,24 @@ def test_remove_friend_still_works_from_the_same_entry(monkeypatch):
     next(b for b in at.button if b.key=='remove_edge1').click().run()
     assert ('remove','edge1') in friend_calls
     assert not at.exception
+
+
+def test_new_invitation_link_remains_visible_after_creation(monkeypatch):
+    monkeypatch.setenv('APP_URL','https://studyduel-nova.streamlit.app')
+    created=False
+    def friends(self,action,value=''):
+        nonlocal created
+        if action=='list':
+            return {'code':'AB23CD45','friends':[],'incoming':[],'sent':[],'invite_expires':'2026-12-01T12:00:00Z' if created else None}
+        if action=='create_invite':
+            created=True
+            return {'token':'a'*48,'message':'Invitation link created.'}
+        return {'message':'Done.'}
+    monkeypatch.setattr('db.FriendsRepository.action',friends)
+    monkeypatch.setattr('db.ChatRepository.action',lambda self,kind,data=None:{'threads':[]})
+    at=deck_app(monkeypatch)
+    at.session_state['main_page']='Friends';at.run()
+    next(button for button in at.button if button.label=='Create new invitation link').click().run()
+    assert any('https://studyduel-nova.streamlit.app/?invite=' in code.value for code in at.code)
+    assert any(item.value=='Your invitation link' for item in at.subheader)
+    assert not at.exception
