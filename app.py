@@ -654,8 +654,7 @@ def decks_screen(client,profile):
             st.caption('Upload text-based PDF slides, then review generated questions.')
             if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     with st.container(border=True,key='deck_studio_entry'):
-        studio_icon,studio_text,studio_open=st.columns([.5,5,2],vertical_alignment='center')
-        studio_icon.markdown('<div class="deck-create-icon deck-studio-icon">✎</div>',unsafe_allow_html=True)
+        studio_text,studio_open=st.columns([5,2],vertical_alignment='center')
         with studio_text:
             st.markdown('#### Deck studio')
             st.caption('Edit, publish and track every deck you created: private drafts, published Study decks and Battle decks, with their dates.')
