@@ -57,11 +57,30 @@ def test_failed_open_shows_an_error_and_opens_nothing(monkeypatch):
     assert not at.exception
 
 
-def test_remove_friend_still_works_from_the_same_entry(monkeypatch):
+def test_friend_actions_are_visible_and_removal_keeps_a_confirmation(monkeypatch):
     at,_,friend_calls=friends_page(monkeypatch)
+    labels={button.label for button in at.button}
+    assert {'Challenge to a Battle','Study together','Remove friend'} <= labels
+    assert not any(expander.label=='Remove friend' for expander in at.expander)
+    next(b for b in at.button if b.key=='remove_friend_edge1').click().run()
     next(b for b in at.button if b.key=='remove_edge1').click().run()
     assert ('remove','edge1') in friend_calls
     assert not at.exception
+
+
+def test_friend_match_actions_open_the_matching_invitation_setup(monkeypatch):
+    at,_,_=friends_page(monkeypatch)
+    next(button for button in at.button if button.key=='friend_battle_edge1').click().run()
+    assert at.session_state['main_page']=='Play'
+    assert at.session_state['play_mode_preview']=='Battle'
+    assert at.session_state['battle_new_setup']
+    assert at.session_state['battle_invite_friend']['id']=='b'
+    at,_,_=friends_page(monkeypatch)
+    next(button for button in at.button if button.key=='friend_study_edge1').click().run()
+    assert at.session_state['main_page']=='Play'
+    assert at.session_state['study_active']
+    assert at.session_state['study_choice']=='Study together'
+    assert at.session_state['study_invite_friend']['id']=='b'
 
 
 def test_empty_friend_sections_use_clear_copy_without_counts(monkeypatch):
