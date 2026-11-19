@@ -1997,67 +1997,128 @@ def study_screen(client,profile):
             st.session_state.study_session=r['id'];st.session_state.pop('study_request_id',None);st.session_state.pop('study_invite_friend',None);st.rerun()
 
 
+def resume_battle_session(session_id):
+    st.session_state.battle_session=session_id;st.session_state.pop('battle_feedback',None);st.rerun()
+
+
+def resume_study_session(session):
+    st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together'
+    st.session_state.study_session=session['id'];st.rerun()
+
+
+def show_more_history():
+    st.session_state.sessions_history_limit=st.session_state.get('sessions_history_limit',5)+10
+
+
+def session_card(client,kind,session):
+    """One ongoing Battle or Study session with its progress, turn and resume action."""
+    with st.container(border=True,key=f"session_card_{kind}_{session['id']}"):
+        if kind=='battle':
+            st.markdown(':material/swords: **'+session['deck_name']+'**')
+            st.caption(f"Battle · {session['course']} · {session['language']} · 15 questions")
+            if session['status']=='pending':
+                st.progress(1.0);st.markdown(":orange-badge[:material/hourglass_top: Opponent's turn]")
+                st.caption('Your answers are saved. Waiting for your opponent.')
+            else:st.markdown(':violet-badge[Your turn]' if session.get('started') else ':blue-badge[Ready to start]')
+            if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id'],use_container_width=True):
+                resume_battle_session(session['id'])
+            return
+        st.markdown(':material/menu_book: **'+session['name']+'**')
+        if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'home')
+        st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
+        st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
+        if session['state']=='waiting':st.markdown(':gray-badge[Waiting for a study partner]')
+        else:st.markdown(':green-badge[Your turn]')
+        if session.get('deadline'):
+            from logic import time_left_text
+            st.caption('Finish by '+session['deadline']+' · '+(time_left_text(session['deadline']) or ''))
+        if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id'],use_container_width=True):
+            resume_study_session(session)
+
+
 def ongoing_sessions(client):
+    """Play overview: continue banner, ongoing sessions, history table and Battle and Study figures."""
     from db import BattleRepository
-    from logic import battle_session_groups
+    from logic import STUDY_ONGOING_STATES,battle_record,battle_session_groups,session_continue_pick,session_history_rows,time_left_text
     battle_data=play_request(BattleRepository(client),'list')
     study_data=study_request(client,'list')
-    st.subheader('Ongoing sessions')
-    battle,study=st.columns(2)
-    with battle:
-        st.markdown('**:material/swords: Battle**')
-        data=battle_data
-        if data is not None:
-            active=battle_session_groups(data.get('sessions',[]))['ongoing']
-            if not active:st.caption('No ongoing Battle sessions.')
-            for session in active:
-                with st.container(border=True):
-                    st.write('**'+session['deck_name']+'**')
-                    st.caption(f"{session['course']} · {session['language']} · 15 questions · {session['status'].title()}")
-                    if session['status']=='pending':st.caption('Your answers are saved. Waiting for your opponent.')
-                    if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id']):
-                        st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
-    with study:
-        st.markdown('**:material/menu_book: Study**')
-        data=study_data
-        if data is not None:
-            active=[s for s in data['sessions'] if s['state'] in ('own','waiting','paired')]
-            if not active:st.caption('No ongoing Study sessions.')
-            for session in active:
-                with st.container(border=True):
-                    st.write('**'+session['name']+'**')
-                    if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'home')
-                    st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
-                    if session['state']=='waiting':st.caption('Waiting for a study partner.')
-                    if session.get('deadline'):st.caption('Finish by '+session['deadline'])
-                    if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id']):
-                        st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together';st.session_state.study_session=session['id'];st.rerun()
-            study_plan_play_todos(client,data)
-
-    st.subheader('Session history')
-    battle_history,study_history=st.columns(2)
-    with battle_history:
-        st.markdown('**:material/swords: Battle**')
-        finished=battle_session_groups((battle_data or {}).get('sessions',[]))['completed']
-        if not finished:st.caption('No past Battle sessions yet.')
-        for session in finished:
-            with st.container(border=True):
-                st.write('**'+session['deck_name']+'**')
-                st.caption('Opponent: '+session.get('opponent_username','Unknown opponent'))
-                st.caption(f"{session['course']} · {session['language']} · Completed · {session.get('result','').title()} · {session.get('game_xp_delta',0):+d} Battle XP · {session['score']}/15")
-                if st.button('Review Battle',key='history_battle_review_'+session['id']):
-                    battle_review_dialog(client,session['id'])
-    with study_history:
-        st.markdown('**:material/menu_book: Study**')
-        finished=[s for s in (study_data or {}).get('sessions',[]) if s['state'] not in ('own','waiting','paired')]
-        if not finished:st.caption('No past Study sessions yet.')
-        for session in finished:
-            with st.container(border=True):
-                st.write('**'+session['name']+'**')
-                if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'history')
-                st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+' · '+session['state'].capitalize()+f" · {session['cursor']} / {session['count']} answered")
-                if st.button('View Study session',key='history_study_'+session['id']):
-                    st.session_state.study_active=True;st.session_state.study_session=session['id'];st.rerun()
+    st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
+    battles=(battle_data or {}).get('sessions',[]);groups=battle_session_groups(battles)
+    study_sessions=(study_data or {}).get('sessions',[])
+    study_ongoing=[s for s in study_sessions if s['state'] in STUDY_ONGOING_STATES]
+    study_finished=[s for s in study_sessions if s['state'] not in STUDY_ONGOING_STATES]
+    heading,filters=st.columns([3,2],vertical_alignment='center')
+    heading.subheader('Your sessions')
+    with filters:choice=st.segmented_control('Session filter',['All','Battle','Study'],default='All',key='sessions_filter',label_visibility='collapsed') or 'All'
+    show_battle=choice in ('All','Battle');show_study=choice in ('All','Study')
+    battle_ongoing=groups['ongoing'] if show_battle else [];study_active=study_ongoing if show_study else []
+    main,side=st.columns([2.3,1],gap='large')
+    with main:
+        pick=session_continue_pick(battle_ongoing,study_active)
+        if pick:
+            session=pick['session'];study=pick['kind']=='study'
+            with st.container(border=True,key='sessions_continue'):
+                text,action=st.columns([3,1.2],vertical_alignment='center')
+                with text:
+                    left=time_left_text(session.get('deadline')) if study else None
+                    st.caption('Continue where you left off'+(' · '+left if left else ''))
+                    st.markdown('**'+(session['name'] if study else session['deck_name'])+'**')
+                    if study:
+                        st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
+                        st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
+                    else:st.caption(f"Battle · {session['course']} · {session['language']} · your turn")
+                if action.button('Resume',key='continue_session',icon=':material/play_arrow:',type='primary',use_container_width=True):
+                    resume_study_session(session) if study else resume_battle_session(session['id'])
+        st.subheader('Ongoing sessions')
+        cards=[('battle',session) for session in battle_ongoing]+[('study',session) for session in study_active]
+        if not cards:st.caption('No ongoing sessions. Start a new one above.')
+        else:st.caption(f"{len(cards)} active")
+        for row in range(0,len(cards),2):
+            for column,(kind,session) in zip(st.columns(2),cards[row:row+2]):
+                with column:session_card(client,kind,session)
+        st.subheader('Session history')
+        rows=session_history_rows(groups['completed'] if show_battle else [],study_finished if show_study else [])
+        if not rows:st.caption('No finished sessions yet. Your results will appear here.')
+        else:
+            widths=[1,3,2.2,1,.8,1.6]
+            for column,label in zip(st.columns(widths),['Result','Deck','Mode','Score','XP','']):column.caption(label)
+            limit=st.session_state.get('sessions_history_limit',5)
+            for item in rows[:limit]:
+                with st.container(key=f"history_row_{item['kind']}_{item['id']}"):
+                    result,deck,mode,score,xp,action=st.columns(widths,vertical_alignment='center')
+                    result.markdown(f":{item['tone']}-badge[{item['result']}]")
+                    deck.markdown(item['deck'])
+                    with mode:
+                        if item['kind']=='study' and item['session']['mode']!='solo':session_partner_chat(client,'study',item['id'],'history')
+                        else:st.markdown(item['mode'])
+                    score.markdown(item['score']);xp.markdown(item['xp'])
+                    if item['kind']=='battle':
+                        if action.button('Review Battle',key='history_battle_review_'+item['id'],use_container_width=True):
+                            battle_review_dialog(client,item['id'])
+                    elif action.button('View Study session',key='history_study_'+item['id'],use_container_width=True):
+                        st.session_state.study_active=True;st.session_state.study_session=item['id'];st.rerun()
+            if len(rows)>limit:st.button('Show more',key='sessions_history_more',on_click=show_more_history,use_container_width=True)
+    with side:
+        record=battle_record(battles);played=record['wins']+record['losses']
+        with st.container(key='sessions_stat_record'):
+            st.caption('Battle record')
+            st.markdown(f"### {record['wins']} – {record['losses']}")
+            if played:st.progress(record['wins']/played)
+            if record['draws']:st.caption(f"{record['draws']} draw{'s' if record['draws']!=1 else ''}")
+        with st.container(key='sessions_stat_xp'):
+            st.caption('Battle XP from these Battles')
+            st.markdown(f"### {sum(b.get('game_xp_delta',0) or 0 for b in groups['completed']):+d}")
+        with st.container(key='sessions_stat_study'):
+            st.caption('Study sessions finished')
+            st.markdown(f"### {sum(1 for s in study_finished if s['state']=='completed')}")
+            st.caption(f"{sum(s.get('cursor',0) for s in study_sessions)} questions answered in Study sessions")
+        streak=(globals().get('profile') or {}).get('win_streak')
+        if streak is not None:
+            with st.container(key='sessions_stat_streak'):
+                st.caption(':material/local_fire_department: Win streak')
+                st.markdown(f'### {streak}')
+                st.caption('Win your next Battle to extend it.')
+        if show_study:study_plan_play_todos(client,study_data)
 
 
 def battle_request(client,action,data=None):
