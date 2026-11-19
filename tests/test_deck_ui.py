@@ -36,6 +36,33 @@ def test_active_decks_screen_does_not_offer_legacy_thirty_question_authoring(mon
     assert not at.exception
 
 
+def test_decks_show_a_vertical_course_list_and_filtered_deck_section(monkeypatch):
+    profile={'username':'student_a','university':'Example University','courses':['Corporate Finance','Statistics'],'languages':['English'],'avatar':DEFAULT_AVATAR,'image_mode':'Avatar'}
+    battle_decks={
+        'Corporate Finance':[{'id':'battle-cf','name':'Capital structure','course':'Corporate Finance','language':'English','creator_id':'a','profiles':{'username':'student_a'}}],
+        'Statistics':[],
+    }
+    monkeypatch.setattr('db.ProfileRepository.load',lambda self:profile)
+    monkeypatch.setattr('db.DeckRepository.list',lambda self,course:battle_decks[course])
+    monkeypatch.setattr('db.StudyRepository.publication',lambda self,action,data=None:{'decks':[
+        {'id':'study-stats','name':'Regression recap','course':'Statistics','language':'English','author':'Student B','count':12,'owned':False},
+    ]} if action=='list' else {})
+    client=Mock();client.auth.get_user.return_value=Obj(user=Obj(id='a'))
+    auth=AuthService(client);auth.user=client.auth.get_user.return_value.user
+    at=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=20)
+    at.session_state['auth']=auth;at.session_state['main_page']='Decks';at.run()
+    headings=[item.value for item in at.subheader]
+    assert headings.count('Your courses')==1 and 'Your decks' in headings
+    labels=[item.value for item in at.markdown]
+    assert any('Corporate Finance' in label for label in labels)
+    assert any('Statistics' in label for label in labels)
+    assert not any(field.label=='Browse course' for field in at.selectbox)
+    assert len([item for item in at.button if item.label=='Study'])==2
+    assert len([item for item in at.button if item.label=='Battle'])==2
+    assert button(at,'Daily review')
+    assert not at.exception
+
+
 def test_battle_deck_creator_shows_questions_only_after_choosing_a_source(monkeypatch):
     cards=[{'id':str(index),'question':f'Question {index}'} for index in range(16)]
     def action(self,kind,data=None):

@@ -1,0 +1,11 @@
+/* Desktop-first course list used below the deck creation paths. */
+.st-key-open_daily_review button{border-radius:999px!important;font-weight:700!important}
+:is([class*="st-key-course_list_"],[class*="st-key-course_deck_"]){border-radius:18px!important}
+:is([class*="st-key-course_list_"]){background:var(--sd-surface)!important;transition:border-color .2s ease,box-shadow .2s ease}
+:is([class*="st-key-course_list_"]):hover{border-color:#818cf8!important;box-shadow:0 7px 18px var(--sd-shadow)}
+.course-list-count{display:grid;grid-template-columns:auto 1fr;gap:.1rem .45rem;align-items:baseline;color:var(--sd-muted);font-size:.84rem}
+.course-list-count strong{color:var(--sd-text);font-size:1.15rem;line-height:1.05}
+.course-list-count span{white-space:nowrap}
+:is([class*="st-key-course_deck_"]) [data-testid="stCaptionContainer"] p{font-weight:600}
+@media(prefers-reduced-motion:reduce){:is([class*="st-key-course_list_"]){transition:none!important}}
+@media(max-width:700px){.course-list-count{margin:.35rem 0}:is([class*="st-key-course_list_"]){padding:.75rem!important}}
