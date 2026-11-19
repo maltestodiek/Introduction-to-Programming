@@ -2377,11 +2377,6 @@ if profile:
         descriptions={'Play':'Challenge friends to quiz duels using your course decks.','Leaderboard':'See how your study progress compares with other students.','Study Plan':'Organize your study sessions and upcoming goals.'}
         st.write(descriptions[page]);st.info('Coming soon')
         st.stop()
-if st.button('Sign out'):
-    message=auth.sign_out().message
-    for k in list(st.session_state):del st.session_state[k]
-    st.session_state.browser_loaded=True;st.session_state.started=True
-    st.session_state.notice=message;st.rerun()
 editing=not profile or st.session_state.get("editing",False)
 if not editing:
     friends=FriendsRepository(auth.client)
@@ -2404,7 +2399,16 @@ if not editing:
             study+=(" · " if study else "")+f"Class of {profile['graduation_year']}"
         if study:st.write(study)
         st.caption(" · ".join(profile["languages"]))
-        if st.button("Edit profile"):st.session_state.editing=True;st.rerun()
+        edit,sign_out=st.columns(2)
+        with edit:
+            if st.button("Edit profile",use_container_width=True):st.session_state.editing=True;st.rerun()
+        with sign_out:
+            st.html('<style>.st-key-profile_sign_out button{background:#fff1f2!important;color:#b42318!important;border-color:#fda4af!important}.st-key-profile_sign_out button:hover{background:#ffe4e6!important;border-color:#fb7185!important}</style>')
+            if st.button("Sign out",key="profile_sign_out",use_container_width=True):
+                message=auth.sign_out().message
+                for k in list(st.session_state):del st.session_state[k]
+                st.session_state.browser_loaded=True;st.session_state.started=True
+                st.session_state.notice=message;st.rerun()
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:st.write(":material/school: "+course)

@@ -46,4 +46,6 @@ def test_profile_button_still_opens_the_profile_page(monkeypatch):
     at=deck_app(monkeypatch)
     button(at,'Profile').click().run()
     assert button(at,'Edit profile')
+    assert next(item for item in at.button if item.key=='profile_sign_out').label=='Sign out'
+    assert any('.st-key-profile_sign_out button' in body for body in html_bodies(at))
     assert not at.exception
