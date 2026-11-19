@@ -45,3 +45,19 @@ def test_generation_falls_back_to_the_function_client_error_when_no_response_is_
     client.functions.invoke.side_effect=Exception('Server returned HTTP 502')
     with pytest.raises(ValueError,match='HTTP 502'):
         AnkiImportRepository(client).generate('import-1',['card-1'])
+
+
+@pytest.mark.parametrize('raw',[b'{"count":18,"status":"draft"}','{"count":18,"status":"draft"}',bytearray(b'{"count":18,"status":"draft"}')])
+def test_generation_accepts_the_raw_json_body_returned_by_supabase_functions(raw):
+    # supabase-py returns response.content (bytes) unless responseType is "json".
+    client=Mock()
+    client.functions.invoke.return_value=raw
+    assert AnkiImportRepository(client).generate('import-1',['card-1'])=={'count':18,'status':'draft'}
+
+
+@pytest.mark.parametrize('raw',[b'not json',b'[]',b'{"count":1}'])
+def test_unreadable_raw_generation_body_does_not_claim_success(raw):
+    client=Mock()
+    client.functions.invoke.return_value=raw
+    with pytest.raises(ValueError,match='unexpected result'):
+        AnkiImportRepository(client).generate('import-1',['card-1'])
