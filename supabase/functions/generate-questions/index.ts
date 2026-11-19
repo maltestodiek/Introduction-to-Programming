@@ -1,6 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { requestQuestionsWithRetry } from "./requesty.ts";
+import { chunks, mapWithConcurrency } from "./batches.ts";
+import { balanceAnswerPositions } from "./quality.ts";
+
+// Batches of 10 cards take about 30 seconds each. Running a few at once keeps a
+// 100-card request well inside the Edge Function time limit.
+const BATCH_SIZE = 10;
+const BATCH_CONCURRENCY = 5;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,11 +17,6 @@ const corsHeaders = {
 
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: corsHeaders });
-
-const chunks = <T>(values: T[], size: number): T[][] =>
-  Array.from({ length: Math.ceil(values.length / size) }, (_, index) =>
-    values.slice(index * size, (index + 1) * size)
-  );
 
 serve(async (request) => {
   if (request.method === "OPTIONS") {
@@ -85,15 +87,15 @@ serve(async (request) => {
   }
 
   try {
-    const drafts = [];
-    for (const batch of chunks(cards, 10)) {
-      const generated = await requestQuestionsWithRetry(
+    const batches = await mapWithConcurrency(chunks(cards, BATCH_SIZE), BATCH_CONCURRENCY, (batch) =>
+      requestQuestionsWithRetry(
         requestyApiKey,
         requestyModel,
         batch.map(({ id, front, back }) => ({ id, front, back })),
-      );
-      drafts.push(...generated);
-    }
+      )
+    );
+    // The model's answer order is biased towards the first option; UniArena decides it.
+    const drafts = balanceAnswerPositions(batches.flat());
 
     const { data: saved, error: saveError } = await supabase.rpc("save_ai_question_drafts", {
       p_import_id: input.importId,

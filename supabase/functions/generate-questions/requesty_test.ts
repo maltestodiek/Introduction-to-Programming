@@ -84,3 +84,65 @@ Deno.test("recovers an omitted source with a targeted follow-up request", async 
   assertEquals(drafts.map((draft) => draft.sourceCardId), twoCards.map((card) => card.id));
   assertEquals(calls, 3);
 });
+
+const reply = (questions: unknown[]) =>
+  new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ questions }) } }] }), { status: 200 });
+
+const balancedOptions = ["Money today can earn a return", "Money today is always taxed", "Money later earns more", "Money today has no risk"];
+const lengthCueOptions = [
+  "Money available today is worth more because it can be invested and earn a return",
+  "Money loses value",
+  "Interest is fixed",
+  "Cash is risk free",
+];
+
+Deno.test("requests strict structured JSON output", async () => {
+  let format: Record<string, unknown> | undefined;
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    format = JSON.parse(String(init?.body)).response_format;
+    return reply([{ sourceCardId: cards[0].id, question: "Q?", options: balancedOptions, correctOptionIndex: 0, explanation: "" }]);
+  };
+  await requestQuestionsFromRequesty("test-key", "test-model", cards, fakeFetch);
+  assertEquals(format?.type, "json_schema");
+  assertEquals((format?.json_schema as { strict?: boolean })?.strict, true);
+});
+
+Deno.test("falls back to JSON mode when a model rejects structured output", async () => {
+  const formats: string[] = [];
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    const type = JSON.parse(String(init?.body)).response_format.type;
+    formats.push(type);
+    if (type === "json_schema") return new Response("unsupported response_format", { status: 400 });
+    return reply([{ sourceCardId: cards[0].id, question: "Q?", options: balancedOptions, correctOptionIndex: 0, explanation: "" }]);
+  };
+  const drafts = await requestQuestionsFromRequesty("test-key", "test-model", cards, fakeFetch);
+  assertEquals(formats, ["json_schema", "json_object"]);
+  assertEquals(drafts.length, 1);
+});
+
+Deno.test("asks once more for options of similar length when the answer stands out", async () => {
+  const bodies: Array<{ cards: unknown[]; rewrite?: string }> = [];
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    const sent = JSON.parse(JSON.parse(String(init?.body)).messages[1].content);
+    bodies.push(sent);
+    const options = bodies.length === 1 ? lengthCueOptions : balancedOptions;
+    return reply([{ sourceCardId: cards[0].id, question: "Which statement is true?", options, correctOptionIndex: 0, explanation: "" }]);
+  };
+  const drafts = await requestQuestionsWithRetry("test-key", "test-model", cards, fakeFetch);
+  assertEquals(bodies.length, 2);
+  assertEquals(typeof bodies[1].rewrite, "string");
+  assertEquals(drafts[0].options, balancedOptions);
+});
+
+Deno.test("keeps the original draft when the length rewrite fails", async () => {
+  let calls = 0;
+  const fakeFetch: typeof fetch = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return reply([{ sourceCardId: cards[0].id, question: "Which statement is true?", options: lengthCueOptions, correctOptionIndex: 0, explanation: "" }]);
+    }
+    return new Response("bad request", { status: 400 });
+  };
+  const drafts = await requestQuestionsWithRetry("test-key", "test-model", cards, fakeFetch);
+  assertEquals(drafts[0].options, lengthCueOptions);
+});

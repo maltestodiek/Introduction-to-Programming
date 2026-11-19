@@ -80,7 +80,10 @@ function validateQuestions(
     if (new Set(normalisedOptions).size !== 4) {
       throw new Error(`Question ${index + 1} has duplicate options.`);
     }
-    if (!Number.isInteger(correctOptionIndex) || correctOptionIndex < 0 || correctOptionIndex > 3) {
+    if (
+      typeof correctOptionIndex !== "number" || !Number.isInteger(correctOptionIndex) ||
+      correctOptionIndex < 0 || correctOptionIndex > 3
+    ) {
       throw new Error(`Question ${index + 1} has an invalid correct option.`);
     }
 
