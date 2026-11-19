@@ -26,6 +26,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Profile figures beside the avatar](tasks/profile-stats-beside-avatar.md): Battle XP, Win streak and Friends as a compact row next to the avatar.
 - [Faster page loads](tasks/faster-page-loads.md): smaller images, reused profile data and pictures, fewer sign-in checks and slower inbox polling.
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
+- [Study Plan desktop layout](tasks/study-plan-desktop-layout.md): wide overview and editor layout without changing Study Plan behaviour.
 - [Course list on Decks](tasks/course-list-layout.md): desktop course overview with Study and Battle entry points plus filtered deck cards.
 
 A feature can require several small implementation branches. Add a task spec under `specs/tasks/` when a change needs its own acceptance scenarios; link it to its parent topic. Do not duplicate a rule across multiple feature specs. Before implementation, list state, persistence, an allowed action, a rejected action and restart verification; review expected outcomes with the group.
