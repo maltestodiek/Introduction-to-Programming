@@ -7,7 +7,7 @@ INCOMING={'id':'edge2','person':{'id':'c','username':'student_c','image_path':No
 SENT={'id':'edge3','person':{'id':'d','username':'student_d','image_path':None}}
 
 
-def friends_page(monkeypatch,open_error=None):
+def friends_page(monkeypatch,open_error=None,students=None):
     chat_calls=[];friend_calls=[]
     def friends(self,action,value=''):
         friend_calls.append((action,value))
@@ -22,6 +22,7 @@ def friends_page(monkeypatch,open_error=None):
         if kind=='read':return {'partner':FRIEND['person'],'messages':[],'has_older':False}
         return {}
     monkeypatch.setattr('db.FriendsRepository.action',friends)
+    monkeypatch.setattr('db.FriendsRepository.university_profiles',lambda self:{'university':'Nova SBE','profiles':students or []})
     monkeypatch.setattr('db.ChatRepository.action',chat)
     at=deck_app(monkeypatch)
     at.session_state['main_page']='Friends'
@@ -60,6 +61,15 @@ def test_remove_friend_still_works_from_the_same_entry(monkeypatch):
     at,_,friend_calls=friends_page(monkeypatch)
     next(b for b in at.button if b.key=='remove_edge1').click().run()
     assert ('remove','edge1') in friend_calls
+    assert not at.exception
+
+
+def test_university_directory_uses_a_compact_add_friend_row(monkeypatch):
+    at,_,_=friends_page(monkeypatch,students=[{'id':'nova-1','username':'student_nova','image_path':None}])
+    button=next(button for button in at.button if button.key=='university_friend_nova-1')
+    assert button.label=='Add as friend'
+    assert button.use_container_width
+    assert any(caption.value=='Nova SBE' for caption in at.caption)
     assert not at.exception
 
 
