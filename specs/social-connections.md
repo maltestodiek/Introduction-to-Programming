@@ -11,6 +11,8 @@ Each profile gets a random, unique eight-character uppercase alphanumeric friend
 
 Profile -> Friends shows My code, Add friend, Invite a friend, Incoming requests, Sent requests, and Friends. Entering a valid code previews the student's public username and active image. Send request creates a pending request. Only the recipient can accept or decline; the sender can cancel a pending request. Acceptance creates one mutual friendship; either friend can remove it. No emails or private study information appear in lookup results.
 
+Students can also find profiles at their own university. The university stored on the signed-in profile is the server-enforced identifier: the directory only returns other profiles with the identical university value, and only returns username and active image. Existing friends and pending requests are excluded. A directory request can only target a displayed student at the caller's university and creates the same consent-based pending request as a friend-code request.
+
 Approved link behavior: an invitation uses a separate random, unguessable token, valid seven days and revocable by the sender. Opening a link does not create a friendship. After signing in or completing signup/profile setup, the recipient sees the sender and clicks Accept invitation. This records mutual consent without requiring the sender to approve a second time. The reusable link can invite multiple friends until expiration or revocation. Only a digest of the token is stored. Preserve invitation context through signup/login; expired or revoked links cannot be accepted.
 
 Sharing offers Copy link, WhatsApp, Email and Share. Native Share uses the device share sheet when available; installed apps and browser support determine whether Messenger or other targets appear. Copy link remains available as a fallback. WhatsApp/email open a composed message for the user to send; the app never sends messages automatically and needs no messaging-provider credentials. A deployed public HTTPS app URL is required for links that work on friends' devices. Never present localhost links as externally usable invitations.
@@ -42,6 +44,7 @@ Group chats, attachments, calls, typing indicators, push/email notifications, co
 8. Copy, WhatsApp and email contain the configured public invitation URL. Native sharing failure/cancellation preserves the invitation and offers a fallback. No message is sent by tests.
 9. Anonymous callers cannot enumerate codes, requests or friendships. Friend actions cannot expose emails, courses, degree, field of study or inactive images.
 10. A failed network response does not falsely display success; refreshing reads the authoritative relationship from Supabase.
+11. University discovery returns only other profiles with the caller's exact university identifier, with no email or private profile fields. A student from another university cannot be requested through this route.
 
 The user approved these outcomes and implementation on 11 November 2026. Existing authentication/profile acceptance checks remain unchanged.
 

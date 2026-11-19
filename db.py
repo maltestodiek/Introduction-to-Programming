@@ -63,6 +63,21 @@ class FriendsRepository:
         from logic import normalize_friend_code
         return self.action('lookup',normalize_friend_code(code))
 
+    def university_profiles(self):
+        try:result=self.client.rpc('university_friend_profiles',{}).execute().data
+        except Exception as exc:raise ValueError('Could not load students from your university. Refresh and try again.') from exc
+        if not isinstance(result,dict):raise ValueError('Could not load students from your university. Refresh and try again.')
+        if result.get('error'):raise ValueError(result['error'])
+        if not isinstance(result.get('profiles'),list):raise ValueError('Could not load students from your university. Refresh and try again.')
+        return result
+
+    def request_university_friend(self,user_id):
+        try:result=self.client.rpc('request_university_friend',{'p_user_id':user_id}).execute().data
+        except Exception as exc:raise ValueError('Could not send this friend request. Refresh and try again.') from exc
+        if not isinstance(result,dict):raise ValueError('Could not send this friend request. Refresh and try again.')
+        if result.get('error'):raise ValueError(result['error'])
+        return result
+
 class DeckRepository:
     """Reviewed snapshots and atomic publication under the signed-in identity."""
     def __init__(self,client):self.client=client

@@ -5,18 +5,22 @@ import {randomUUID} from 'node:crypto';
 const {PGlite}=await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 const db=new PGlite();
 const [a,b,c]=[randomUUID(),randomUUID(),randomUUID()];
+async function asUser(id){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');}
 try {
  await db.exec(`create role anon; create role authenticated; create schema auth;
  create table auth.users(id uuid primary key);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
- create table profiles(id uuid primary key,username text,image_path text);
+ create table profiles(id uuid primary key,username text,image_path text,university text);
  create table chat_threads(low_id uuid,high_id uuid);
  create table play_duels(id uuid,p1 uuid,p2 uuid);
  create table study_sessions(id uuid,user_id uuid,partner_id uuid,finished_at timestamptz);`);
- for(const u of [a,b,c]){await db.query('insert into auth.users values($1)',[u]);await db.query("insert into profiles values($1,'student',null)",[u]);}
+ for(const u of [a,b,c]){await db.query('insert into auth.users values($1)',[u]);await db.query("insert into profiles values($1,'student',null,'Nova SBE')",[u]);}
  await db.exec(await fs.readFile(new URL('../supabase/friends-schema.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/session-friend-update.sql',import.meta.url),'utf8'));
- async function action(u,k,v){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[u]);await db.exec('set role authenticated');return(await db.query('select friends_action($1,$2) r',[k,v])).rows[0].r;}
+ await db.exec(await fs.readFile(new URL('../supabase/university-friend-discovery.sql',import.meta.url),'utf8'));
+ async function action(u,k,v){await asUser(u);return(await db.query('select friends_action($1,$2) r',[k,v])).rows[0].r;}
+ await asUser(a);const directory=(await db.query('select university_friend_profiles() r')).rows[0].r;
+ assert.equal(directory.university,'Nova SBE');assert.equal(directory.profiles.length,2);assert.ok(!('email' in directory.profiles[0]));
  assert.ok((await action(a,'request_user',c)).error);
  assert.ok((await action(a,'request_user',a)).error);
  await db.exec('reset role');const s1=randomUUID(),s2=randomUUID();
