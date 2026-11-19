@@ -17,6 +17,8 @@ A Battle Deck is a separate, immutable 15-question snapshot created from one of 
 4. Before submission, the interface asks for explicit confirmation: **“By submitting, you accept that the deck can be played by everyone.”**
 5. After confirmation, the Battle Deck is published and available to other eligible students. There is no separate Battle-Pool opt-in step.
 
+A shortcut starts the same flow from a Study deck: the page of one of the creator's own Study decks shows a large **Publish as Battle deck** button with a Battle icon. It opens **Create Battle Mode Deck** with that deck already chosen as the source, so the creator goes straight to choosing 15 questions; a **Back to Study deck** button returns without creating anything. Shared Study copies and legacy decks do not show the button. With fewer than 15 questions the button is disabled and the page states how many questions the deck has. The Study deck itself is not changed.
+
 Raw imported Anki source cards and private AI drafts are not Battle Deck sources. They must first complete their existing review and publication workflow. Source-deck edits after submission do not alter the Battle Deck snapshot. To change its questions, the creator makes and submits a new Battle Deck with a new rating history.
 
 Every Battle Deck has exactly 15 valid questions. A source deck with fewer than 15 valid questions is marked not Battle-capable. A source deck with more than 15 questions requires the creator to choose its 15 Battle questions.
