@@ -1822,6 +1822,8 @@ def battle_round_screen(client,session_id):
     result=battle_request(client,'round',{'id':session_id})
     if result is None:return
     state=result['state']
+    if state=='feedback':
+        st.session_state.battle_feedback={**result,'id':session_id};st.rerun()
     if state=='question':
         question,overview=st.columns([3,1],gap='large')
         with question:

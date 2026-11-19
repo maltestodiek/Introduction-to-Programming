@@ -67,6 +67,15 @@ try{
   const created=await ok(A,'create_deck',{source_deck_id:sourceId,card_ids:source.cards.slice(0,15).map(card=>card.id),consent:true,name:'Battle snapshot'});
   const stored=(await db.query('select cards,public_consent_at from public.battle_decks where id=$1',[created.id])).rows[0];
   assert.equal(stored.cards.length,15);assert.ok(stored.public_consent_at);
+  const timeoutSessionId=randomUUID();
+  await db.exec('reset role');
+  await db.query('insert into public.battle_sessions(id,p1,p2,battle_deck_id,source_kind,cards,course,language) values($1,$2,$3,$4,$5,$6::jsonb,$7,$8)',[timeoutSessionId,A,B,created.id,'random',JSON.stringify(stored.cards),'Finance','English']);
+  await db.query("insert into public.battle_rounds(session_id,user_id) values($1,$2),($1,$3)",[timeoutSessionId,A,B]);
+  const started=await ok(A,'round',{id:timeoutSessionId});assert.equal(started.state,'question');
+  await db.exec('reset role');await db.query("update public.battle_rounds set question_started=now()-interval '31 seconds' where session_id=$1 and user_id=$2",[timeoutSessionId,A]);
+  const timedOut=await ok(A,'round',{id:timeoutSessionId});
+  assert.deepEqual([timedOut.state,timedOut.feedback.timed_out,timedOut.feedback.answer_id],['feedback',true,null]);
+  const nextQuestion=await ok(A,'round',{id:timeoutSessionId});assert.deepEqual([nextQuestion.state,nextQuestion.index],['question',1]);
   await asUser(B);
   const available=(await db.query("select battle_deck_availability('Finance','English') result")).rows[0].result;
   assert.equal(available.available,true);
