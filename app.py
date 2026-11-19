@@ -23,6 +23,7 @@ def fresh_module(name):
 fresh_module("course_catalog")
 from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
+from answer_order import display_options
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
@@ -1132,7 +1133,7 @@ def study_round_screen(client,sid):
                 st.html('<div class="study-question-card">'+escape(r['question'])+'</div>')
                 question_tools(f'study_{sid}_{r["index"]}',r.get('allow_calculator') is True)
                 cols=st.columns(2)
-                for i,a in enumerate(r['options']):
+                for i,a in enumerate(display_options(r['options'],sid,r['index'])):
                     if cols[i%2].button(a['text'],key=f"study_answer_{sid}_{r['index']}_{a['id']}",use_container_width=True):
                         if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:
                             clear_notepads();st.rerun()
@@ -1140,7 +1141,7 @@ def study_round_screen(client,sid):
                 c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
                 if r['correct']:st.success('Correct!')
                 else:st.error('Not quite. Review the correct answer below.')
-                answer_markup=''.join('<div class="study-answer-card '+('is-correct is-correct-animated' if a['id']==c['correct_answer_id'] and r['correct'] else 'is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in c['answers'])
+                answer_markup=''.join('<div class="study-answer-card '+('is-correct is-correct-animated' if a['id']==c['correct_answer_id'] and r['correct'] else 'is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in display_options(c['answers'],sid,r['index']))
                 st.html('<div class="study-answer-grid">'+answer_markup+'</div>')
                 prefix=f"{sid}_{r['index']}"
                 with st.expander('Private note / feedback to author'):
@@ -1812,7 +1813,7 @@ def battle_round_screen(client,session_id):
             if response['correct']:st.success('Correct!')
             elif response.get('timed_out'):st.error('Time expired.')
             else:st.error('That answer was incorrect.')
-            answer_markup=''.join('<div class="battle-answer-card '+('is-correct is-correct-animated' if answer['id']==card['correct_answer_id'] and response['correct'] else 'is-correct' if answer['id']==card['correct_answer_id'] else 'is-incorrect' if answer['id']==response.get('answer_id') else 'is-neutral')+'">'+escape(answer['text'])+'</div>' for answer in card['answers'])
+            answer_markup=''.join('<div class="battle-answer-card '+('is-correct is-correct-animated' if answer['id']==card['correct_answer_id'] and response['correct'] else 'is-correct' if answer['id']==card['correct_answer_id'] else 'is-incorrect' if answer['id']==response.get('answer_id') else 'is-neutral')+'">'+escape(answer['text'])+'</div>' for answer in display_options(card['answers'],session_id,response['index']))
             st.html('<div class="battle-answer-grid">'+answer_markup+'</div>')
             if st.button('Continue',type='primary'):
                 st.session_state.pop('battle_feedback',None);st.rerun()
@@ -1828,7 +1829,7 @@ def battle_round_screen(client,session_id):
             st.html('<div class="battle-question-card">'+escape(result['question'])+'</div>')
             question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
             columns=st.columns(2)
-            for i,answer in enumerate(result['options']):
+            for i,answer in enumerate(display_options(result['options'],session_id,result['index'])):
                 if columns[i%2].button(answer['text'],key=f'battle_answer_{session_id}_{result["index"]}_{answer["id"]}',use_container_width=True):
                     response=battle_request(client,'answer',{'id':session_id,'index':result['index'],'answer_id':answer['id']})
                     if response is not None:
