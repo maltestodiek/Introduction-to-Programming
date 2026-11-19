@@ -16,3 +16,12 @@
 .st-key-sessions_stat_record [data-testid="stProgress"] div[role="progressbar"]>div{background:#f7c1c1}
 .st-key-sessions_stat_streak{background:color-mix(in srgb,#ef9f27 18%,var(--sd-surface))}
 @media(prefers-reduced-motion:reduce){[class*="st-key-session_card_"]{transition:none!important}}
+/* Ongoing cards in one row share the same height; the action button sits at the bottom. */
+[data-testid="stHorizontalBlock"]:has([class*="st-key-session_card_"]){align-items:stretch}
+[data-testid="stColumn"]:has([class*="st-key-session_card_"])>[data-testid="stVerticalBlock"]{height:100%}
+[data-testid="stLayoutWrapper"]:has(>[class*="st-key-session_card_"]){flex:1 1 auto;height:100%}
+[class*="st-key-session_card_"]{height:100%;min-height:260px;display:flex;flex-direction:column}
+[class*="st-key-session_card_"]>[data-testid="stElementContainer"]:has([data-testid="stButton"]){margin-top:auto}
+/* History actions always show their full label, wrapping onto a second line if needed. */
+[class*="st-key-history_row_"] [data-testid="stButton"] button{height:auto;min-height:2.5rem;padding:.35rem .75rem}
+[class*="st-key-history_row_"] [data-testid="stButton"] button *{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.25}
