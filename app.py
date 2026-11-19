@@ -472,7 +472,7 @@ def battle_deck_creator(client):
     repository=BattleRepository(client)
     st.header('Create Battle Mode Deck')
     if st.session_state.get('battle_return_study'):
-        if st.button('Back to Study deck',icon=':material/arrow_back:'):
+        if st.button('Back to Deck studio' if st.session_state.get('deck_studio') else 'Back to Study deck',icon=':material/arrow_back:'):
             for key in ('battle_deck_creator','battle_source_id','battle_return_study'):st.session_state.pop(key,None)
             st.rerun()
     st.caption('Choose 15 questions from one of your reviewed Study decks. After submission, the snapshot can be played by everyone.')
@@ -520,6 +520,8 @@ def decks_screen(client,profile):
     st.title('Decks')
     if st.session_state.get('battle_deck_creator'):
         battle_deck_creator(client);return
+    if st.session_state.get('deck_studio'):
+        deck_studio_screen(client,profile);return
     if st.session_state.get('anki_import_open'):
         anki_import_screen(client,profile)
         return
@@ -666,10 +668,13 @@ def decks_screen(client,profile):
     for deck in battle_decks:battle_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
     for deck in study_decks:study_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
 
-    course_heading,review_action=st.columns([5,1],vertical_alignment='center')
+    course_heading,studio_action,review_action=st.columns([4,1,1],vertical_alignment='center')
     with course_heading:
         st.subheader('Your courses')
         st.caption('Choose a course to study at your pace or start a Battle.')
+    with studio_action:
+        if st.button('Deck studio',key='open_deck_studio',icon=':material/design_services:',use_container_width=True):
+            st.session_state.deck_studio=True;st.rerun()
     with review_action:
         if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
             st.session_state.study_library=True;st.rerun()
@@ -725,6 +730,67 @@ def decks_screen(client,profile):
                     if kind=='battle':key='course_battle_deck_'+deck['id']
                     else:key=('course_open_study_' if deck.get('owned') else 'course_copy_study_')+deck['id']
                     course_deck_action(client,kind,deck,key)
+
+
+def deck_studio_timezone():
+    from zoneinfo import ZoneInfo
+    name=getattr(st.context,'timezone',None) or 'Europe/Berlin'
+    try:ZoneInfo(name)
+    except Exception:name='Europe/Berlin'
+    return name
+
+
+def deck_studio_edit(client,deck_id):
+    from copy import deepcopy
+    deck=study_request(client,'deck',{'id':deck_id,'shared':False})
+    if deck is None:return
+    st.session_state.study_draft={key:deepcopy(deck[key]) for key in ['id','name','course','language','cards']}
+    st.session_state.study_revision=deck['revision'];st.session_state.pop('study_review',None)
+    st.session_state.study_library=True;st.session_state.pop('deck_studio',None);st.rerun()
+
+
+def deck_studio_screen(client,profile):
+    """Own Study and Battle decks with status, times and edit or publish actions."""
+    from db import StudyRepository
+    from logic import deck_studio_created_text,deck_studio_groups,format_deck_time
+    st.header('Deck studio')
+    st.caption('Decks created by you. Edit them, publish them to your university or turn them into Battle decks.')
+    if st.button('Back to Decks',icon=':material/arrow_back:'):
+        st.session_state.pop('deck_studio',None);st.rerun()
+    try:decks=StudyRepository(client).studio()
+    except ValueError as exc:st.error(str(exc));return
+    zone=deck_studio_timezone();groups=deck_studio_groups(decks)
+    choice=st.segmented_control('Deck studio filter',list(groups),format_func=lambda key:f'{key} {len(groups[key])}',default='All',key='deck_studio_filter',label_visibility='collapsed') or 'All'
+    if not groups[choice]:
+        st.info('You have not created any decks yet. Create one on the Decks page.' if choice=='All' else 'No decks match this filter.')
+    for deck in groups[choice]:
+        did=deck['id'];study=deck['kind']=='study'
+        with st.container(border=True,key=f"studio_deck_{deck['kind']}_{did}"):
+            info,status,times,actions=st.columns([2.4,1.2,1.6,2.4],vertical_alignment='center')
+            info.markdown((':material/menu_book:' if study else ':material/swords:')+' **'+deck['name']+'**')
+            info.caption(f"{deck['course']} · {deck['language']} · {deck['count']} questions")
+            created=deck_studio_created_text(deck,zone)
+            times.caption('Created '+(created[0].lower()+created[1:] if created.startswith('On or before') else created))
+            if not study:
+                status.markdown(':red-badge[Battle · public]');times.caption('Fixed 15-question snapshot')
+                with actions:course_deck_action(client,'battle',deck,'studio_start_'+did)
+                continue
+            times.caption('Last edited '+format_deck_time(deck['updated_at'],zone))
+            if deck.get('published_at'):
+                status.markdown(':green-badge[Published]');status.caption('Published since '+format_deck_time(deck['published_at'],zone))
+            else:
+                status.markdown(':orange-badge[Private]');status.caption('Only you can see it')
+            edit,publish,battle=actions.columns(3)
+            if edit.button('Edit',key='studio_edit_'+did,use_container_width=True):deck_studio_edit(client,did)
+            if deck.get('published_at'):
+                if publish.button('Unpublish',key='studio_unpublish_'+did,use_container_width=True):
+                    if study_public_request(client,'unpublish',{'id':did}) is not None:
+                        st.session_state.notice='The Study deck is private again.';st.rerun()
+            elif publish.button('Publish',key='studio_publish_'+did,type='primary',use_container_width=True):
+                if study_public_request(client,'publish',{'id':did}) is not None:
+                    st.session_state.notice='Published to students at your university.';st.rerun()
+            if battle.button('Battle',key='studio_battle_'+did,icon=':material/swords:',use_container_width=True,disabled=deck['count']<15,help=None if deck['count']>=15 else 'Battle decks need at least 15 questions.'):
+                st.session_state.battle_deck_creator=True;st.session_state.battle_source_id=did;st.session_state.battle_return_study=True;st.rerun()
 
 
 def course_deck_meta(kind,deck):
@@ -919,7 +985,7 @@ def navigate(page):
         st.session_state.play_exit_to=page
     else:
         if page=='Decks':
-            for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','battle_source_id','battle_return_study','anki_import_open','pdf_import_open','anki_generation_open'):
+            for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','battle_source_id','battle_return_study','deck_studio','anki_import_open','pdf_import_open','anki_generation_open'):
                 st.session_state.pop(key,None)
         st.session_state.main_page=page
         if page=='Play':

@@ -407,3 +407,28 @@ def ai_generation_progress(elapsed,estimate):
         left=(f'{minutes} min {seconds} s' if seconds else f'{minutes} min') if minutes else f'{seconds} s'
         return fraction,f'About {left} left'
     return min(.95,.9+.05*(elapsed-estimate)/estimate),'Almost done. Finishing the last questions…'
+
+
+def _deck_moment(value,tz_name):
+    from zoneinfo import ZoneInfo
+    moment=datetime.fromisoformat(str(value).replace('Z','+00:00'))
+    if moment.tzinfo is None:moment=moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(ZoneInfo(tz_name or 'Europe/Berlin'))
+
+def format_deck_time(value,tz_name):
+    """Format a stored timestamp in the viewer's time zone, for example '19 Nov 2026, 20:25'."""
+    if not value:return None
+    moment=_deck_moment(value,tz_name)
+    return f"{moment.day} {moment:%b %Y}, {moment:%H:%M}"
+
+def deck_studio_created_text(deck,tz_name):
+    """Creation time, or an honest upper bound for older decks whose creation was not recorded."""
+    if deck.get('created_at'):return format_deck_time(deck['created_at'],tz_name)
+    moment=_deck_moment(deck['updated_at'],tz_name)
+    return f"On or before {moment.day} {moment:%b %Y}"
+
+def deck_studio_groups(decks):
+    """Deck studio filters: everything, private and published Study decks, and Battle decks."""
+    study=[deck for deck in decks if deck.get('kind')=='study']
+    return {'All':list(decks),'Private':[deck for deck in study if not deck.get('published_at')],
+            'Published':[deck for deck in study if deck.get('published_at')],'Battle':[deck for deck in decks if deck.get('kind')=='battle']}
