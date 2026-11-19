@@ -271,12 +271,19 @@ def friends_screen(friends,repo,state):
         st.caption(f"Students with a profile at {university_directory['university']}.")
         for student in students:
             with st.container(border=True):
-                public_person(student,repo)
-                if st.button("Send friend request",key="university_friend_"+student['id']):
-                    try:
-                        result=friends.request_university_friend(student['id'])
-                        st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
-                    except ValueError as exc:st.error(str(exc))
+                avatar,name,university,action=st.columns([0.6,2.4,4.2,1.8],vertical_alignment="center")
+                with avatar:
+                    try:data=repo.image(student.get("image_path"))
+                    except Exception:data=None
+                    portrait(data or render_avatar(DEFAULT_AVATAR),48)
+                with name:st.write("**"+student['username']+"**")
+                with university:st.caption(university_directory['university'])
+                with action:
+                    if st.button("Add as friend",key="university_friend_"+student['id'],use_container_width=True):
+                        try:
+                            result=friends.request_university_friend(student['id'])
+                            st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
+                        except ValueError as exc:st.error(str(exc))
     else:st.caption("No other students from your university are available to add right now.")
     st.subheader("Invite a friend with a link")
     if st.button("Create new invitation link"):
