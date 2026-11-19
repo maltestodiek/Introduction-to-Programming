@@ -245,39 +245,39 @@ def friends_screen(friends,repo,state):
             st.session_state.pop("pending_invite",None)
             if "invite" in st.query_params:del st.query_params["invite"]
             st.rerun()
-    with st.expander("Add a friend by code"):
-        with st.form("find_friend"):
-            code=st.text_input("Friend code",placeholder="#AB23CD45",max_chars=12)
-            find=st.form_submit_button("Find friend")
-        if find:
-            st.session_state.pop("friend_preview",None)
-            try:
-                normalized=normalize_friend_code(code)
-                result=friends.lookup(normalized)
-                st.session_state.friend_preview={"code":normalized,"person":result["person"]}
-            except ValueError as exc:st.error(str(exc))
-        preview=st.session_state.get("friend_preview")
-        if preview:
-            public_person(preview["person"],repo)
-            if st.button("Send friend request"):
-                if friend_action(friends,"request",preview["code"]):
-                    st.session_state.pop("friend_preview",None)
-                    st.rerun()
-    with st.expander("Invite a friend with a link"):
-        if st.button("Create new invitation link"):
-            result=friend_action(friends,"create_invite")
-            if result:
-                st.session_state.share_invite_token=result["token"]
+    st.subheader("Add a friend by code")
+    with st.form("find_friend"):
+        code=st.text_input("Friend code",placeholder="#AB23CD45",max_chars=12)
+        find=st.form_submit_button("Find friend")
+    if find:
+        st.session_state.pop("friend_preview",None)
+        try:
+            normalized=normalize_friend_code(code)
+            result=friends.lookup(normalized)
+            st.session_state.friend_preview={"code":normalized,"person":result["person"]}
+        except ValueError as exc:st.error(str(exc))
+    preview=st.session_state.get("friend_preview")
+    if preview:
+        public_person(preview["person"],repo)
+        if st.button("Send friend request"):
+            if friend_action(friends,"request",preview["code"]):
+                st.session_state.pop("friend_preview",None)
                 st.rerun()
-        if state.get("invite_expires"):
-            st.caption("Your current link expires: "+state["invite_expires"][:10])
-            if not st.session_state.get("share_invite_token"):
-                st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
-            if st.button("Revoke invitation link"):
-                if friend_action(friends,"revoke_invite"):
-                    st.session_state.pop("share_invite_token",None)
-                    st.rerun()
-        st.caption("Links expire after seven days. Creating a new link replaces the previous one.")
+    st.subheader("Invite a friend with a link")
+    if st.button("Create new invitation link"):
+        result=friend_action(friends,"create_invite")
+        if result:
+            st.session_state.share_invite_token=result["token"]
+            st.rerun()
+    if state.get("invite_expires"):
+        st.caption("Your current link expires: "+state["invite_expires"][:10])
+        if not st.session_state.get("share_invite_token"):
+            st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
+        if st.button("Revoke invitation link"):
+            if friend_action(friends,"revoke_invite"):
+                st.session_state.pop("share_invite_token",None)
+                st.rerun()
+    st.caption("Links expire after seven days. Creating a new link replaces the previous one.")
     if token:=st.session_state.get("share_invite_token"):
         st.subheader("Your invitation link")
         try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",token))
