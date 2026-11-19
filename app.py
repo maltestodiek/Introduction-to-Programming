@@ -471,6 +471,10 @@ def battle_deck_creator(client):
     from db import BattleRepository
     repository=BattleRepository(client)
     st.header('Create Battle Mode Deck')
+    if st.session_state.get('battle_return_study'):
+        if st.button('Back to Study deck',icon=':material/arrow_back:'):
+            for key in ('battle_deck_creator','battle_source_id','battle_return_study'):st.session_state.pop(key,None)
+            st.rerun()
     st.caption('Choose 15 questions from one of your reviewed Study decks. After submission, the snapshot can be played by everyone.')
     try:data=repository.action('sources')
     except ValueError as exc:st.error(str(exc));return
@@ -478,7 +482,8 @@ def battle_deck_creator(client):
     if not sources:
         st.info('Create and save a reviewed Study deck first.');return
     labels={source['id']:f"{source['name']} · {source['course']} · {source['language']} · {source['count']} questions" for source in sources}
-    source_id=st.selectbox('Source Study deck',list(labels),format_func=labels.get,index=None,placeholder='Choose one of your Study decks')
+    preselected=st.session_state.get('battle_source_id')
+    source_id=st.selectbox('Source Study deck',list(labels),format_func=labels.get,index=list(labels).index(preselected) if preselected in labels else None,placeholder='Choose one of your Study decks')
     if source_id is None:
         st.info('Choose a Study deck to see its questions.')
         return
@@ -504,7 +509,8 @@ def battle_deck_creator(client):
             except ValueError as exc:st.error(str(exc))
             else:
                 st.success('Your public 15-question Battle Deck is ready.')
-                st.session_state.pop('battle_deck_creator',None);st.session_state.battle_deck_created=created['id'];st.rerun()
+                for key in ('battle_deck_creator','battle_source_id','battle_return_study'):st.session_state.pop(key,None)
+                st.session_state.battle_deck_created=created['id'];st.rerun()
 
 
 def decks_screen(client,profile):
@@ -630,6 +636,7 @@ def decks_screen(client,profile):
                         st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
                     st.session_state.pop('study_deck_open',None);st.rerun()
                 if st.button('Create Battle Mode Deck',use_container_width=True):
+                    st.session_state.pop('battle_source_id',None);st.session_state.pop('battle_return_study',None)
                     st.session_state.battle_deck_creator=True;st.rerun()
     with anki:
         with st.container(border=True,key='deck_create_anki'):
@@ -910,7 +917,7 @@ def navigate(page):
         st.session_state.play_exit_to=page
     else:
         if page=='Decks':
-            for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','anki_import_open','pdf_import_open','anki_generation_open'):
+            for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','battle_source_id','battle_return_study','anki_import_open','pdf_import_open','anki_generation_open'):
                 st.session_state.pop(key,None)
         st.session_state.main_page=page
         if page=='Play':
@@ -1207,6 +1214,11 @@ def study_library(client,profile):
                 d={k:deepcopy(deck[k]) for k in ['id','name','course','language','cards']}
                 if deck.get('legacy'):d['id']=str(uuid4())
                 st.session_state.study_draft=d;st.session_state.study_revision=0 if deck.get('legacy') else deck['revision'];st.session_state.pop('study_review',None);st.rerun()
+            if not deck.get('legacy'):
+                enough=len(deck['cards'])>=15
+                if st.button('Publish as Battle deck',key='study_publish_battle',icon=':material/swords:',type='primary',use_container_width=True,disabled=not enough):
+                    st.session_state.battle_deck_creator=True;st.session_state.battle_source_id=deck['id'];st.session_state.battle_return_study=True;st.rerun()
+                st.caption('Pick 15 questions from this deck for a public Battle deck. This Study deck stays unchanged.' if enough else f"Battle decks need at least 15 questions. This deck has {len(deck['cards'])}.")
         for i,c in enumerate(deck['cards']):
             level='new' if c.get('level') is None else str(c['level'])
             with st.expander(f"{i+1}. {c.get('chapter') or 'General'} · {STUDY_LEVEL_TITLES[level]} · {c['question']}"):
