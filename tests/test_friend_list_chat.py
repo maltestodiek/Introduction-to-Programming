@@ -64,6 +64,21 @@ def test_remove_friend_still_works_from_the_same_entry(monkeypatch):
     assert not at.exception
 
 
+def test_empty_friend_sections_use_clear_copy_without_counts(monkeypatch):
+    def friends(self,action,value=''):
+        if action=='list':return {'code':'AB23CD45','friends':[],'incoming':[],'sent':[],'invite_expires':'2026-12-01T12:00:00Z'}
+        return {'message':'Done.'}
+    monkeypatch.setattr('db.FriendsRepository.action',friends)
+    monkeypatch.setattr('db.FriendsRepository.university_profiles',lambda self:{'university':'Nova SBE','profiles':[]})
+    monkeypatch.setattr('db.ChatRepository.action',lambda self,kind,data=None:{'threads':[]})
+    at=deck_app(monkeypatch);at.session_state['main_page']='Friends';at.run()
+    assert {'Incoming requests','Sent requests','Your friends'} <= {item.value for item in at.subheader}
+    assert any(':material/inbox: No Incoming request' == item.value for item in at.caption)
+    assert any('Connect with your friends and Battle them' == item.value for item in at.caption)
+    assert not any('Your current link expires' in item.value for item in at.caption)
+    assert not at.exception
+
+
 def test_university_directory_uses_a_compact_add_friend_row(monkeypatch):
     at,_,_=friends_page(monkeypatch,students=[{'id':'nova-1','username':'student_nova','image_path':None}])
     button=next(button for button in at.button if button.key=='university_friend_nova-1')
