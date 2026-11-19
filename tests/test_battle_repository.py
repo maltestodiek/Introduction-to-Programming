@@ -1,4 +1,6 @@
-from db import battle_error_message
+from types import SimpleNamespace
+
+from db import BattleRepository,battle_error_message,question_report_error_message
 
 
 def test_battle_error_message_keeps_eligibility_feedback():
@@ -13,3 +15,21 @@ def test_battle_error_message_hides_unknown_database_details():
 def test_battle_error_message_labels_an_existing_invitation():
     error=Exception('There is already a pending Battle invitation between you')
     assert battle_error_message(error).startswith('Outstanding invitation')
+
+
+def test_question_report_uses_the_participant_only_database_function():
+    calls=[]
+    class Client:
+        def rpc(self,name,data):
+            calls.append((name,data))
+            return SimpleNamespace(execute=lambda:SimpleNamespace(data={'reported':True}))
+    assert BattleRepository(Client()).report_question('session-1',4,'unclear_question','Please clarify.')=={'reported':True}
+    assert calls==[('report_battle_question',{
+        'p_session':'session-1','p_card_index':4,
+        'p_reason':'unclear_question','p_note':'Please clarify.',
+    })]
+
+
+def test_question_report_error_identifies_a_missing_database_migration():
+    error=Exception('Could not find the function public.report_battle_question in the schema cache')
+    assert question_report_error_message(error).startswith('Question reports are not set up yet.')

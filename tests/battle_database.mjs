@@ -33,7 +33,7 @@ try{
     create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema auth to anon,authenticated;
-    create table public.profiles(id uuid primary key,username text,university text,languages text[],xp integer not null default 0,win_streak integer not null default 0);
+    create table public.profiles(id uuid primary key,username text,university text,languages text[],image_path text,xp integer not null default 0,win_streak integer not null default 0);
     create table public.profile_private(user_id uuid primary key,courses text[]);
     create table public.study_decks(id uuid primary key,creator_id uuid not null references public.profiles(id),snapshot jsonb not null,revision integer not null default 1,updated_at timestamptz not null default now());
     create table public.ai_question_drafts(id uuid primary key default gen_random_uuid(),owner_id uuid,status text,question text);
@@ -46,6 +46,7 @@ try{
   await db.exec(await fs.readFile(new URL('../supabase/battle-mode-schema.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-round-progress.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-xp-only.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/battle-question-reports.sql',import.meta.url),'utf8'));
   const source=sourceDeck();const sourceId=randomUUID();
   await db.query('insert into public.study_decks(id,creator_id,snapshot) values($1,$2,$3::jsonb)',[sourceId,A,JSON.stringify(source)]);
 
@@ -73,6 +74,18 @@ try{
   await db.query("insert into public.battle_rounds(session_id,user_id,answers,cursor,score) values($1,$2,$3::jsonb,2,1),($1,$4,'[]',0,0)",[sessionId,A,JSON.stringify([{index:0,correct:true},{index:1,correct:false,timed_out:true}]),B]);
   await asUser(A);const progress=(await db.query('select battle_round_progress($1) result',[sessionId])).rows[0].result;
   assert.deepEqual(progress.answers.map(answer=>answer.correct),[true,false]);
+  await assert.rejects(()=>db.query("select report_battle_question($1,0,'unclear_question','Needs context')",[sessionId]));
+  await db.exec('reset role');await db.query('update public.battle_sessions set settled_at=now() where id=$1',[sessionId]);
+  await asUser(A);const sessions=(await db.query('select battle_sessions_list() sessions')).rows[0].sessions;
+  assert.deepEqual([sessions[0].opponent_username,sessions[0].score,sessions[0].opponent_score],['Bob',1,0]);
+  const report=(await db.query("select report_battle_question($1,0,'unclear_question','Needs context') result",[sessionId])).rows[0].result;
+  assert.equal(report.reported,true);
+  const duplicate=(await db.query("select report_battle_question($1,0,'unclear_question','Needs context') result",[sessionId])).rows[0].result;
+  assert.equal(duplicate.reported,false);
+  assert.equal((await db.query('select count(*)::int n from public.battle_question_reports where session_id=$1',[sessionId])).rows[0].n,1);
+  await asUser(B);const secondParticipant=(await db.query("select report_battle_question($1,0,'incorrect_answer','Wrong solution') result",[sessionId])).rows[0].result;
+  assert.equal(secondParticipant.reported,true);
   await asUser(C);await assert.rejects(()=>db.query('select battle_round_progress($1)',[sessionId]));
+  await assert.rejects(()=>db.query("select report_battle_question($1,0,'other','Not a participant')",[sessionId]));
   console.log('PASS Battle Deck creation, immutable snapshots, eligibility and rating without extra XP');
 }catch(error){console.error(error.stack||error);process.exitCode=1;}finally{await db.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}

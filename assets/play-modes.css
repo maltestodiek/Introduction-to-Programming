@@ -1,7 +1,7 @@
 /* Decorative SVGs stay in the Streamlit page; all controls remain native buttons. */
 :is(.st-key-battle_mode_card,.st-key-study_mode_card){
  border:1px solid var(--sd-battle-border)!important;border-radius:24px!important;
- padding:24px!important;overflow:hidden;position:relative;
+ padding:24px!important;min-height:390px;overflow:hidden;position:relative;
  box-shadow:0 5px 18px var(--sd-shadow);
  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
 }
@@ -16,8 +16,8 @@
  min-height:52px;border-radius:14px;font-size:1rem;font-weight:700;
  transition:background .2s ease,box-shadow .2s ease,transform .2s ease;
 }
-.st-key-battle_mode_card button{background:var(--sd-surface);color:var(--sd-accent);border:1.5px solid var(--sd-battle-border)}
-.st-key-battle_mode_card button:hover{background:var(--sd-hover);border-color:#4f46e5;color:var(--sd-accent-hover)}
+.st-key-battle_mode_card button{background:var(--sd-battle-button);color:var(--sd-battle-button-text);border:1.5px solid var(--sd-battle-button)}
+.st-key-battle_mode_card button:hover{background:var(--sd-battle-button-hover);border-color:var(--sd-battle-button-hover);color:var(--sd-battle-button-text);box-shadow:0 6px 16px #10b98133}
 .st-key-study_mode_card button{background:#4f46e5;color:white;border:1.5px solid #4f46e5}
 .st-key-study_mode_card button:hover{background:#4338ca;color:white;box-shadow:0 6px 16px #4f46e533}
 :is(.st-key-battle_mode_card,.st-key-study_mode_card) button:focus-visible{outline:3px solid var(--sd-text);outline-offset:4px}
@@ -38,6 +38,9 @@
 @media(prefers-reduced-motion:reduce){
  :is(.st-key-battle_mode_card,.st-key-study_mode_card),:is(.st-key-battle_mode_card,.st-key-study_mode_card) *{animation:none!important;transition:none!important}
  :is(.st-key-battle_mode_card,.st-key-study_mode_card):is(:hover,:focus-within){transform:none}
+}
+@media(max-width:700px){
+ :is(.st-key-battle_mode_card,.st-key-study_mode_card){min-height:0}
 }
 
 .battle-emblem>circle:first-of-type{fill:var(--sd-icon-battle)}

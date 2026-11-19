@@ -33,6 +33,32 @@ end $$;
 
 alter table public.profiles drop column if exists creator_xp;
 
+-- Session rows expose only the opponent's public username, never an id or
+-- private-profile fields. This makes completed Battles reviewable from Play.
+create or replace function public.battle_sessions_list() returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare me uuid:=auth.uid();
+begin
+ if me is null then raise exception 'Sign in first'; end if;
+ return coalesce((select jsonb_agg(jsonb_build_object(
+  'id',x.id,'deck_name',x.name,'course',x.course,'language',x.language,
+  'status',x.status,'score',x.score,'opponent_score',x.opponent_score,
+  'result',x.result,'game_xp_delta',x.game_xp_delta,'started',x.started,
+  'opponent_username',x.opponent_username) order by x.created_at desc)
+ from (
+  select s.id,b.name,s.course,s.language,s.created_at,r.score,r.result,r.game_xp_delta,
+   r.started_at is not null started,
+   case when s.settled_at is not null then 'completed' when r.finished_at is not null then 'pending' else 'ongoing' end status,
+   case when s.settled_at is not null then o.score end opponent_score,
+   p.username opponent_username
+  from public.battle_sessions s
+  join public.battle_rounds r on r.session_id=s.id and r.user_id=me
+  join public.battle_rounds o on o.session_id=s.id and o.user_id=case when s.p1=me then s.p2 else s.p1 end
+  join public.battle_decks b on b.id=s.battle_deck_id
+  join public.profiles p on p.id=case when s.p1=me then s.p2 else s.p1 end
+  where me in(s.p1,s.p2)
+ ) x),'[]'::jsonb);
+end $$;
+
 -- The leaderboard is read-only and ranks only the stored Battle XP balance.
 create or replace function public.leaderboard() returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare me uuid:=auth.uid();
@@ -49,6 +75,6 @@ begin
          where p.id=me or exists(select 1 from public.friend_edges e where e.state='accepted' and ((e.low_id=me and e.high_id=p.id) or (e.high_id=me and e.low_id=p.id)))) f),'[]'::jsonb));
 end $$;
 
-revoke all on function public.battle_rate(uuid,uuid,text,boolean,boolean),public.leaderboard() from public,anon;
-grant execute on function public.battle_action(text,jsonb),public.leaderboard() to authenticated;
+revoke all on function public.battle_rate(uuid,uuid,text,boolean,boolean),public.battle_sessions_list(),public.leaderboard() from public,anon;
+grant execute on function public.battle_action(text,jsonb),public.battle_sessions_list(),public.leaderboard() to authenticated;
 commit;
