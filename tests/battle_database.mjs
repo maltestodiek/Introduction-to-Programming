@@ -21,6 +21,10 @@ async function action(id,name,data={}){
 }
 async function ok(id,name,data={}){const result=await action(id,name,data);assert.ok(!result.error,result.error);return result;}
 async function fail(id,name,data={}){await assert.rejects(()=>action(id,name,data));}
+async function cancelSearch(id){
+  await asUser(id);
+  return (await db.query('select cancel_battle_search() result')).rows[0].result;
+}
 function sourceDeck(course='Finance',language='English',count=20){
   return {name:'Corporate Finance essentials',course,language,cards:Array.from({length:count},(_,index)=>{
     const answers=Array.from({length:4},(_,answer)=>({id:randomUUID(),text:`Answer ${answer}`}));
@@ -47,9 +51,15 @@ try{
   await db.exec(await fs.readFile(new URL('../supabase/battle-round-progress.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-xp-only.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-question-reports.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/battle-deck-availability.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/battle-search-controls.sql',import.meta.url),'utf8'));
   const source=sourceDeck();const sourceId=randomUUID();
   await db.query('insert into public.study_decks(id,creator_id,snapshot) values($1,$2,$3::jsonb)',[sourceId,A,JSON.stringify(source)]);
 
+  await asUser(A);
+  const unavailable=(await db.query("select battle_deck_availability('Finance','English') result")).rows[0].result;
+  assert.equal(unavailable.available,false);
+  await fail(A,'join',{course:'Finance',language:'English',source_kind:'random'});
   const listed=await ok(A,'sources');assert.equal(listed.sources[0].battle_capable,true);
   await fail(B,'source',{id:sourceId});
   await fail(A,'create_deck',{source_deck_id:sourceId,card_ids:source.cards.slice(0,15).map(card=>card.id),consent:false});
@@ -57,6 +67,18 @@ try{
   const created=await ok(A,'create_deck',{source_deck_id:sourceId,card_ids:source.cards.slice(0,15).map(card=>card.id),consent:true,name:'Battle snapshot'});
   const stored=(await db.query('select cards,public_consent_at from public.battle_decks where id=$1',[created.id])).rows[0];
   assert.equal(stored.cards.length,15);assert.ok(stored.public_consent_at);
+  await asUser(B);
+  const available=(await db.query("select battle_deck_availability('Finance','English') result")).rows[0].result;
+  assert.equal(available.available,true);
+  const queued=await ok(B,'join',{course:'Finance',language:'English',source_kind:'random'});
+  assert.equal(queued.message,'Searching for one hour.');
+  assert.equal((await cancelSearch(A)).cancelled,false);
+  assert.equal((await cancelSearch(B)).cancelled,true);
+  assert.equal((await ok(B,'list')).search,null);
+  await ok(B,'join',{course:'Finance',language:'English',source_kind:'random'});
+  await db.exec('reset role');await db.query("update public.battle_searches set expires_at=now()-interval '1 second' where user_id=$1",[B]);
+  assert.equal((await db.query('select expire_battle_searches() result')).rows[0].result.expired,1);
+  assert.equal((await ok(B,'list')).search,null);
   source.cards[0].question='Changed source';
   await db.query('update public.study_decks set snapshot=$2::jsonb where id=$1',[sourceId,JSON.stringify(source)]);
   assert.notEqual((await db.query('select cards from public.battle_decks where id=$1',[created.id])).rows[0].cards[0].question,'Changed source');

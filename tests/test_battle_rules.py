@@ -1,8 +1,9 @@
 from copy import deepcopy
+from datetime import datetime,timezone
 
 import pytest
 
-from logic import battle_rating_score, battle_session_groups, select_battle_cards
+from logic import battle_rating_score, battle_search_remaining_seconds, battle_search_timer_text, battle_session_groups, select_battle_cards
 from test_deck_rules import complete_deck
 
 
@@ -41,3 +42,10 @@ def test_battle_session_groups_use_new_battle_mode_status_values():
     ])
     assert [session['id'] for session in groups['ongoing']] == ['ongoing', 'pending']
     assert [session['id'] for session in groups['completed']] == ['completed']
+
+
+def test_pending_battle_search_timer_counts_down_and_stops_at_zero():
+    now=datetime(2026,11,19,12,0,0,tzinfo=timezone.utc)
+    assert battle_search_remaining_seconds('2026-11-19T13:00:00Z',now)==3600
+    assert battle_search_timer_text(3599)=='00:59:59'
+    assert battle_search_remaining_seconds('2026-11-19T11:59:59Z',now)==0

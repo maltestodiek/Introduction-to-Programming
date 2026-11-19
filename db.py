@@ -182,6 +182,21 @@ class BattleRepository:
         if action=='list':result['sessions']=self.sessions()
         return result
 
+    def availability(self,course,language):
+        """Return whether the selected criteria have an eligible Battle Deck."""
+        try:result=self.client.rpc('battle_deck_availability',{'p_course':course,'p_language':language}).execute().data
+        except Exception as exc:raise ValueError(battle_error_message(exc)) from exc
+        if not isinstance(result,dict) or not isinstance(result.get('available'),bool):
+            raise ValueError('Battle Deck availability could not be loaded. Refresh and retry.')
+        return result
+
+    def cancel_search(self):
+        """Cancel only the signed-in user's pending random Battle search."""
+        try:result=self.client.rpc('cancel_battle_search',{}).execute().data
+        except Exception as exc:raise ValueError('This Battle search could not be cancelled. Refresh and retry.') from exc
+        if not isinstance(result,dict):raise ValueError('This Battle search could not be cancelled. Refresh and retry.')
+        return result
+
     def sessions(self):
         """Return Battle rows enriched with the opponent's visible username."""
         try:result=self.client.rpc('battle_sessions_list',{}).execute().data

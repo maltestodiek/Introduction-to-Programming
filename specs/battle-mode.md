@@ -24,6 +24,8 @@ Every Battle Deck has exactly 15 valid questions. A source deck with fewer than 
 ### Eligibility and matching
 A Battle uses published Battle Decks from the signed-in player's own university. The player chooses one of their enrolled courses; the deck must match that course and a language supported by both participants. A deck creator may participate in a Battle using their own Battle Deck if it is selected, but receives no rating control for that deck.
 
+Before a Random Deck search or invitation is created, the server confirms that at least one eligible public Battle Deck already exists for the selected university, course and language. If none exists, matchmaking is unavailable and the player receives clear feedback instead of a pending search. A successful unmatched Random Deck search lasts up to one hour and is shown under Pending after a restart.
+
 For a friend challenge, the initiating player chooses the source and, for Top Decks, the specific Battle Deck; the invitee accepts that selection. For a mutual random-opponent match, the initiating selection is authoritative: Random Deck is selected by the server after a compatible match is found, while a chosen Top Deck is shown as the proposed shared deck.
 
 ### Battle deck sources

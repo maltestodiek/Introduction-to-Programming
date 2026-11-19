@@ -1,6 +1,8 @@
 """Pure validation and profile image generation."""
 import io
 import re
+from datetime import datetime, timezone
+from math import ceil
 from PIL import Image, ImageDraw, ImageOps, ImageColor
 
 CATALOG = {"Nova SBE — prototype catalog": ["Financial Modeling", "Corporate Finance", "Investments"]}
@@ -11,6 +13,19 @@ CLOTHES = {"Indigo": "#6370DB", "Green": "#319C84", "Coral": "#E67B72", "Gold": 
 DEFAULT_AVATAR = dict(skin="Medium", hair="Short", hair_color="Brown", clothing="Indigo", accessory="None")
 OPTIONS = dict(skin=list(SKIN), hair=["Short","Long","Curly","Bald","Bob","Ponytail","Bun","Mohawk","Spiky","Side swept"], hair_color=list(HAIR_COLORS),
                clothing=list(CLOTHES), accessory=["None","Glasses","Hat","Sunglasses","Headphones","Earrings","Headband","Bow","Crown","Scarf","Monocle"])
+
+def battle_search_remaining_seconds(expires_at,now=None):
+    """Return the whole seconds remaining in a server-owned Battle search."""
+    try:expires=datetime.fromisoformat(str(expires_at).replace('Z','+00:00'))
+    except ValueError:return 0
+    if expires.tzinfo is None:expires=expires.replace(tzinfo=timezone.utc)
+    current=now or datetime.now(timezone.utc)
+    if current.tzinfo is None:current=current.replace(tzinfo=timezone.utc)
+    return max(0,ceil((expires-current).total_seconds()))
+
+def battle_search_timer_text(remaining_seconds):
+    hours,remainder=divmod(max(0,remaining_seconds),3600);minutes,seconds=divmod(remainder,60)
+    return f'{hours:02d}:{minutes:02d}:{seconds:02d}'
 
 def validate_email(email):
     email=email.strip()

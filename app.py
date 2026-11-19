@@ -1717,6 +1717,18 @@ def battle_request(client,action,data=None):
     return play_request(BattleRepository(client),action,data)
 
 
+def battle_deck_availability(client,course,language):
+    from db import BattleRepository
+    try:return BattleRepository(client).availability(course,language)
+    except ValueError as exc:st.error(str(exc));return None
+
+
+def battle_cancel_search(client):
+    from db import BattleRepository
+    try:return BattleRepository(client).cancel_search()
+    except ValueError as exc:st.error(str(exc));return None
+
+
 def battle_progress(client,session_id):
     from db import BattleRepository
     try:return BattleRepository(client).progress(session_id)
@@ -1846,14 +1858,42 @@ def battle_game_dialog(client,session_id):
     battle_round_screen(client,session_id)
 
 
-def battle_session_overview(client,sessions):
+@st.fragment(run_every='1s')
+def battle_pending_search(client,search):
+    from logic import battle_search_remaining_seconds,battle_search_timer_text
+    remaining=battle_search_remaining_seconds(search.get('expires_at'))
+    last_check=st.session_state.get('battle_search_status_checked_at',0)
+    if remaining==0:
+        refreshed=battle_request(client,'list')
+        st.session_state.battle_search_status_checked_at=time.monotonic()
+        if refreshed is not None and not refreshed.get('search'):
+            st.rerun()
+        st.caption('No pending Battles.')
+        return
+    if time.monotonic()-last_check>=10:
+        refreshed=battle_request(client,'list')
+        st.session_state.battle_search_status_checked_at=time.monotonic()
+        if refreshed is not None and not refreshed.get('search'):st.rerun()
+    with st.container(border=True):
+        st.write('**Finding an opponent**')
+        st.caption(f"{search['course']} · {search['language']}")
+        st.write('**Time remaining: '+battle_search_timer_text(remaining)+'**')
+        st.progress(min(1,remaining/3600),text='Searching for a compatible player')
+        if st.button('Cancel search',key='battle_cancel_search'):
+            if battle_cancel_search(client) is not None:
+                st.session_state.battle_notice='Battle search cancelled.'
+                st.rerun()
+
+
+def battle_session_overview(client,sessions,search=None):
     groups=(('Ongoing','ongoing'),('Pending','pending'),('Completed','completed'))
     for column,(label,status) in zip(st.columns(3),groups):
         with column:
             st.markdown('**'+label+'**')
             rows=[session for session in sessions if session['status']==status]
-            if not rows:
+            if not rows and not (status=='pending' and search):
                 st.caption('No '+label.lower()+' Battles.')
+            if status=='pending' and search:battle_pending_search(client,search)
             for session in rows:
                 with st.container(border=True):
                     opponent=session.get('opponent_username','Unknown opponent')
@@ -1884,6 +1924,7 @@ def battle_new_setup_screen(client,profile):
     language=st.selectbox('Language',profile['languages'],key='battle_language')
     source=st.radio('Battle Deck source',('Random Deck','Top Decks'),horizontal=True)
     selected=None
+    availability=None
     if source=='Top Decks':
         top=battle_request(client,'top',{'course':course,'language':language})
         ranked=(top or {}).get('decks',[])
@@ -1892,16 +1933,24 @@ def battle_new_setup_screen(client,profile):
             selected=st.selectbox('Top Deck',list(labels),format_func=labels.get)
         else:st.info('No Top Deck qualifies today yet.')
         for position in range(len(ranked)+1,11):st.button(f'{position}. Outstanding',disabled=True,key='battle_outstanding_'+str(position),use_container_width=True)
-    else:st.caption('The server will choose an eligible public 15-question Battle Deck uniformly after it finds a compatible opponent.')
+    else:
+        availability=battle_deck_availability(client,course,language)
+        if availability is not None and not availability['available']:
+            st.warning('No available Battle Decks yet for the selected course and language. Create a Battle Deck first or choose different criteria.')
+        elif availability is not None:
+            st.caption('The server will choose an eligible public 15-question Battle Deck uniformly after it finds a compatible opponent.')
     opponent=st.radio('Opponent',('Random player','Friend'),horizontal=True)
     payload={'course':course,'language':language,'source_kind':'random' if source=='Random Deck' else 'top'}
     if selected:payload['deck_id']=selected
+    can_start=not (source=='Random Deck' and (availability is None or not availability['available']))
     if opponent=='Random player':
-        if st.button('Find random player',type='primary',disabled=source=='Top Decks' and selected is None):
+        if st.button('Find random player',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
             result=battle_request(client,'join',payload)
             if result is not None:
                 if result.get('session_id'):st.session_state.battle_session=result['session_id']
-                else:st.session_state.battle_notice=result.get('message','Searching for a player.')
+                else:
+                    st.session_state.battle_notice='We are searching for a compatible opponent for up to 1 hour. Your request now appears under Pending.'
+                    st.session_state.pop('battle_new_setup',None)
                 st.rerun()
     else:
         friend_options=battle_request(client,'friend_options',{'course':course,'language':language})
@@ -1909,7 +1958,7 @@ def battle_new_setup_screen(client,profile):
         if not friends:st.info('No accepted friend currently has this course and language at your university.')
         else:
             friend_id=st.selectbox('Friend',[friend['id'] for friend in friends],format_func=lambda value:next(friend['username'] for friend in friends if friend['id']==value))
-            if st.button('Send Battle invitation',type='primary',disabled=source=='Top Decks' and selected is None):
+            if st.button('Send Battle invitation',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
                 result=battle_request(client,'invite',{**payload,'friend_id':friend_id})
                 if result is not None:st.success(result.get('message','Battle invitation sent.'))
 
@@ -1928,9 +1977,8 @@ def battle_screen(client,profile):
     with action:
         if st.button('New Battle',key='open_new_battle',type='primary',use_container_width=True):
             st.session_state.battle_new_setup=True;st.rerun()
-    battle_session_overview(client,state.get('sessions',[]))
-    if state.get('search'):
-        search=state['search'];st.info(f"Searching for a random player in {search['course']} · {search['language']} until {search['expires_at']}.")
+    if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
+    battle_session_overview(client,state.get('sessions',[]),state.get('search'))
     if state.get('invites'):
         st.subheader('Battle invitations')
         for invite in state['invites']:

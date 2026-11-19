@@ -88,6 +88,58 @@ def test_new_battle_opens_a_dedicated_setup_screen(monkeypatch):
     assert not at.exception
 
 
+def test_random_battle_search_is_disabled_when_no_eligible_deck_exists(monkeypatch):
+    def action(self,kind,data=None):
+        if kind=='list':return {'sessions':[],'invites':[],'search':None}
+        if kind=='friend_options':return {'friends':[]}
+        return {}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    monkeypatch.setattr('db.BattleRepository.availability',lambda self,course,language:{'available':False})
+    at=deck_app(monkeypatch)
+    button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'New Battle').click().run()
+    assert button(at,'Find random player').disabled
+    assert any('No available Battle Decks yet' in warning.value for warning in at.warning)
+    assert not at.exception
+
+
+def test_random_battle_search_confirms_and_appears_under_pending(monkeypatch):
+    state={'sessions':[],'invites':[],'search':None}
+    def action(self,kind,data=None):
+        if kind=='list':return state
+        if kind=='join':
+            state['search']={'course':'Finance','language':'English','expires_at':'2099-01-01T00:00:00Z'}
+            return {'message':'Searching for one hour.'}
+        if kind=='friend_options':return {'friends':[]}
+        return {}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    monkeypatch.setattr('db.BattleRepository.availability',lambda self,course,language:{'available':True})
+    at=deck_app(monkeypatch)
+    button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'New Battle').click().run()
+    button(at,'Find random player').click().run()
+    assert any('Your request now appears under Pending.' in message.value for message in at.success)
+    assert any('Finding an opponent' in message.value for message in at.markdown)
+    assert any('Time remaining:' in message.value for message in at.markdown)
+    assert button(at,'Cancel search')
+    assert not at.exception
+
+
+def test_pending_random_battle_search_can_be_cancelled(monkeypatch):
+    state={'sessions':[],'invites':[],'search':{'course':'Finance','language':'English','expires_at':'2099-01-01T00:00:00Z'}}
+    def action(self,kind,data=None):
+        if kind=='list':return state
+        return {}
+    def cancel_search(self):
+        state['search']=None
+        return {'cancelled':True}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    monkeypatch.setattr('db.BattleRepository.cancel_search',cancel_search)
+    at=deck_app(monkeypatch)
+    button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'Cancel search').click().run()
+    assert any('Battle search cancelled.' in message.value for message in at.success)
+    assert any('No pending Battles.' in message.value for message in at.caption)
+    assert not at.exception
+
+
 def test_completed_battle_review_offers_a_report_for_each_question(monkeypatch):
     card={
         'id':'card-1','question':'Is this question clear?',
