@@ -195,3 +195,17 @@ def today_sessions(plan,levels_by_course,today):
             session['planned']+=steps;session['open']+=still
             if still:session['courses'][course]=still
     return [session for session in sessions if session['planned']]
+
+
+def plan_checklist(plan,today):
+    """What a draft plan still needs before it can be saved, as (label, done) pairs for the editor."""
+    courses=plan.get('courses') or []
+    def future(value):
+        try:return date.fromisoformat(str(value))>=today
+        except (TypeError,ValueError):return False
+    return [
+        ('Name the plan',bool((plan.get('name') or '').strip())),
+        ('Add at least one course',bool(courses)),
+        ('Choose decks for every course',bool(courses) and all(item.get('decks') for item in courses)),
+        ('Set an exam date for every course',bool(courses) and all(future(item.get('end')) for item in courses)),
+    ]

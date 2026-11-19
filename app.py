@@ -1571,7 +1571,7 @@ def study_plan_editor(client,profile,decks,user_id=''):
     from datetime import date,time,timedelta
     import study_plan as rules
     draft=st.session_state.plan_draft;today=date.today();key='plan_'+str(draft.get('id','new'))+'_'
-    heading,actions=st.columns([3,1],vertical_alignment='center')
+    heading,actions=st.columns([2.1,1.4],vertical_alignment='center')
     with heading:
         label='Edit plan' if draft.get('id') else 'New plan'
         st.markdown(f'<p class="study-plan-breadcrumb">Study plan › <strong>{label}</strong></p>',unsafe_allow_html=True)
@@ -1581,17 +1581,21 @@ def study_plan_editor(client,profile,decks,user_id=''):
             st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">1</span>Courses and exams</p>',unsafe_allow_html=True)
             name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name',placeholder='Plan name, like Winter exams')
             courses=st.multiselect('Courses',profile['courses'],default=[c['course'] for c in draft['courses'] if c['course'] in profile['courses']],key=key+'courses',help='Only courses from your profile can be added.')
-            chosen=[]
+            chosen=[];row_widths=[1.1,2.7,1.3]
+            if courses:
+                for column,label in zip(st.columns(row_widths),['Course','Decks','Exam date']):column.caption(label)
             for course in courses:
                 old=next((c for c in draft['courses'] if c['course']==course),None);options=decks.get(course,[]);ids=[d['id'] for d in options]
-                with st.container(border=True,key=key+'course_'+course):
-                    st.write('**'+course+'**')
+                with st.container(key=key+'course_'+course):
+                    course_col,deck_col,end_col=st.columns(row_widths,vertical_alignment='center')
+                    course_col.markdown('**'+course+'**')
+                    course_col.caption(f"{len(options)} deck{'s' if len(options)!=1 else ''} available")
+                    picked=deck_col.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course,label_visibility='collapsed',placeholder='Choose decks')
+                    end=end_col.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course,label_visibility='collapsed')
                     if not options:st.warning('You have no Study decks for this course yet.')
-                    first,last=st.columns(2)
-                    begin=first.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
-                    end=last.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course)
+                    with st.expander('Start later (optional)'):
+                        begin=st.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
                     start=begin.isoformat() if begin>today else None
-                    picked=st.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course)
                     chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
         with st.container(border=True,key='study_plan_editor_goal'):
             goal_heading,legend=st.columns([5,1],vertical_alignment='bottom')
@@ -1604,10 +1608,12 @@ def study_plan_editor(client,profile,decks,user_id=''):
                 selected=target==value
                 with target_col:
                     with st.container(border=True,key=f'study_plan_goal_card_{value}'+('_selected' if selected else '')):
+                        st.markdown('**'+goal_text[value][1]+'**')
+                        st.caption(goal_text[value][0])
+                        if value==2:st.markdown(':violet-badge[Recommended]')
+                        # The button covers the whole card (see study-plan.css), so the card itself is clickable.
                         if st.button(goal_text[value][1],key=key+f'goal_{value}',use_container_width=True):
                             st.session_state[target_key]=value;st.rerun()
-                        st.caption(goal_text[value][0])
-                        if value==2:st.caption('Recommended')
             with legend.popover(' ',icon=':material/info:',help='What the learning levels mean'):
                 st.write('**Learning levels**')
                 for v,text in [(1,'One correct answer earned.'),(2,'Two correct answers earned.'),(3,'Three correct answers earned, the highest level.')]:
@@ -1619,7 +1625,7 @@ def study_plan_editor(client,profile,decks,user_id=''):
             study_days_key=key+'study_days'
             if study_days_key not in st.session_state:st.session_state[study_days_key]=[day for day in range(7) if day not in draft['weekdays_off']]
             study_days=set(st.session_state[study_days_key])
-            for day_col,day in zip(st.columns(7),range(7)):
+            for day_col,day in zip(st.columns([1]*7+[2.6]),range(7)):
                 with day_col:
                     if st.button(WEEKDAYS[day][:2],key=key+f'study_day_{day}',type='primary' if day in study_days else 'secondary',use_container_width=True):
                         updated=study_days^{day}
@@ -1637,15 +1643,16 @@ def study_plan_editor(client,profile,decks,user_id=''):
             sessions_key=key+'sessions_choice'
             if sessions_key not in st.session_state:st.session_state[sessions_key]=draft['sessions']
             sessions=st.session_state[sessions_key]
-            for session_col,amount in zip(st.columns(3),(1,2,3)):
+            *session_cols,time_area=st.columns([.8,.8,.8,6],vertical_alignment='bottom')
+            for session_col,amount in zip(session_cols,(1,2,3)):
                 with session_col:
                     if st.button(str(amount),key=key+f'session_{amount}',type='primary' if sessions==amount else 'secondary',use_container_width=True):
                         st.session_state[sessions_key]=amount;st.rerun()
-            st.caption('A session is one sitting in Study Mode. Splitting a day into 2 or 3 sessions keeps each sitting short; every session gets its own start time and calendar entry.')
             times=[]
-            for i,col in enumerate(st.columns(sessions)):
+            for i,col in enumerate(time_area.columns(3)[:sessions]):
                 suggested=draft['times'][i] if i<len(draft['times']) else rules.DEFAULT_TIMES[i]
                 times.append(col.time_input(f'Session {i+1} starts at',value=time.fromisoformat(suggested),step=900,key=key+f'time_{i}').strftime('%H:%M'))
+            st.caption('A session is one sitting in Study Mode. Splitting a day into 2 or 3 sessions keeps each sitting short; every session gets its own start time and calendar entry.')
     plan={'name':name,'target':target,'sessions':sessions,'times':times,'weekdays_off':weekdays_off,'dates_off':dates_off,'courses':chosen};clean=None
     try:clean=rules.validate_plan(plan,profile['courses'],decks,today)
     except ValueError as exc:validation_error=str(exc)
@@ -1655,13 +1662,22 @@ def study_plan_editor(client,profile,decks,user_id=''):
         levels=study_plan_levels(client,clean,decks)
         if levels is not None:schedule=rules.plan_schedule(clean,levels,today)
     with preview:
-        if validation_error:st.info(validation_error)
+        if validation_error:
+            checklist=rules.plan_checklist(plan,today)
+            with st.container(border=True,key='study_plan_preview_checklist'):
+                st.subheader('Live preview')
+                if not all(done for _,done in checklist):
+                    st.markdown('**To save this plan**')
+                    for label,done in checklist:
+                        st.markdown((':green[:material/check_circle:] ' if done else ':material/radio_button_unchecked: ')+label)
+                st.info(validation_error)
         elif levels is not None:
             study_plan_live_preview(rules,clean,levels,today,schedule)
             with st.container(border=True,key='study_plan_editor_workload'):
                 st.write('**Your workload**')
                 for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
                 if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
+            st.caption(':material/event: Add the sessions to Google Calendar after saving.')
         else:st.info('Choose courses, decks and dates to see the live preview.')
     with actions:
         cancel_action,save_action=st.columns(2)
