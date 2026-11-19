@@ -78,6 +78,8 @@ def test_new_invitation_link_remains_visible_after_creation(monkeypatch):
     monkeypatch.setattr('db.ChatRepository.action',lambda self,kind,data=None:{'threads':[]})
     at=deck_app(monkeypatch)
     at.session_state['main_page']='Friends';at.run()
+    assert not any(expander.label in {'Add a friend by code','Invite a friend with a link'} for expander in at.expander)
+    assert {'Add a friend by code','Invite a friend with a link'} <= {item.value for item in at.subheader}
     next(button for button in at.button if button.label=='Create new invitation link').click().run()
     assert any('https://studyduel-nova.streamlit.app/?invite=' in code.value for code in at.code)
     assert any(item.value=='Your invitation link' for item in at.subheader)
