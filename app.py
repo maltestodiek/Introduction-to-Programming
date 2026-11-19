@@ -292,7 +292,6 @@ def friends_screen(friends,repo,state):
             st.session_state.share_invite_token=result["token"]
             st.rerun()
     if state.get("invite_expires"):
-        st.caption("Your current link expires: "+state["invite_expires"][:10])
         if not st.session_state.get("share_invite_token"):
             st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
         if st.button("Revoke invitation link"):
@@ -304,9 +303,10 @@ def friends_screen(friends,repo,state):
         st.subheader("Your invitation link")
         try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",token))
         except ValueError as exc:st.info(str(exc))
+    empty_messages={"Incoming requests":":material/inbox: No Incoming request","Sent requests":"Connect with your friends and Battle them","Your friends":"Nothing here yet."}
     for title,items,actions in [("Incoming requests",state["incoming"],[("Accept","accept"),("Decline","decline")]),("Sent requests",state["sent"],[("Cancel request","cancel")]),("Your friends",state["friends"],[("Remove friend","remove")])]:
-        st.subheader(f"{title} ({len(items)})")
-        if not items:st.caption("Nothing here yet.")
+        st.subheader(title)
+        if not items:st.caption(empty_messages[title])
         for item in items:
             with st.container(border=True):
                 if title=="Your friends":friend_chat_person(item,repo,friends.client)
