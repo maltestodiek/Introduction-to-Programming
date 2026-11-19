@@ -1,4 +1,5 @@
 """Supabase repositories. All requests use the signed-in user's JWT."""
+import json
 from uuid import uuid4
 from logic import validate_profile
 
@@ -152,6 +153,10 @@ class AnkiImportRepository:
                 if message and message not in {'Error invoking remote function','FunctionsHttpError'}:
                     detail=f'Question generation failed: {message}'
             raise ValueError(detail) from exc
+        # supabase-py returns the raw body (bytes) unless responseType is "json".
+        if isinstance(data,(bytes,bytearray,str)):
+            try:data=json.loads(data)
+            except ValueError:data=None
         if not isinstance(data,dict) or data.get('status')!='draft':
             raise ValueError('Question generation returned an unexpected result. No source cards were changed.')
         return data
