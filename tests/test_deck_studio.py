@@ -54,7 +54,7 @@ def studio_app(monkeypatch,calls):
     monkeypatch.setattr('db.BattleRepository.action',battle)
     monkeypatch.setattr('db.BattleRepository.catalog',lambda self:[])
     at=deck_app(monkeypatch)
-    button(at,'Deck studio').click().run()
+    button(at,'Open Deck studio').click().run()
     return at
 
 
@@ -102,3 +102,16 @@ def test_battle_action_preselects_the_deck_and_returns_to_the_studio(monkeypatch
     assert any(item.value=='Deck studio' for item in at.header)
     button(at,'Back to Decks').click().run()
     assert 'deck_studio' not in at.session_state
+
+
+def test_decks_page_shows_a_large_deck_studio_entry_between_creation_and_courses(monkeypatch):
+    monkeypatch.setattr('db.StudyRepository.publication',lambda self,action,data=None:{'decks':[],'published_ids':[]})
+    monkeypatch.setattr('db.BattleRepository.catalog',lambda self:[])
+    at=deck_app(monkeypatch)
+    blocks=[item.value for item in at.markdown]+[item.value for item in at.caption]+[item.value for item in at.subheader]
+    studio=blocks.index('#### Deck studio')
+    assert any(text.startswith('Edit, publish and track') for text in blocks)
+    assert [item.label for item in at.button].count('Open Deck studio')==1
+    assert 'Deck studio' not in [item.label for item in at.button]
+    assert blocks.index('Your courses')>studio
+    assert not at.exception
