@@ -5,7 +5,14 @@
 [class*="st-key-study_plan_empty_step_"]{border-radius:18px!important;min-height:146px;background:var(--sd-surface)!important}
 [class*="st-key-study_plan_editor_"]{border-radius:18px!important;background:var(--sd-surface)!important}
 [class*="st-key-study_plan_preview_"]{border-radius:18px!important;background:linear-gradient(145deg,var(--sd-study-end),var(--sd-surface))!important;position:sticky;top:1rem}
+.study-plan-breadcrumb{margin:0;color:var(--sd-muted);font-size:1rem}.study-plan-breadcrumb strong{color:var(--sd-text);font-size:1.5rem}
+.study-plan-step-heading{display:flex;align-items:center;gap:.6rem;margin:0 0 .9rem;font-size:1.15rem;font-weight:750}.study-plan-step-number{display:inline-grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:var(--sd-accent);color:#fff;font-size:.95rem}
+[class*="st-key-study_plan_editor_courses"],[class*="st-key-study_plan_editor_goal"],[class*="st-key-study_plan_editor_week"]{margin-bottom:1rem}
+[class*="st-key-plan_"][class*="_target"] [role="radiogroup"]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem!important}
+[class*="st-key-plan_"][class*="_target"] [role="radio"]{min-height:128px!important;margin:0!important;padding:.9rem!important;border:1px solid var(--sd-border)!important;border-radius:15px!important;align-items:flex-start!important;background:var(--sd-surface)!important}
+[class*="st-key-plan_"][class*="_target"] [role="radio"][aria-checked="true"]{border:3px solid var(--sd-accent)!important;background:var(--sd-study-end)!important}
+.study-plan-heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:.34rem;margin:.8rem 0}.study-plan-heatmap span{height:1.55rem;border-radius:5px;background:#dedcf7}.study-plan-heatmap .load-1{background:#c5c1f0}.study-plan-heatmap .load-2{background:#958de0}.study-plan-heatmap .load-3{background:#5b53bc}.study-plan-heatmap .exam{background:#ef9b7b}
 .study-plan-preview-note{margin:.5rem 0 0;color:var(--sd-muted);line-height:1.5}
 .study-plan-preview-stat{padding:.85rem;border:1px solid var(--sd-border);border-radius:14px;background:var(--sd-surface);margin:.7rem 0}
 .study-plan-preview-stat strong{display:block;font-size:1.35rem;margin-top:.25rem}
-@media(max-width:700px){[class*="st-key-study_plan_preview_"]{position:static}.study-plan-intro{font-size:1rem}}
+@media(max-width:700px){[class*="st-key-study_plan_preview_"]{position:static}.study-plan-intro{font-size:1rem}[class*="st-key-plan_"][class*="_target"] [role="radiogroup"]{grid-template-columns:1fr}}
