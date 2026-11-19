@@ -1719,13 +1719,19 @@ def battle_request(client,action,data=None):
 
 def battle_deck_availability(client,course,language):
     from db import BattleRepository
-    try:return BattleRepository(client).availability(course,language)
+    repository=BattleRepository(client)
+    # Streamlit can hot-reload app.py before an imported adapter module. Reload
+    # only when the running worker still has the previous adapter shape.
+    if not hasattr(repository,'availability'):repository=fresh_module('db').BattleRepository(client)
+    try:return repository.availability(course,language)
     except ValueError as exc:st.error(str(exc));return None
 
 
 def battle_cancel_search(client):
     from db import BattleRepository
-    try:return BattleRepository(client).cancel_search()
+    repository=BattleRepository(client)
+    if not hasattr(repository,'cancel_search'):repository=fresh_module('db').BattleRepository(client)
+    try:return repository.cancel_search()
     except ValueError as exc:st.error(str(exc));return None
 
 
