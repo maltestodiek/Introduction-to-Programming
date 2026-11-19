@@ -1393,14 +1393,27 @@ def study_plan_total_text(schedule):
 
 def study_plan_live_preview(rules,plan,levels,today,schedule):
     """Read-only summary for the editor; it deliberately reuses the real schedule."""
+    from datetime import timedelta
     from math import ceil
     with st.container(border=True,key='study_plan_preview_editor'):
         st.subheader('Live preview')
         upcoming=next(iter(schedule),None)
         if upcoming:
             total=sum(schedule[upcoming].values())
-            st.html(f'<div class="study-plan-preview-stat">Next study day<strong>{upcoming:%a, %d %b}</strong></div>')
-            st.html(f'<div class="study-plan-preview-stat">Questions on that day<strong>~{total} questions</strong></div>')
+            session=ceil(total/plan['sessions'])
+            stats=st.columns(2)
+            with stats[0]:st.html(f'<div class="study-plan-preview-stat">Per study day<strong>~{total} q</strong></div>')
+            with stats[1]:st.html(f'<div class="study-plan-preview-stat">Per session<strong>~{session} q</strong></div>')
+            maximum=max((sum(items.values()) for items in schedule.values()),default=1)
+            exams={item['end'] for item in plan['courses']}
+            cells=[]
+            for offset in range(28):
+                day=today+timedelta(days=offset);amount=sum(schedule.get(day,{}).values())
+                state=' exam' if day.isoformat() in exams else (' load-'+str(min(3,max(1,ceil(amount/maximum*3)))) if amount else '')
+                cells.append(f'<span class="{state.strip()}" title="{day:%d %b}: {amount} questions"></span>')
+            st.caption('Next 4 weeks')
+            st.html('<div class="study-plan-heatmap" aria-label="Next four weeks of the study plan">'+''.join(cells)+'</div>')
+            st.caption('Darker = more questions · coral = exam')
             st.caption('The preview is recalculated from your current learning progress.')
         else:
             st.info('Choose valid courses, dates and decks to see the workload preview.')
@@ -1431,68 +1444,83 @@ def study_plan_editor(client,profile,decks,user_id=''):
     from datetime import date,time,timedelta
     import study_plan as rules
     draft=st.session_state.plan_draft;today=date.today();key='plan_'+str(draft.get('id','new'))+'_'
-    st.subheader('Edit study plan' if draft.get('id') else 'Create study plan')
-    st.caption('Study plans are for Study Mode. Nothing is saved, and no calendar is changed, until you save.')
-    name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name')
-    courses=st.multiselect('Courses',profile['courses'],default=[c['course'] for c in draft['courses'] if c['course'] in profile['courses']],key=key+'courses',help='Only courses from your profile can be added.')
-    chosen=[]
-    for course in courses:
-        old=next((c for c in draft['courses'] if c['course']==course),None);options=decks.get(course,[]);ids=[d['id'] for d in options]
-        with st.container(border=True):
-            st.write('**'+course+'**')
-            if not options:st.warning('You have no Study decks for this course yet.')
-            first,last=st.columns(2)
-            begin=first.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
-            end=last.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course)
-            start=begin.isoformat() if begin>today else None
-            picked=st.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course)
-            chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
-    level,legend=st.columns([5,1],vertical_alignment='bottom')
-    target=level.radio('Target level for every question',[1,2,3],index=draft['target']-1,format_func=lambda v:{1:'Level 1 · answered correctly once',2:'Level 2 · answered correctly twice',3:'Level 3 · answered correctly three times'}[v],key=key+'target')
-    st.html('<style>'+''.join(f'[class*="st-key-plan_"][class*="_target"] [role="radiogroup"]>:nth-child({v}) [data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] p::before{{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]};box-shadow:inset 0 0 0 1px #00000015}}' for v in (1,2,3))+'</style>')
-    with legend.popover(' ',icon=':material/info:',help='What the learning levels mean'):
-        st.write('**Learning levels**')
-        for v,text in [(1,'One correct answer earned.'),(2,'Two correct answers earned.'),(3,'Three correct answers earned, the highest level.')]:
-            st.html(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:inherit"><span style="flex:0 0 16px;height:16px;margin-top:3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]}"></span><div><strong>Level {v} · {escape(STUDY_LEVELS[str(v)])}</strong><div>{text}</div></div></div>')
-        st.caption('Each correct answer moves a question up one level and each wrong answer moves it down one. The plan counts how many levels every question still has to climb to your target.')
-    fixed=st.radio('Weekly days off',['None','Choose weekdays'],index=1 if draft['weekdays_off'] else 0,horizontal=True,key=key+'weekdays_mode')=='Choose weekdays'
-    weekdays_off=st.multiselect('Weekdays without studying',list(range(7)),default=draft['weekdays_off'],format_func=lambda d:WEEKDAYS[d],key=key+'weekdays') if fixed else []
-    st.caption('Optional: add single dates without studying, such as holidays.')
-    for part in ('dates_options','dates_off'):
-        if key+part not in st.session_state:st.session_state[key+part]=list(draft['dates_off'])
-    pick,add=st.columns([3,1],vertical_alignment='bottom')
-    pick.date_input('Single day without studying',value=None,min_value=today,key=key+'extra_day')
-    add.button('Add day off',on_click=study_plan_add_day_off,args=(key,),key=key+'add_day')
-    dates_off=st.multiselect('Days off',st.session_state[key+'dates_options'],key=key+'dates_off',help='Remove a date to study on it again.') if st.session_state[key+'dates_options'] else []
-    sessions=st.radio('Sessions per study day',[1,2,3],index=draft['sessions']-1,horizontal=True,key=key+'sessions',help='A session is one sitting in Study Mode.')
-    st.caption('A session is one sitting in Study Mode. Splitting a day into 2 or 3 sessions keeps each sitting short; every session gets its own start time and calendar entry.')
-    times=[]
-    for i,col in enumerate(st.columns(sessions)):
-        suggested=draft['times'][i] if i<len(draft['times']) else rules.DEFAULT_TIMES[i]
-        times.append(col.time_input(f'Session {i+1} starts at',value=time.fromisoformat(suggested),step=900,key=key+f'time_{i}').strftime('%H:%M'))
+    heading,actions=st.columns([3,1],vertical_alignment='center')
+    with heading:
+        label='Edit plan' if draft.get('id') else 'New plan'
+        st.markdown(f'<p class="study-plan-breadcrumb">Study plan › <strong>{label}</strong></p>',unsafe_allow_html=True)
+    configuration,preview=st.columns([1.28,.82],vertical_alignment='top')
+    with configuration:
+        with st.container(border=True,key='study_plan_editor_courses'):
+            st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">1</span>Courses and exams</p>',unsafe_allow_html=True)
+            name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name',placeholder='Plan name, like Winter exams')
+            courses=st.multiselect('Courses',profile['courses'],default=[c['course'] for c in draft['courses'] if c['course'] in profile['courses']],key=key+'courses',help='Only courses from your profile can be added.')
+            chosen=[]
+            for course in courses:
+                old=next((c for c in draft['courses'] if c['course']==course),None);options=decks.get(course,[]);ids=[d['id'] for d in options]
+                with st.container(border=True,key=key+'course_'+course):
+                    st.write('**'+course+'**')
+                    if not options:st.warning('You have no Study decks for this course yet.')
+                    first,last=st.columns(2)
+                    begin=first.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
+                    end=last.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course)
+                    start=begin.isoformat() if begin>today else None
+                    picked=st.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course)
+                    chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
+        with st.container(border=True,key='study_plan_editor_goal'):
+            level,legend=st.columns([5,1],vertical_alignment='bottom')
+            with level:st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">2</span>Goal for every question</p>',unsafe_allow_html=True)
+            target=level.radio('Target level for every question',[1,2,3],index=draft['target']-1,horizontal=True,format_func=lambda v:{1:'Level 1 · answered correctly once',2:'Level 2 · answered correctly twice',3:'Level 3 · answered correctly three times'}[v],key=key+'target')
+            st.html('<style>'+''.join(f'[class*="st-key-plan_"][class*="_target"] [role="radiogroup"]>:nth-child({v}) [data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] p::before{{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]};box-shadow:inset 0 0 0 1px #00000015}}' for v in (1,2,3))+'</style>')
+            with legend.popover(' ',icon=':material/info:',help='What the learning levels mean'):
+                st.write('**Learning levels**')
+                for v,text in [(1,'One correct answer earned.'),(2,'Two correct answers earned.'),(3,'Three correct answers earned, the highest level.')]:
+                    st.html(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:inherit"><span style="flex:0 0 16px;height:16px;margin-top:3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]}"></span><div><strong>Level {v} · {escape(STUDY_LEVELS[str(v)])}</strong><div>{text}</div></div></div>')
+                st.caption('Each correct answer moves a question up one level and each wrong answer moves it down one. The plan counts how many levels every question still has to climb to your target.')
+        with st.container(border=True,key='study_plan_editor_week'):
+            st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">3</span>Your week</p>',unsafe_allow_html=True)
+            fixed=st.radio('Weekly days off',['None','Choose weekdays'],index=1 if draft['weekdays_off'] else 0,horizontal=True,key=key+'weekdays_mode')=='Choose weekdays'
+            weekdays_off=st.multiselect('Weekdays without studying',list(range(7)),default=draft['weekdays_off'],format_func=lambda d:WEEKDAYS[d],key=key+'weekdays') if fixed else []
+            st.caption('Optional: add single dates without studying, such as holidays.')
+            for part in ('dates_options','dates_off'):
+                if key+part not in st.session_state:st.session_state[key+part]=list(draft['dates_off'])
+            pick,add=st.columns([3,1],vertical_alignment='bottom')
+            pick.date_input('Single day without studying',value=None,min_value=today,key=key+'extra_day')
+            add.button('Add day off',on_click=study_plan_add_day_off,args=(key,),key=key+'add_day')
+            dates_off=st.multiselect('Days off',st.session_state[key+'dates_options'],key=key+'dates_off',help='Remove a date to study on it again.') if st.session_state[key+'dates_options'] else []
+            sessions=st.radio('Sessions per study day',[1,2,3],index=draft['sessions']-1,horizontal=True,key=key+'sessions',help='A session is one sitting in Study Mode.')
+            st.caption('A session is one sitting in Study Mode. Splitting a day into 2 or 3 sessions keeps each sitting short; every session gets its own start time and calendar entry.')
+            times=[]
+            for i,col in enumerate(st.columns(sessions)):
+                suggested=draft['times'][i] if i<len(draft['times']) else rules.DEFAULT_TIMES[i]
+                times.append(col.time_input(f'Session {i+1} starts at',value=time.fromisoformat(suggested),step=900,key=key+f'time_{i}').strftime('%H:%M'))
     plan={'name':name,'target':target,'sessions':sessions,'times':times,'weekdays_off':weekdays_off,'dates_off':dates_off,'courses':chosen};clean=None
     try:clean=rules.validate_plan(plan,profile['courses'],decks,today)
-    except ValueError as exc:st.info(str(exc))
+    except ValueError as exc:validation_error=str(exc)
+    else:validation_error=''
+    levels=None;schedule={}
     if clean:
         levels=study_plan_levels(client,clean,decks)
-        if levels is not None:
-            workload,preview=st.columns([1.15,.85],vertical_alignment='top')
-            schedule=rules.plan_schedule(clean,levels,today)
-            with workload:
-                with st.container(border=True,key='study_plan_editor_workload'):
-                    st.write('**Your workload**')
-                    for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
-                    if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
-                    st.caption('A question counts once for every level it still has to climb, so new questions count more than practised ones. Every study day of the plan has at least 20 questions in total; if fewer are left, they are all planned for one day. The numbers adjust every day to your progress.')
-            with preview:study_plan_live_preview(rules,clean,levels,today,schedule)
-    save,cancel=st.columns(2)
-    if save.button('Save study plan',type='primary',disabled=clean is None,use_container_width=True):
+        if levels is not None:schedule=rules.plan_schedule(clean,levels,today)
+    with preview:
+        if validation_error:st.info(validation_error)
+        elif levels is not None:
+            study_plan_live_preview(rules,clean,levels,today,schedule)
+            with st.container(border=True,key='study_plan_editor_workload'):
+                st.write('**Your workload**')
+                for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
+                if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
+        else:st.info('Choose courses, decks and dates to see the live preview.')
+    with actions:
+        cancel_action,save_action=st.columns(2)
+        cancel=cancel_action.button('Cancel',use_container_width=True)
+        save=save_action.button('Save study plan',type='primary',disabled=clean is None,use_container_width=True)
+    if save:
         payload={'plan':clean}
         if draft.get('id'):payload['id']=draft['id']
         saved=study_plan_request(client,'save',payload)
         if saved is not None:
             study_plan_close_editor();st.session_state.study_plan_finish=saved['id'];st.rerun()
-    if cancel.button('Cancel',use_container_width=True):
+    if cancel:
         study_plan_close_editor();st.rerun()
     if draft.get('id'):
         import google_calendar as google
@@ -1597,11 +1625,11 @@ def study_plan_screen(client,profile,user_id=''):
     import google_calendar as google
     import study_plan as rules
     study_plan_design()
-    st.title('Study Plan')
     decks=study_plan_decks(client)
     if decks is None:return
     study_plan_google_answer(client,decks,user_id)
     if 'plan_draft' in st.session_state:return study_plan_editor(client,profile,decks,user_id)
+    st.title('Study Plan')
     data=study_plan_request(client,'list')
     if data is None:return
     saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
