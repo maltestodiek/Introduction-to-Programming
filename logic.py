@@ -389,3 +389,21 @@ def calculate(expression):
             return format(value.normalize(),'f')
     except (SyntaxError,DecimalException,RecursionError) as exc:
         raise ValueError('Check your calculation and brackets.') from exc
+
+
+AI_BATCH_SIZE,AI_PARALLEL_BATCHES,AI_SECONDS_PER_ROUND,AI_START_SECONDS=10,5,35,10
+
+def ai_generation_estimate_seconds(card_count):
+    """Estimated generation time: the Edge Function runs batches of 10 cards, five at once."""
+    rounds=ceil(ceil(max(card_count,1)/AI_BATCH_SIZE)/AI_PARALLEL_BATCHES)
+    return AI_START_SECONDS+AI_SECONDS_PER_ROUND*rounds
+
+def ai_generation_progress(elapsed,estimate):
+    """Return an estimated (fraction, text) pair; it never reaches 1 before the result arrives."""
+    if elapsed<estimate:
+        fraction=.9*elapsed/estimate
+        remaining=5*ceil((estimate-elapsed)/5)
+        minutes,seconds=divmod(remaining,60)
+        left=(f'{minutes} min {seconds} s' if seconds else f'{minutes} min') if minutes else f'{seconds} s'
+        return fraction,f'About {left} left'
+    return min(.95,.9+.05*(elapsed-estimate)/estimate),'Almost done. Finishing the last questions…'

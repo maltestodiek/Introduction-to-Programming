@@ -793,6 +793,24 @@ def request_ai_generation(import_id,card_ids):
         st.session_state.ai_generation_request={'import_id':import_id,'card_ids':list(card_ids)}
 
 
+def generate_with_progress(repository,pending):
+    """Run the single Edge Function call in the background and show an estimated progress bar."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from logic import ai_generation_estimate_seconds,ai_generation_progress
+    count=len(pending['card_ids']);estimate=ai_generation_estimate_seconds(count)
+    bar=st.progress(0.0,text=f'Generating {count} question drafts. Keep this page open.')
+    started=time.monotonic()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        job=pool.submit(repository.generate,pending['import_id'],pending['card_ids'])
+        while not job.done():
+            fraction,left=ai_generation_progress(time.monotonic()-started,estimate)
+            bar.progress(fraction,text=f'Generating {count} question drafts · {left}')
+            time.sleep(.5)
+    bar.empty()
+    return job.result()
+
+
 def anki_generation_screen(client,profile):
     """Select private source cards, generate drafts, then hand reviewed cards to Study."""
     from uuid import uuid4
@@ -825,9 +843,8 @@ def anki_generation_screen(client,profile):
         if pending:=st.session_state.pop('ai_generation_request',None):
             # The request leaves the session before the slow call, so a rerun can never
             # send it twice, and the button is not shown again until the call has ended.
-            with st.spinner(f"Generating {len(pending['card_ids'])} drafts. This can take up to two minutes; keep this page open."):
-                try:result=repository.generate(pending['import_id'],pending['card_ids'])
-                except ValueError as exc:result=None;st.error(str(exc))
+            try:result=generate_with_progress(repository,pending)
+            except ValueError as exc:result=None;st.error(str(exc))
             if result:st.session_state.notice=f"Generated {result['count']} private drafts. Review them below.";st.rerun()
         st.button(f'Generate {len(selected)} question drafts',type='primary',disabled=not selected,on_click=request_ai_generation,args=(imported['id'],selected))
     else:st.caption('All source cards from this import already have a draft or were published.')

@@ -42,7 +42,7 @@ Language models put the correct answer first far more often than chance and tend
 
 Batches run with at most five in parallel so that a 100-card request stays within the Edge Function time limit. After a failed batch no new batch starts, and the generation lock is released only after all running batches have finished. The function logs only batch size, model, response format, duration and token counts, never source or question text.
 
-The generate button disappears while a request runs; the request is removed from the Streamlit session before the provider call, so a rerun or double click cannot send it twice.
+The generate button disappears while a request runs; the request is removed from the Streamlit session before the provider call, so a rerun or double click cannot send it twice. In its place an estimated progress bar shows the remaining time. The app receives no progress from the single Edge Function call, so the estimate assumes about 35 seconds per round of up to five parallel 10-card batches plus 10 seconds start-up (45 seconds for up to 50 cards, 80 seconds for 51–100). The bar reaches 90% at the estimate, then creeps towards 95% with the text “Almost done” and never shows completion before the result arrives. If the Edge Function batch size or parallelism changes, the constants in `logic.py` must change with it.
 
 ### State and persistence
 
@@ -72,3 +72,4 @@ Lecture/PDF text extraction, image/OCR processing, Cloze/media conversion, chatb
 9. Correct answers of generated drafts are spread evenly over the four positions, independent of the model's own order, and no answer text changes when positions move.
 10. A draft whose correct option gives the answer away by length is rewritten once; the original is kept when the rewrite fails or is no better.
 11. A 100-card request processes batches in parallel (at most five at once) and a single click or rerun starts exactly one generation.
+12. While drafts are generated, an estimated progress bar with the remaining time replaces the generate button; it never reaches 100% before the result arrives.
