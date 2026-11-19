@@ -613,7 +613,8 @@ def decks_screen(client,profile):
             if st.button('Confirm discard'):
                 st.session_state.pop('deck_draft',None);st.session_state.pop('deck_review',None);st.rerun()
         return
-    st.html('<style>'+(Path(__file__).parent/'assets'/'deck-creation.css').read_text()+'</style>')
+    assets=Path(__file__).parent/'assets'
+    st.html('<style>'+''.join((assets/name).read_text() for name in ('deck-creation.css','course-list.css'))+'</style>')
     st.subheader('Create a deck')
     st.caption('Choose how you want to create your next set of questions.')
     manual,anki,ai=st.columns(3)
@@ -644,36 +645,79 @@ def decks_screen(client,profile):
             st.caption('Upload text-based PDF slides, then review generated questions.')
             if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     st.divider()
-    if st.button('Study decks & progress',icon=':material/menu_book:'):
-        st.session_state.study_library=True;st.rerun()
-    st.caption('Create questions. Check every answer. Share what you know.')
-    st.subheader('Your courses')
-    st.caption('Decks are shared with signed-in students at your university. Add courses in Edit profile.')
-    course=st.selectbox('Browse course',profile['courses'],key='deck_browse_course')
-    try:decks=repository.list(course)
+    course_names=list(dict.fromkeys(profile['courses']))
+    try:
+        battle_decks=[deck for course in course_names for deck in repository.list(course)]
     except ValueError as exc:st.error(str(exc));return
-    if not decks:st.info('No decks in this course yet. Create the first one.')
-    for deck in decks:
-        with st.container(border=True):
-            st.subheader(deck['name'])
-            st.caption(f"By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions · Not rated")
-            if st.button('Open deck',key='open_'+deck['id']):
-                st.session_state.deck_open=deck['id'];st.rerun()
     public_study=study_public_request(client,'list')
     if public_study is None:return
-    published=[deck for deck in public_study.get('decks',[]) if deck['course'].strip().lower()==course.strip().lower()]
-    if published:
-        st.subheader('Published Study decks')
-        for deck in published:
-            with st.container(border=True):
-                st.write('**'+deck['name']+'**');st.caption(f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions")
-                if deck.get('owned'):
-                    st.caption('Your published Study deck.')
-                    if st.button('Open your Study deck',key='course_open_study_'+deck['id']):
-                        st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
-                elif st.button('Save private Study copy',key='course_copy_study_'+deck['id']):
-                    if study_public_request(client,'copy',{'id':deck['id']}) is not None:
-                        st.success('Saved a private Study copy.');st.rerun()
+    course_keys={course.strip().casefold() for course in course_names}
+    study_decks=[deck for deck in public_study.get('decks',[]) if deck.get('course','').strip().casefold() in course_keys]
+    battle_by_course={course.strip().casefold():[] for course in course_names}
+    study_by_course={course.strip().casefold():[] for course in course_names}
+    for deck in battle_decks:battle_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
+    for deck in study_decks:study_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
+
+    course_heading,review_action=st.columns([5,1],vertical_alignment='center')
+    with course_heading:
+        st.subheader('Your courses')
+        st.caption('Choose a course to study at your pace or start a Battle.')
+    with review_action:
+        if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
+            st.session_state.study_library=True;st.rerun()
+    for index,course in enumerate(course_names):
+        course_key=course.strip().casefold()
+        study_count=len(study_by_course.get(course_key,[]))
+        battle_count=len(battle_by_course.get(course_key,[]))
+        with st.container(border=True,key='course_list_'+str(index)):
+            summary,availability,actions=st.columns([2.2,1.5,2.3],vertical_alignment='center')
+            with summary:
+                st.markdown('#### '+course)
+                total=study_count+battle_count
+                st.caption(f"{total} deck{'s' if total!=1 else ''} available")
+            with availability:
+                st.markdown(f'<div class="course-list-count"><strong>{study_count}</strong><span>Study decks</span><strong>{battle_count}</strong><span>Battle decks</span></div>',unsafe_allow_html=True)
+            with actions:
+                study_action,battle_action=st.columns(2)
+                if study_action.button('Study',key='course_study_'+str(index),icon=':material/menu_book:',use_container_width=True):
+                    st.session_state.study_library=True;st.rerun()
+                if battle_action.button('Battle',key='course_battle_'+str(index),icon=':material/swords:',use_container_width=True):
+                    st.session_state.main_page='Play';st.session_state.play_mode_preview='Battle';st.session_state.battle_new_setup=True
+                    st.session_state.battle_course=course;st.session_state.battle_language=profile['languages'][0]
+                    st.rerun()
+
+    st.subheader('Your decks')
+    filter_choice=st.segmented_control('Deck filter',['All','Study','Battle','Mine'],default='All',key='course_list_filter',label_visibility='collapsed')
+    current_user=st.session_state.auth.user.id
+    if filter_choice=='Mine':
+        deck_rows=[('battle',deck) for deck in battle_decks if deck.get('creator_id')==current_user]+[('study',deck) for deck in study_decks if deck.get('owned')]
+    else:
+        deck_rows=[]
+        if filter_choice in ('All','Battle'):deck_rows += [('battle',deck) for deck in battle_decks]
+        if filter_choice in ('All','Study'):deck_rows += [('study',deck) for deck in study_decks]
+    if not deck_rows:
+        st.info('No matching decks yet. Create the first one above.')
+        return
+    for row in range(0,len(deck_rows),2):
+        for column,(kind,deck) in zip(st.columns(2),deck_rows[row:row+2]):
+            with column:
+                with st.container(border=True,key=f'course_deck_{kind}_{deck["id"]}'):
+                    icon=':material/menu_book:' if kind=='study' else ':material/swords:'
+                    label='Study deck' if kind=='study' else 'Battle deck'
+                    st.caption(icon+' '+label)
+                    st.markdown('#### '+deck['name'])
+                    if kind=='study':
+                        st.caption(f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions")
+                        if deck.get('owned'):
+                            if st.button('Open Study deck',key='course_open_study_'+deck['id'],use_container_width=True):
+                                st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
+                        elif st.button('Save private Study copy',key='course_copy_study_'+deck['id'],use_container_width=True):
+                            if study_public_request(client,'copy',{'id':deck['id']}) is not None:
+                                st.success('Saved a private Study copy.');st.rerun()
+                    else:
+                        st.caption(f"{deck['course']} · {deck.get('language') or 'Language not set'} · By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions")
+                        if st.button('Open Battle deck',key='open_'+deck['id'],use_container_width=True):
+                            st.session_state.deck_open=deck['id'];st.rerun()
 
 
 def anki_import_screen(client,profile):
