@@ -205,6 +205,15 @@ class BattleRepository:
             raise ValueError('Battle Deck availability could not be loaded. Refresh and retry.')
         return result
 
+    def catalog(self):
+        """Public Battle Decks of the user's university and courses, metadata only."""
+        message='Battle decks could not be loaded. Refresh and retry.'
+        try:result=self.client.rpc('battle_deck_catalog',{}).execute().data
+        except Exception as exc:raise ValueError(message) from exc
+        decks=result.get('decks') if isinstance(result,dict) else None
+        if not isinstance(decks,list):raise ValueError(message)
+        return decks
+
     def cancel_search(self):
         """Cancel only the signed-in user's pending random Battle search."""
         try:result=self.client.rpc('cancel_battle_search',{}).execute().data

@@ -10,9 +10,9 @@ from test_deck_ui import Obj
 
 def course_app(monkeypatch,copies=None):
     profile={'username':'student_a','university':'Example University','courses':['Corporate Finance','Investments'],'languages':['English'],'avatar':DEFAULT_AVATAR,'image_mode':'Avatar'}
-    battle={'Corporate Finance':[{'id':'battle-cf','name':'Capital structure','course':'Corporate Finance','language':'English','creator_id':'b','profiles':{'username':'student_b'}}],'Investments':[]}
+    battle=[{'id':'battle-cf','name':'Capital structure','course':'Corporate Finance','language':'English','author':'student_b','count':15,'owned':False}]
     monkeypatch.setattr('db.ProfileRepository.load',lambda self:profile)
-    monkeypatch.setattr('db.DeckRepository.list',lambda self,course:battle[course])
+    monkeypatch.setattr('db.BattleRepository.catalog',lambda self:battle)
     def publication(self,action,data=None):
         if action=='list':return {'decks':[
             {'id':'study-own','name':'WACC basics','course':'Corporate Finance','language':'English','author':'student_a','count':20,'owned':True},
@@ -47,7 +47,8 @@ def test_choosing_decks_from_the_dropdown_opens_or_copies_them(monkeypatch):
     copies=[]
     at=course_app(monkeypatch,copies)
     at.button(key='course_menu_0_battle_battle-cf').click().run()
-    assert at.session_state['deck_open']=='battle-cf'
+    assert at.session_state['main_page']=='Play'
+    assert (at.session_state['battle_course'],at.session_state['battle_language'])==('Corporate Finance','English')
     at=course_app(monkeypatch,copies)
     at.button(key='course_menu_0_study_study-own').click().run()
     assert at.session_state['study_deck_open']=={'id':'study-own','shared':False}
