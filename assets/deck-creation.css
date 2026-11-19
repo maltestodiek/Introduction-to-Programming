@@ -28,7 +28,8 @@
 }
 .st-key-deck_studio_entry{border-radius:20px!important;padding:18px 20px!important;margin:1rem 0 .5rem;background:var(--sd-surface)!important;transition:box-shadow .2s ease,border-color .2s ease}
 .st-key-deck_studio_entry:is(:hover,:focus-within){box-shadow:0 12px 28px var(--sd-shadow);border-color:#818cf8!important}
-.st-key-deck_studio_entry h4{font-size:1.35rem;letter-spacing:-.025em;margin:0 0 .2rem;color:var(--sd-text)}
-.st-key-deck_studio_entry .deck-studio-icon{margin-bottom:0}
+.st-key-deck_studio_entry h4{display:flex;align-items:center;gap:.65rem;font-size:1.35rem;letter-spacing:-.025em;margin:0 0 .2rem;color:var(--sd-text)}
+/* The pencil sits on the heading line, like the icons of the creation cards. */
+.st-key-deck_studio_entry h4::before{content:"✎";display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:var(--sd-study-end);color:var(--sd-accent);font-size:1.35rem;letter-spacing:0}
 .st-key-deck_studio_entry button{min-height:52px;border-radius:12px;font-weight:700}
 @media(prefers-reduced-motion:reduce){.st-key-deck_studio_entry{transition:none!important}}
