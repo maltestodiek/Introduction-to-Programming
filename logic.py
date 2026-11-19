@@ -432,3 +432,43 @@ def deck_studio_groups(decks):
     study=[deck for deck in decks if deck.get('kind')=='study']
     return {'All':list(decks),'Private':[deck for deck in study if not deck.get('published_at')],
             'Published':[deck for deck in study if deck.get('published_at')],'Battle':[deck for deck in decks if deck.get('kind')=='battle']}
+
+
+STUDY_ONGOING_STATES=('own','waiting','paired')
+
+def session_continue_pick(battle_sessions,study_sessions):
+    """The one session to continue first: a Together session with the nearest deadline,
+    then a Battle where it is the player's turn, then any Study session to resume."""
+    study=[s for s in study_sessions or [] if s.get('state') in STUDY_ONGOING_STATES and s.get('state')!='waiting']
+    together=sorted([s for s in study if s.get('mode')!='solo' and s.get('deadline')],key=lambda s:str(s['deadline']))
+    if together:return {'kind':'study','session':together[0]}
+    battles=[b for b in battle_sessions or [] if b.get('status')=='ongoing']
+    if battles:return {'kind':'battle','session':battles[0]}
+    if study:return {'kind':'study','session':study[0]}
+    return None
+
+def time_left_text(deadline,now=None):
+    """Remaining time until a deadline in rounded, readable units."""
+    if not deadline:return None
+    end=datetime.fromisoformat(str(deadline).replace('Z','+00:00'))
+    if end.tzinfo is None:end=end.replace(tzinfo=timezone.utc)
+    minutes=int(((end-(now or datetime.now(timezone.utc))).total_seconds())//60)
+    if minutes<=0:return 'Deadline passed'
+    if minutes<60:return f'{minutes} min left'
+    if minutes<48*60:return f'{minutes//60} h left'
+    return f'{minutes//(24*60)} d left'
+
+def session_history_rows(battle_completed,study_finished):
+    """Rows for the session history table, Battle results first."""
+    tones={'win':'green','loss':'red','draw':'gray'}
+    rows=[{'kind':'battle','id':b['id'],'session':b,'result':str(b.get('result') or 'done').title(),'tone':tones.get(b.get('result'),'gray'),
+           'deck':b['deck_name'],'mode':'vs '+(b.get('opponent_username') or 'Unknown opponent'),'score':f"{b.get('score',0)}/15",'xp':f"{b.get('game_xp_delta',0) or 0:+d}"} for b in battle_completed or []]
+    for s in study_finished or []:
+        state=s.get('state')
+        rows.append({'kind':'study','id':s['id'],'session':s,'result':'Done' if state=='completed' else str(state).capitalize(),'tone':'green' if state=='completed' else 'gray',
+                     'deck':s['name'],'mode':'Solo' if s.get('mode')=='solo' else 'Together','score':f"{s.get('cursor',0)}/{s.get('count',0)}",'xp':'–'})
+    return rows
+
+def battle_record(battle_sessions):
+    results=[b.get('result') for b in battle_sessions or [] if b.get('status')=='completed']
+    return {'wins':results.count('win'),'losses':results.count('loss'),'draws':results.count('draw')}

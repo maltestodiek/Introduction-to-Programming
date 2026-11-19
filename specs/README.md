@@ -25,6 +25,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [University, field-of-study and course selectors](tasks/study-fields-and-shared-courses.md): type-ahead university search, field of study from a list of common degree subjects, and a course selector that lists courses already saved at the student's university.
 - [Profile figures beside the avatar](tasks/profile-stats-beside-avatar.md): Battle XP, Win streak and Friends as a compact row next to the avatar.
 - [Faster page loads](tasks/faster-page-loads.md): smaller images, reused profile data and pictures, fewer sign-in checks and slower inbox polling.
+- [Play sessions dashboard](tasks/play-sessions-dashboard.md): continue banner, ongoing session grid, history table and Battle/Study figures on Play.
 - [Deck studio](tasks/deck-studio.md): own Study and Battle decks with status, creation/edit/publication times and edit or publish actions.
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
 - [Study Plan desktop layout](tasks/study-plan-desktop-layout.md): wide overview and editor layout without changing Study Plan behaviour.
