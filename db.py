@@ -179,6 +179,25 @@ class BattleRepository:
         except Exception as exc:raise ValueError(battle_error_message(exc)) from exc
         if not isinstance(result,dict):raise ValueError('Battle Mode returned an unexpected result.')
         if result.get('error'):raise ValueError(result['error'])
+        if action=='list':result['sessions']=self.sessions()
+        return result
+
+    def sessions(self):
+        """Return Battle rows enriched with the opponent's visible username."""
+        try:result=self.client.rpc('battle_sessions_list',{}).execute().data
+        except Exception as exc:raise ValueError('Battle sessions could not be loaded. Refresh and retry.') from exc
+        if not isinstance(result,list):raise ValueError('Battle sessions returned an unexpected result.')
+        return result
+
+    def report_question(self,session_id,card_index,reason,note=''):
+        """Save one participant-only report for a completed Battle question."""
+        try:
+            result=self.client.rpc('report_battle_question',{
+                'p_session':session_id,'p_card_index':card_index,
+                'p_reason':reason,'p_note':note,
+            }).execute().data
+        except Exception as exc:raise ValueError(question_report_error_message(exc)) from exc
+        if not isinstance(result,dict):raise ValueError('This question report could not be saved. Refresh and retry.')
         return result
 
     def progress(self,session_id):
@@ -206,6 +225,13 @@ def battle_error_message(error):
     for item,feedback in known.items():
         if item in message:return feedback
     return 'Battle Mode could not be reached. Refresh and retry after its database migration is applied.'
+
+
+def question_report_error_message(error):
+    """Give a deployable report feature a useful setup message without exposing SQL details."""
+    if 'report_battle_question' in str(error):
+        return 'Question reports are not set up yet. Apply the Battle question reports database migration, then refresh.'
+    return 'This question report could not be saved. Refresh and retry.'
 
 
 class LeaderboardRepository:

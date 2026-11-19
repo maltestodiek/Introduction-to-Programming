@@ -36,7 +36,7 @@ def test_active_decks_screen_does_not_offer_legacy_thirty_question_authoring(mon
     assert not at.exception
 
 
-def test_battle_deck_creator_warns_when_more_than_fifteen_cards_are_selected(monkeypatch):
+def test_battle_deck_creator_shows_questions_only_after_choosing_a_source(monkeypatch):
     cards=[{'id':str(index),'question':f'Question {index}'} for index in range(16)]
     def action(self,kind,data=None):
         if kind=='sources':
@@ -46,7 +46,67 @@ def test_battle_deck_creator_warns_when_more_than_fifteen_cards_are_selected(mon
     monkeypatch.setattr('db.BattleRepository.action',action)
     at=deck_app(monkeypatch)
     at.session_state['battle_deck_creator']=True;at.run()
+    assert next(field for field in at.selectbox if field.label=='Source Study deck').value is None
+    assert not at.checkbox
+    next(field for field in at.selectbox if field.label=='Source Study deck').set_value('source-1').run()
+    assert len(at.checkbox)==17  # 16 questions plus the public-play confirmation.
+    assert not any(button.label=='Back to Decks' for button in at.button)
+
+
+def test_battle_deck_creator_opens_a_dialog_when_selection_is_not_fifteen(monkeypatch):
+    cards=[{'id':str(index),'question':f'Question {index}'} for index in range(16)]
+    def action(self,kind,data=None):
+        if kind=='sources':
+            return {'sources':[{'id':'source-1','name':'Source','course':'Finance','language':'English','count':16,'battle_capable':True}]}
+        if kind=='source':return {'name':'Source','cards':cards}
+        raise AssertionError(kind)
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    at=deck_app(monkeypatch)
+    at.session_state['battle_deck_creator']=True;at.run()
+    next(field for field in at.selectbox if field.label=='Source Study deck').set_value('source-1').run()
     for checkbox in at.checkbox[:16]:checkbox.check().run()
-    assert any('more than 15 cards' in error.value for error in at.error)
-    assert button(at,'Submit Battle Deck').disabled
+    button(at,'Submit Battle Deck').click().run()
+    assert any('exactly 15 questions' in error.value for error in at.error)
+    assert any(button.label=='Continue selecting' for button in at.button)
+    assert not at.exception
+
+
+def test_new_battle_opens_a_dedicated_setup_screen(monkeypatch):
+    def action(self,kind,data=None):
+        if kind=='list':return {'sessions':[],'invites':[],'search':None}
+        if kind=='friend_options':return {'friends':[]}
+        return {}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    at=deck_app(monkeypatch)
+    button(at,'Play').click().run()
+    button(at,'Battle Mode').click().run()
+    assert any(item.value=='Game Overview' for item in at.subheader)
+    button(at,'New Battle').click().run()
+    assert any(item.value=='Start a new Battle' for item in at.subheader)
+    assert not any(item.value=='Game Overview' for item in at.subheader)
+    assert button(at,'Back to Game Overview')
+    assert not at.exception
+
+
+def test_completed_battle_review_offers_a_report_for_each_question(monkeypatch):
+    card={
+        'id':'card-1','question':'Is this question clear?',
+        'answers':[{'id':'answer-1','text':'Yes'},{'id':'answer-2','text':'No'}],
+        'correct_answer_id':'answer-1',
+    }
+    def action(self,kind,data=None):
+        if kind=='list':
+            return {'sessions':[{
+                'id':'session-1','deck_name':'Battle deck','status':'completed',
+                'score':1,'opponent_score':1,'result':'draw','game_xp_delta':0,
+                'opponent_username':'Opponent','course':'Finance','language':'English',
+            }],'invites':[],'search':None}
+        if kind=='review':return {'score':1,'cards':[card],'answers':[{'index':0,'answer_id':'answer-1','correct':True}]}
+        return {}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    at=deck_app(monkeypatch)
+    button(at,'Play').click().run()
+    button(at,'Battle Mode').click().run()
+    button(at,'Review Battle').click().run()
+    assert any(item.proto.popover.label=='Report this question' for item in at.get('popover'))
     assert not at.exception

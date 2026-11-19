@@ -17,6 +17,12 @@ def test_custom_text_remains_readable_on_both_card_themes():
             for background in ('surface','battle-end','study-end'):
                 assert contrast(palette[foreground],palette[background])>=4.5
 
+
+def test_battle_mode_mint_button_text_remains_readable():
+    for palette in PALETTES.values():
+        assert contrast(palette['battle-button-text'],palette['battle-button'])>=4.5
+        assert contrast(palette['battle-button-text'],palette['battle-button-hover'])>=4.5
+
 def test_native_controls_have_light_and_dark_configuration():
     config=tomllib.loads((Path(__file__).parents[1]/'.streamlit/config.toml').read_text())['theme']
     for mode in ('light','dark'):

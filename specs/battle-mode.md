@@ -12,8 +12,8 @@ The redesigned Battle workflow keeps the existing friend-challenge and mutual ra
 A Battle Deck is a separate, immutable 15-question snapshot created from one of the creator's own published UniArena decks. It is not a second manual authoring form.
 
 1. The creator selects **Create Battle Mode Deck**.
-2. The creator selects one of their published source decks, including a reviewed/published deck created manually or through the existing approved AI-/Chatbot-generation workflow.
-3. The creator selects exactly 15 distinct questions from that source deck.
+2. The creator selects one of their published source decks from a dropdown, including a reviewed/published deck created manually or through the existing approved AI-/Chatbot-generation workflow. The question list appears only after that selection.
+3. The creator selects exactly 15 distinct questions from that source deck. A submit attempt with any other count opens a clear prompt that exactly 15 questions are required.
 4. Before submission, the interface asks for explicit confirmation: **“By submitting, you accept that the deck can be played by everyone.”**
 5. After confirmation, the Battle Deck is published and available to other eligible students. There is no separate Battle-Pool opt-in step.
 
