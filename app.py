@@ -653,7 +653,14 @@ def decks_screen(client,profile):
             st.markdown('#### AI from lecture slides')
             st.caption('Upload text-based PDF slides, then review generated questions.')
             if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
-    st.divider()
+    with st.container(border=True,key='deck_studio_entry'):
+        studio_icon,studio_text,studio_open=st.columns([.5,5,2],vertical_alignment='center')
+        studio_icon.markdown('<div class="deck-create-icon deck-studio-icon">✎</div>',unsafe_allow_html=True)
+        with studio_text:
+            st.markdown('#### Deck studio')
+            st.caption('Edit, publish and track every deck you created: private drafts, published Study decks and Battle decks, with their dates.')
+        if studio_open.button('Open Deck studio',key='open_deck_studio',icon=':material/design_services:',type='primary',use_container_width=True):
+            st.session_state.deck_studio=True;st.rerun()
     course_names=list(dict.fromkeys(profile['courses']))
     from db import BattleRepository
     # Battle Mode decks live in battle_decks; the old decks table only holds retired classic duel decks.
@@ -668,13 +675,10 @@ def decks_screen(client,profile):
     for deck in battle_decks:battle_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
     for deck in study_decks:study_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
 
-    course_heading,studio_action,review_action=st.columns([4,1,1],vertical_alignment='center')
+    course_heading,review_action=st.columns([5,1],vertical_alignment='center')
     with course_heading:
         st.subheader('Your courses')
         st.caption('Choose a course to study at your pace or start a Battle.')
-    with studio_action:
-        if st.button('Deck studio',key='open_deck_studio',icon=':material/design_services:',use_container_width=True):
-            st.session_state.deck_studio=True;st.rerun()
     with review_action:
         if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
             st.session_state.study_library=True;st.rerun()
