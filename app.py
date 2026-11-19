@@ -613,26 +613,38 @@ def decks_screen(client,profile):
             if st.button('Confirm discard'):
                 st.session_state.pop('deck_draft',None);st.session_state.pop('deck_review',None);st.rerun()
         return
+    st.html('<style>'+(Path(__file__).parent/'assets'/'deck-creation.css').read_text()+'</style>')
     st.subheader('Create a deck')
+    st.caption('Choose how you want to create your next set of questions.')
     manual,anki,ai=st.columns(3)
     with manual:
-        st.write('**Manual**');st.caption('Add as many questions as you need and organise them into subsections or lectures.')
-        with st.popover('+ Create Deck',type='primary',use_container_width=True):
-            if st.button('Create Study Deck',use_container_width=True):
-                st.session_state.study_library=True
-                if not st.session_state.get('study_draft'):
-                    st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
-                st.session_state.pop('study_deck_open',None);st.rerun()
-            if st.button('Create Battle Mode Deck',use_container_width=True):
-                st.session_state.battle_deck_creator=True;st.rerun()
+        with st.container(border=True,key='deck_create_manual'):
+            st.markdown('<div class="deck-create-icon">+</div>',unsafe_allow_html=True)
+            st.markdown('#### Manual deck')
+            st.caption('Write questions from scratch and organise them into lectures.')
+            with st.popover('Create deck',type='primary',use_container_width=True):
+                if st.button('Create Study Deck',use_container_width=True):
+                    st.session_state.study_library=True
+                    if not st.session_state.get('study_draft'):
+                        st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
+                    st.session_state.pop('study_deck_open',None);st.rerun()
+                if st.button('Create Battle Mode Deck',use_container_width=True):
+                    st.session_state.battle_deck_creator=True;st.rerun()
     with anki:
-        st.write('**AI Anki import**');st.caption('Import Anki cards, then review AI-generated questions.')
-        if st.button('Import Anki deck',use_container_width=True):
-            st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
+        with st.container(border=True,key='deck_create_anki'):
+            st.markdown('<div class="deck-create-icon">▤</div>',unsafe_allow_html=True)
+            st.markdown('#### AI Anki import')
+            st.caption('Import Anki cards, then review AI-generated questions.')
+            if st.button('Import Anki deck',use_container_width=True):
+                st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
     with ai:
-        st.write('**AI from lecture slides**');st.caption('Upload text-based PDF slides, then review generated questions.')
-        if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
-    if st.button('Study decks & progress',type='primary'):
+        with st.container(border=True,key='deck_create_slides'):
+            st.markdown('<div class="deck-create-icon">✦</div>',unsafe_allow_html=True)
+            st.markdown('#### AI from lecture slides')
+            st.caption('Upload text-based PDF slides, then review generated questions.')
+            if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
+    st.divider()
+    if st.button('Study decks & progress',icon=':material/menu_book:'):
         st.session_state.study_library=True;st.rerun()
     st.caption('Create questions. Check every answer. Share what you know.')
     st.subheader('Your courses')

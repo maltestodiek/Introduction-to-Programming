@@ -1,0 +1,28 @@
+/* A focused start area for the three deck creation paths. */
+.deck-create-heading{margin-bottom:.2rem}
+.deck-create-intro{margin-bottom:1rem}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides){
+ border-radius:20px!important;padding:20px!important;min-height:250px;
+ transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+.st-key-deck_create_manual{background:linear-gradient(145deg,#4f46e5,#6258e9)!important;border-color:#4f46e5!important}
+:is(.st-key-deck_create_anki,.st-key-deck_create_slides){background:var(--sd-surface)!important}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides):is(:hover,:focus-within){
+ transform:translateY(-4px);box-shadow:0 12px 28px var(--sd-shadow);border-color:#818cf8!important;
+}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) [data-testid="stVerticalBlock"]{min-height:208px;display:flex;flex-direction:column}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) [data-testid="stButton"]{margin-top:auto}
+.deck-create-icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:var(--sd-study-end);color:var(--sd-accent);font-size:1.35rem;margin-bottom:.7rem}
+.st-key-deck_create_manual .deck-create-icon{background:#ffffff26;color:#fff}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) h4{font-size:1.35rem;letter-spacing:-.025em;margin:0 0 .35rem;color:var(--sd-text)}
+.st-key-deck_create_manual h4,.st-key-deck_create_manual [data-testid="stCaptionContainer"] p{color:#fff!important}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) button{min-height:48px;border-radius:12px;font-weight:700}
+.st-key-deck_create_manual button{background:#fff!important;color:#4338ca!important;border-color:#fff!important}
+.st-key-deck_create_manual button:hover{background:#f5f3ff!important;border-color:#f5f3ff!important}
+@media(prefers-reduced-motion:reduce){
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides){transition:none!important;transform:none!important}
+}
+@media(max-width:700px){
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides){min-height:0}
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) [data-testid="stVerticalBlock"]{min-height:0}
+}
