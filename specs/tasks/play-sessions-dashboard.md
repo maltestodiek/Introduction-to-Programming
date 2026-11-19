@@ -8,7 +8,7 @@ Ongoing sessions and history were two equal Battle/Study columns of large cards.
 
 ## What
 
-Below the session creation area, Play shows **Your sessions** with All, Battle and Study filters and two columns.
+Play starts directly with the Battle and Study mode cards; it has no separate "Create new session" heading or introductory sentence. Below the cards, **Your sessions** shows All, Battle and Study filters and two columns. The filters align to the right edge of the Study card and use the same rounded primary-button visual language as the Study Mode action.
 
 The main column starts with a **Continue where you left off** banner for one session: a Together Study session with the nearest deadline (with the time left), otherwise a Battle where it is the player's turn, otherwise a Study session to resume. Its Resume button does exactly what the session's own resume button does. **Ongoing sessions** follow as a two-column grid of cards with progress, a turn badge (Your turn, Opponent's turn, Ready to start, Waiting for a study partner), the partner menu for Together sessions, deadlines and the existing Start/Resume Battle and Open/Resume Study actions. **Session history** is a table with Result, Deck, Mode (opponent or Solo/Together with the partner menu), Score and XP plus the existing Review Battle and View Study session actions; it shows five rows and Show more adds ten.
 
@@ -26,4 +26,4 @@ New session data (dates, accuracy, weekly XP), Battle or Study rules, and a sepa
 2. Filters show only Battle or only Study sessions in the banner, grid and history.
 3. Turn badges match the session state, and history results show Win, Loss, Draw, Done or Expired.
 4. History shows five rows first and more on request; empty states invite starting a session.
-5. The page works in light and dark themes and keeps the existing creation area above it.
+5. The page works in light and dark themes, keeps the mode-card creation area above the dashboard without redundant introductory copy, and aligns its filters with the card layout.

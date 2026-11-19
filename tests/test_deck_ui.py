@@ -186,6 +186,6 @@ def test_completed_battle_review_offers_a_report_for_each_question(monkeypatch):
     at=deck_app(monkeypatch)
     button(at,'Play').click().run()
     button(at,'Battle Mode').click().run()
-    button(at,'Review Battle').click().run()
+    button(at,'Review').click().run()
     assert any(item.proto.popover.label=='Report this question' for item in at.get('popover'))
     assert not at.exception
