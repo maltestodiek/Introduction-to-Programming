@@ -30,6 +30,20 @@ The UI can select up to 100 source cards for one deck-generation request. The Ed
 
 Only one generation request per signed-in user may run at a time. A second request receives a clear “generation already running” response and changes no data.
 
+### Answer quality safeguards
+
+Language models put the correct answer first far more often than chance and tend to make it the longest, most detailed option. Production drafts showed 86% of correct answers at position A and the correct option as the longest in 64% of questions. UniArena therefore does not trust the model's answer order or answer lengths:
+
+- After validation, the Edge Function moves every correct answer to a server-chosen position. Positions are spread evenly over A–D across the whole request, starting at a random position, and the distractors are shuffled into the remaining slots. The answer texts themselves are not changed.
+- The prompt asks for four options of similar length, detail and grammatical form.
+- A question gives its answer away by length when the correct option is the longest, at least 1.5 times the average distractor length and at least 12 characters longer than the longest distractor. Such questions are requested once more with a rewrite instruction. A rewrite replaces the original draft only when it no longer gives the answer away; if it fails, the original valid draft is kept because the student reviews every draft.
+- Requesty is asked for strict structured JSON (`json_schema`). If the routed model rejects structured output with HTTP 400, the same request is sent once in JSON mode. The validator applies the same rules to both.
+- An empty or incomplete batch is retried once and then completed with a request for only the missing source cards.
+
+Batches run with at most five in parallel so that a 100-card request stays within the Edge Function time limit. After a failed batch no new batch starts, and the generation lock is released only after all running batches have finished. The function logs only batch size, model, response format, duration and token counts, never source or question text.
+
+The generate button disappears while a request runs; the request is removed from the Streamlit session before the provider call, so a rerun or double click cannot send it twice.
+
 ### State and persistence
 
 | State | Durable data | Allowed action | Rejected action |
@@ -43,7 +57,7 @@ Source cards remain unchanged throughout generation, review, publishing, provide
 
 ## Out of scope
 
-Lecture/PDF text extraction, image/OCR processing, Cloze/media conversion, chatbot functionality, automatic publication, provider fallback, and sending raw files or API keys to the browser.
+Lecture/PDF text extraction, image/OCR processing, Cloze/media conversion, chatbot functionality, automatic publication, fallback to another AI provider, and sending raw files or API keys to the browser.
 
 ## Done when
 
@@ -55,3 +69,6 @@ Lecture/PDF text extraction, image/OCR processing, Cloze/media conversion, chatb
 6. Another user cannot read, generate from, edit or publish the owner's source cards or drafts.
 7. Tests use simulated Requesty responses only and cover valid output, malformed JSON, invalid options, wrong source IDs, provider failure, concurrency and the 100-card limit.
 8. The full source → draft → reviewed deck workflow survives an application restart.
+9. Correct answers of generated drafts are spread evenly over the four positions, independent of the model's own order, and no answer text changes when positions move.
+10. A draft whose correct option gives the answer away by length is rewritten once; the original is kept when the rewrite fails or is no better.
+11. A 100-card request processes batches in parallel (at most five at once) and a single click or rerun starts exactly one generation.

@@ -788,6 +788,11 @@ def pdf_import_screen(client,profile):
         else:
             st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
 
+def request_ai_generation(import_id,card_ids):
+    if not st.session_state.get('ai_generation_request'):
+        st.session_state.ai_generation_request={'import_id':import_id,'card_ids':list(card_ids)}
+
+
 def anki_generation_screen(client,profile):
     """Select private source cards, generate drafts, then hand reviewed cards to Study."""
     from uuid import uuid4
@@ -817,10 +822,14 @@ def anki_generation_screen(client,profile):
             st.rerun()
         for card in available:
             if st.checkbox(card['front'],help=card['back'],key='anki_source_'+card['id']):selected.append(card['id'])
-        if st.button(f'Generate {len(selected)} question drafts',type='primary',disabled=not selected):
-            try:result=repository.generate(imported['id'],selected)
-            except ValueError as exc:st.error(str(exc))
-            else:st.success(f"Generated {result['count']} private drafts. Review them below.");st.rerun()
+        if pending:=st.session_state.pop('ai_generation_request',None):
+            # The request leaves the session before the slow call, so a rerun can never
+            # send it twice, and the button is not shown again until the call has ended.
+            with st.spinner(f"Generating {len(pending['card_ids'])} drafts. This can take up to two minutes; keep this page open."):
+                try:result=repository.generate(pending['import_id'],pending['card_ids'])
+                except ValueError as exc:result=None;st.error(str(exc))
+            if result:st.session_state.notice=f"Generated {result['count']} private drafts. Review them below.";st.rerun()
+        st.button(f'Generate {len(selected)} question drafts',type='primary',disabled=not selected,on_click=request_ai_generation,args=(imported['id'],selected))
     else:st.caption('All source cards from this import already have a draft or were published.')
     drafts=[draft for draft in imported['drafts'] if draft['status']=='draft']
     if not drafts:return
