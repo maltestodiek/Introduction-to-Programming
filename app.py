@@ -1751,9 +1751,9 @@ def battle_overview(answers,current_index):
 
 
 def battle_timer(seconds):
-    from battle_ui import timer_fraction
-    fraction=timer_fraction(seconds);urgent=' urgent' if seconds<=10 else ''
-    st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="width:{fraction*100:.1f}%"></div></div><p class="battle-timer-label">{seconds} seconds remaining · the timer continues if you leave this Battle.</p>')
+    from battle_ui import timer_tick_fractions
+    start,end=timer_tick_fractions(seconds);urgent=' urgent' if seconds<=10 else ''
+    st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="--timer-start:{start*100:.3f}%;--timer-end:{end*100:.3f}%"></div></div><p class="battle-timer-label">{seconds} seconds remaining · the timer continues if you leave this Battle.</p>')
 
 
 @st.dialog('Battle review',width='large')

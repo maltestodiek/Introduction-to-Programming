@@ -20,3 +20,8 @@ def battle_progress_tiles(answers, current_index, total=15):
 def timer_fraction(seconds, limit=30):
     """Keep the visible timer within its server-owned 30-second bounds."""
     return max(0.0,min(1.0,float(seconds)/limit))
+
+
+def timer_tick_fractions(seconds, limit=30):
+    """Return the current and next server-tick widths for a smooth countdown."""
+    return timer_fraction(seconds,limit),timer_fraction(seconds-1,limit)
