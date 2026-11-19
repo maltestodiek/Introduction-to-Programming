@@ -13,3 +13,5 @@
 :is([class*="st-key-course_deck_"]) [data-testid="stCaptionContainer"] p{font-weight:600}
 @media(prefers-reduced-motion:reduce){:is([class*="st-key-course_list_"],.st-key-course_list_filter [role="radio"],.st-key-course_list_filter [data-testid="stSegmentedControl"] button){transition:none!important;transform:none!important}}
 @media(max-width:700px){.course-list-count{margin:.35rem 0}:is([class*="st-key-course_list_"]){padding:.75rem!important}.st-key-course_list_filter [role="radiogroup"]{gap:.35rem!important}:is(.st-key-course_list_filter [role="radio"],.st-key-course_list_filter [data-testid="stSegmentedControl"] button){min-width:auto!important;padding:.5rem .72rem!important}}
+:is([class*="st-key-course_list_"]) [data-testid="stExpander"] details{border-radius:12px!important;border-color:var(--sd-border)!important;background:transparent!important}
+:is([class*="st-key-course_list_"]) [data-testid="stExpander"] summary{font-weight:650}

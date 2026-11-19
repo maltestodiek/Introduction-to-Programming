@@ -685,6 +685,14 @@ def decks_screen(client,profile):
                     st.session_state.main_page='Play';st.session_state.play_mode_preview='Battle';st.session_state.battle_new_setup=True
                     st.session_state.battle_course=course;st.session_state.battle_language=profile['languages'][0]
                     st.rerun()
+            course_decks=[('study',deck) for deck in study_by_course.get(course_key,[])]+[('battle',deck) for deck in battle_by_course.get(course_key,[])]
+            with st.expander(f'Decks in this course ({len(course_decks)})'):
+                if not course_decks:st.caption(f'No decks in {course} yet. Create the first one above.')
+                for kind,deck in course_decks:
+                    info,action=st.columns([3,1],vertical_alignment='center')
+                    info.markdown((':material/menu_book:' if kind=='study' else ':material/swords:')+' **'+deck['name']+'**')
+                    info.caption(course_deck_meta(kind,deck))
+                    with action:course_deck_action(client,kind,deck,f'course_menu_{index}_{kind}_{deck["id"]}',compact=True)
 
     st.subheader('Your decks')
     filter_choice=st.segmented_control('Deck filter',['All','Study','Battle','Mine'],default='All',key='course_list_filter',label_visibility='collapsed')
@@ -706,18 +714,28 @@ def decks_screen(client,profile):
                     label='Study deck' if kind=='study' else 'Battle deck'
                     st.caption(icon+' '+label)
                     st.markdown('#### '+deck['name'])
-                    if kind=='study':
-                        st.caption(f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions")
-                        if deck.get('owned'):
-                            if st.button('Open Study deck',key='course_open_study_'+deck['id'],use_container_width=True):
-                                st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
-                        elif st.button('Save private Study copy',key='course_copy_study_'+deck['id'],use_container_width=True):
-                            if study_public_request(client,'copy',{'id':deck['id']}) is not None:
-                                st.success('Saved a private Study copy.');st.rerun()
-                    else:
-                        st.caption(f"{deck['course']} · {deck.get('language') or 'Language not set'} · By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions")
-                        if st.button('Open Battle deck',key='open_'+deck['id'],use_container_width=True):
-                            st.session_state.deck_open=deck['id'];st.rerun()
+                    st.caption(course_deck_meta(kind,deck))
+                    if kind=='battle':key='open_'+deck['id']
+                    else:key=('course_open_study_' if deck.get('owned') else 'course_copy_study_')+deck['id']
+                    course_deck_action(client,kind,deck,key)
+
+
+def course_deck_meta(kind,deck):
+    if kind=='study':return f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions"
+    return f"{deck['course']} · {deck.get('language') or 'Language not set'} · By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions"
+
+
+def course_deck_action(client,kind,deck,key,compact=False):
+    """Open an owned Study deck, copy someone else's Study deck, or open a Battle deck."""
+    if kind=='battle':
+        if st.button('Open' if compact else 'Open Battle deck',key=key,use_container_width=True):
+            st.session_state.deck_open=deck['id'];st.rerun()
+    elif deck.get('owned'):
+        if st.button('Open' if compact else 'Open Study deck',key=key,use_container_width=True):
+            st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
+    elif st.button('Save copy' if compact else 'Save private Study copy',key=key,use_container_width=True):
+        if study_public_request(client,'copy',{'id':deck['id']}) is not None:
+            st.success('Saved a private Study copy.');st.rerun()
 
 
 def anki_import_screen(client,profile):

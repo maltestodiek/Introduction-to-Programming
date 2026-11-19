@@ -8,7 +8,7 @@ Students need a quick overview of every course they selected, without switching 
 
 ## What
 
-The Decks page keeps its existing creation area at the top. Beneath it, it presents the student's courses as a vertical desktop-friendly list. Each row shows real counts of available Study and Battle decks plus direct Study and Battle actions. A Daily review action opens the existing Study-deck area. The Your decks section follows with All, Study, Battle and Mine filters and compact two-column deck cards.
+The Decks page keeps its existing creation area at the top. Beneath it, it presents the student's courses as a vertical desktop-friendly list. Each row shows real counts of available Study and Battle decks plus direct Study and Battle actions. Clicking a course row's “Decks in this course (N)” dropdown expands the list of that course's Study and Battle decks inside the row; each deck shows its name, language, author and question count and offers its existing action: Open for an owned Study deck, Save copy for another student's Study deck and Open for a Battle deck. A course without decks says so in the dropdown. A Daily review action opens the existing Study-deck area. The Your decks section follows with All, Study, Battle and Mine filters and compact two-column deck cards.
 
 ## Out of scope
 
@@ -21,3 +21,4 @@ Changing deck visibility, publication, learning progress, Battle matching, cours
 3. Deck filters show the appropriate existing deck types; Mine shows only decks owned by the signed-in student.
 4. The original creation controls appear once, above the course list, in light and dark themes.
 5. Reloading preserves the profile's courses and deck data; no new course-list data is persisted.
+6. Each course row has a deck dropdown that lists exactly that course's available decks, with the same actions as the Your decks cards.
