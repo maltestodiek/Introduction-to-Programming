@@ -1,5 +1,7 @@
 """Presentation-safe state for the Battle round interface."""
 
+from math import ceil
+
 
 def battle_progress_tiles(answers, current_index, total=15):
     """Return one display state per Battle question without exposing answer text."""
@@ -25,3 +27,8 @@ def timer_fraction(seconds, limit=30):
 def timer_tick_fractions(seconds, limit=30):
     """Return the current and next server-tick widths for a smooth countdown."""
     return timer_fraction(seconds,limit),timer_fraction(seconds-1,limit)
+
+
+def countdown_seconds(server_seconds, elapsed_seconds):
+    """Advance a server-supplied countdown locally without reloading the round."""
+    return max(0,ceil(max(0.0,float(server_seconds)-float(elapsed_seconds))))

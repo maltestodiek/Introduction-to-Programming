@@ -2174,10 +2174,44 @@ def battle_overview(answers,current_index):
     st.html('<aside class="battle-overview"><h3>Overview</h3><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
 
 
-def battle_timer(seconds):
-    from battle_ui import timer_tick_fractions
+@st.fragment(run_every='1s')
+def battle_timer(client,session_id,index,server_seconds):
+    """Refresh only the countdown; the question and answers stay mounted."""
+    from battle_ui import countdown_seconds,timer_tick_fractions
+    key=f'battle_timer_{session_id}'
+    timer=st.session_state.get(key)
+    if not timer or timer.get('index')!=index:
+        timer={'index':index,'started_at':time.monotonic(),'server_seconds':server_seconds,'expired':False}
+        st.session_state[key]=timer
+    seconds=countdown_seconds(timer['server_seconds'],time.monotonic()-timer['started_at'])
+    if seconds==0 and not timer['expired']:
+        timer['expired']=True
+        result=battle_request(client,'round',{'id':session_id})
+        if result and result.get('state')=='feedback':
+            st.session_state.battle_feedback={**result,'id':session_id}
+            st.session_state[f'battle_timeout_notice_{session_id}']=True
+            st.rerun(scope='app')
     start,end=timer_tick_fractions(seconds);urgent=' urgent' if seconds<=10 else ''
-    st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="--timer-start:{start*100:.3f}%;--timer-end:{end*100:.3f}%"></div></div><p class="battle-timer-label">{seconds} seconds remaining · the timer continues if you leave this Battle.</p>')
+    st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="--timer-start:{start*100:.3f}%;--timer-end:{end*100:.3f}%"></div></div><p class="battle-timer-label">{seconds} seconds</p>')
+
+
+def return_to_battle_menu(message=None):
+    if message:st.session_state.battle_notice=message
+    for key in ('battle_session','battle_feedback','battle_new_setup','battle_rating_session'):
+        st.session_state.pop(key,None)
+    st.session_state.play_mode_preview='Battle'
+    st.rerun()
+
+
+def battle_leave_control(client,session_id):
+    """An explicit abandon action; the server records the resulting loss."""
+    with st.popover('Leave',icon=':material/close:',use_container_width=True,key=f'battle_leave_{session_id}'):
+        st.warning('Do you really want to leave? The game will count as a loss.')
+        if st.button('Leave Battle',type='primary',key=f'battle_leave_confirm_{session_id}',use_container_width=True):
+            if battle_request(client,'abandon',{'id':session_id,'confirmed':True}) is not None:
+                st.session_state.pop(f'battle_timer_{session_id}',None)
+                st.session_state.pop(f'battle_timeout_notice_{session_id}',None)
+                return_to_battle_menu('You left the Battle. It was recorded as a loss.')
 
 
 @st.dialog('Battle review',width='large')
@@ -2221,7 +2255,6 @@ def battle_question_report_form(client,session_id,card_index):
             st.success('Thank you. This question has been reported.' if result.get('reported') else 'This question was already reported.')
 
 
-@st.fragment(run_every='1s')
 def battle_round_screen(client,session_id):
     st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+'</style>')
     progress=battle_progress(client,session_id)
@@ -2241,7 +2274,11 @@ def battle_round_screen(client,session_id):
             st.html('<div class="battle-answer-grid">'+answer_markup+'</div>')
             if st.button('Continue',type='primary'):
                 st.session_state.pop('battle_feedback',None);st.rerun()
-        with overview:battle_overview(answers,response['index']+1)
+        with overview:
+            battle_leave_control(client,session_id)
+            battle_overview(answers,response['index']+1)
+        if response.get('timed_out') and st.session_state.pop(f'battle_timeout_notice_{session_id}',False):
+            st.toast('Time has passed',icon='⏱️')
         return
     result=battle_request(client,'round',{'id':session_id})
     if result is None:return
@@ -2260,35 +2297,49 @@ def battle_round_screen(client,session_id):
                     response=battle_request(client,'answer',{'id':session_id,'index':result['index'],'answer_id':answer['id']})
                     if response is not None:
                         st.session_state.battle_feedback={**response,'id':session_id};st.rerun()
-            battle_timer(result['seconds'])
-        with overview:battle_overview(answers,result['index'])
+            battle_timer(client,session_id,result['index'],result['seconds'])
+        with overview:
+            battle_leave_control(client,session_id)
+            battle_overview(answers,result['index'])
         return
     if state=='finish':
-        st.metric('Correct answers',f"{result['score']} / 15")
-        if st.button('Finish Battle',type='primary'):
-            if battle_request(client,'finish',{'id':session_id}) is not None:st.rerun()
+        if battle_request(client,'finish',{'id':session_id}) is not None:
+            st.session_state.battle_rating_session=session_id
+            st.session_state.pop('battle_session',None)
+            st.session_state.pop('battle_feedback',None)
+            st.rerun()
         return
     if state=='rating':
-        st.subheader('Battle round finished')
-        st.metric('Correct answers',f"{result['score']} / 15")
-        if result.get('can_rate'):
-            rating=st.radio('How was this Battle Deck?',('good','neutral','bad'),format_func=lambda value:{'good':'Good','neutral':'Neutral','bad':'Bad'}[value],horizontal=True)
-            if st.button('Save rating',type='primary'):
-                if battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:
-                    st.session_state.pop('battle_session',None);st.session_state.pop('battle_feedback',None);st.session_state.main_page='Play';st.rerun()
-        else:st.info('You played your own Battle Deck. It does not receive a rating from you.')
-        if st.button('Back to Battle Mode'):
-            st.session_state.pop('battle_session',None);st.rerun()
+        st.session_state.battle_rating_session=session_id
+        st.session_state.pop('battle_session',None)
+        st.rerun()
         return
     st.info('This Battle is complete.')
-    if st.button('Back to Battle Mode'):st.session_state.pop('battle_session',None);st.rerun()
+    return_to_battle_menu()
 
 
 @st.dialog('Battle Mode',width='large')
 def battle_game_dialog(client,session_id):
-    if st.button('Save and leave Battle'):
-        st.session_state.pop('battle_session',None);st.rerun()
     battle_round_screen(client,session_id)
+
+
+@st.dialog('Rate this Battle Deck')
+def battle_rating_dialog(client,session_id):
+    """A completed participant chooses one rating, then returns to Battle home."""
+    result=battle_request(client,'round',{'id':session_id})
+    if result is None:return
+    if result.get('state')!='rating':
+        return_to_battle_menu()
+        return
+    st.metric('Correct answers',f"{result['score']} / 15")
+    if not result.get('can_rate'):
+        st.info('You played your own Battle Deck. It does not receive a rating from you.')
+        if st.button('Back to Battle Mode',type='primary'):return_to_battle_menu()
+        return
+    labels={'good':'Good','neutral':'Neutral','bad':'Bad'}
+    rating=st.radio('How was this Battle Deck?',tuple(labels),format_func=labels.get,index=None,horizontal=True,key=f'battle_rating_{session_id}')
+    if rating and battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:
+        return_to_battle_menu()
 
 
 @st.fragment(run_every='1s')
@@ -2307,7 +2358,7 @@ def battle_pending_search(client,search):
         refreshed=battle_request(client,'list')
         st.session_state.battle_search_status_checked_at=time.monotonic()
         if refreshed is not None and not refreshed.get('search'):st.rerun()
-    with st.container(border=True):
+    with st.container(border=True,key='battle_overview_search'):
         st.write('**Finding an opponent**')
         st.caption(f"{search['course']} · {search['language']}")
         st.write('**Time remaining: '+battle_search_timer_text(remaining)+'**')
@@ -2319,34 +2370,64 @@ def battle_pending_search(client,search):
 
 
 def battle_session_overview(client,sessions,search=None):
+    """Compact three-column Battle dashboard using only persisted session state."""
     groups=(('Ongoing','ongoing'),('Pending','pending'),('Completed','completed'))
-    for column,(label,status) in zip(st.columns(3),groups):
-        with column:
-            st.markdown('**'+label+'**')
+    with st.container(border=True,key='battle_game_overview'):
+        st.subheader('Game Overview')
+        for column,(label,status) in zip(st.columns(3,gap='medium'),groups):
             rows=[session for session in sessions if session['status']==status]
-            if not rows and not (status=='pending' and search):
-                st.caption('No '+label.lower()+' Battles.')
-            if status=='pending' and search:battle_pending_search(client,search)
-            for session in rows:
-                with st.container(border=True):
+            count=len(rows)+(1 if status=='pending' and search else 0)
+            with column:
+                st.html(f'<p class="battle-overview-column-heading"><span></span>{label}<b>{count}</b></p>')
+                if not rows and not (status=='pending' and search):
+                    st.caption('No '+label.lower()+' Battles.')
+                if status=='pending' and search:battle_pending_search(client,search)
+                for session in rows:
                     opponent=session.get('opponent_username','Unknown opponent')
-                    st.write('**'+session['deck_name']+'**')
-                    opponent_result=(' · '+str(session['opponent_score'])+' / 15 correct' if status=='completed' and session.get('opponent_score') is not None else '')
-                    st.caption('vs. '+opponent+opponent_result)
-                    if status=='ongoing':
-                        st.caption('Your turn')
-                        if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary'):
-                            st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
-                    elif status=='pending':
-                        st.caption(f"Your result: {session['score']} / 15")
-                        st.caption('Waiting for '+opponent+'.')
-                    else:
-                        if session.get('opponent_score') is None:
-                            st.write(f"**Your correct answers: {session['score']} / 15 · {session.get('result','').title()}**")
+                    with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
+                        st.markdown('**'+session['deck_name']+'**')
+                        st.caption('vs. '+opponent)
+                        if status=='ongoing':
+                            st.markdown(':violet-badge[:material/schedule: Your turn]')
+                            if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary'):
+                                st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
+                        elif status=='pending':
+                            st.caption(f"Your result: {session['score']} / 15")
+                            st.caption('Waiting for '+opponent+'.')
                         else:
-                            st.write(f"**Your correct answers: {session['score']} / 15 · {session.get('result','').title()}**")
-                        st.caption(f"{session.get('game_xp_delta',0):+d} Battle XP")
-                        if st.button('Review Battle',key='overview_battle_review_'+session['id']):battle_review_dialog(client,session['id'])
+                            opponent_score=session.get('opponent_score')
+                            score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
+                            result=str(session.get('result') or 'completed').title()
+                            st.markdown(f'<p class="battle-overview-result">{score} <span class="battle-overview-result-{result.lower()}">{result}</span></p>',unsafe_allow_html=True)
+                            st.caption(f"{session.get('game_xp_delta',0):+d} Battle XP")
+                            if st.button('Review',key='overview_battle_review_'+session['id']):battle_review_dialog(client,session['id'])
+
+
+def battle_dashboard_rank(client):
+    """Read the authenticated player's real Battle-XP rank without blocking Battle."""
+    from db import LeaderboardRepository
+    try:data=LeaderboardRepository(client).load()
+    except ValueError:return None
+    rank=(data.get('me') or {}).get('rank') if isinstance(data,dict) else None
+    return rank if isinstance(rank,int) and rank>0 else None
+
+
+def battle_dashboard_hero(client,profile,sessions):
+    """Battle summary uses durable Battle XP and completed results only."""
+    from logic import battle_record,xp_breakdown
+    record=battle_record(sessions)
+    xp=xp_breakdown(profile)['battle']
+    rank=battle_dashboard_rank(client)
+    rank_html=f'<div><strong>#{rank}</strong><span>Leaderboard</span></div>' if rank is not None else ''
+    with st.container(key='battle_dashboard_hero'):
+        details,action=st.columns([4,1],vertical_alignment='center')
+        with details:
+            st.subheader('Battle Mode')
+            st.caption('15 shared questions · 30 seconds per question · Battle XP')
+            st.html(f'<div class="battle-hero-metrics"><div><strong>{xp:,}</strong><span>Battle XP</span></div><div><strong>{record["wins"]} / {record["losses"]}</strong><span>Wins / Losses</span></div>{rank_html}</div>')
+        with action:
+            if st.button('New Battle',key='open_new_battle',type='primary',icon=':material/add:',use_container_width=True):
+                st.session_state.battle_new_setup=True;st.rerun()
 
 
 def battle_new_setup_screen(client,profile):
@@ -2405,19 +2486,16 @@ def battle_new_setup_screen(client,profile):
 
 
 def battle_screen(client,profile):
-    st.subheader('Battle Mode')
-    st.caption('15 shared questions · 30 seconds per question · Battle XP · Battle never changes Study progress.')
+    if rating_session:=st.session_state.get('battle_rating_session'):
+        battle_rating_dialog(client,rating_session);return
     if st.session_state.get('battle_session'):
         battle_game_dialog(client,st.session_state.battle_session);return
     if st.session_state.get('battle_new_setup'):
         battle_new_setup_screen(client,profile);return
     state=battle_request(client,'list')
     if state is None:return
-    title,action=st.columns([4,1],vertical_alignment='center')
-    with title:st.subheader('Game Overview')
-    with action:
-        if st.button('New Battle',key='open_new_battle',type='primary',use_container_width=True):
-            st.session_state.battle_new_setup=True;st.rerun()
+    st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
+    battle_dashboard_hero(client,profile,state.get('sessions',[]))
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
     battle_session_overview(client,state.get('sessions',[]),state.get('search'))
     if state.get('invites'):
@@ -2479,7 +2557,6 @@ def leaderboard_screen(client,repo,profile=None):
 
 def play_screen(client,profile):
     from db import PlayRepository
-    st.title('Play')
     if st.session_state.get('study_active'):
         study_screen(client,profile);return
     if st.session_state.get('play_duel'):
@@ -2504,8 +2581,7 @@ def play_screen(client,profile):
         st.html('<style>'+ (assets/'play-modes.css').read_text()+'</style>')
         selected=st.session_state.get('play_mode_preview')
         if not selected:
-            st.subheader('Create new session')
-            st.write('Choose how you want to play.')
+            st.title('Play')
             battle,study=st.columns(2)
             with battle:
                 with st.container(border=True,key='battle_mode_card'):

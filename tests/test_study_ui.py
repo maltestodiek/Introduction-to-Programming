@@ -202,7 +202,9 @@ def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
     monkeypatch.setattr('db.StudyRepository.action',ongoing)
     button(at,'Play').click().run()
     headings=[w.value for w in at.subheader]
-    assert headings.index('Create new session')<headings.index('Ongoing sessions')
+    assert 'Create new session' not in headings
+    assert any(w.value=='Your sessions' for w in at.subheader)
+    assert 'Ongoing sessions' in headings
     assert any('Saved finance' in w.value for w in at.markdown)
     assert any('Finished finance' in w.value for w in at.markdown)
     assert 'Session history' in headings

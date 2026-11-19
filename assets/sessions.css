@@ -1,7 +1,9 @@
 /* Play sessions overview: continue banner, ongoing cards, history table and figures. */
-.st-key-sessions_filter,.st-key-sessions_filter>div,.st-key-sessions_filter [data-testid="stSegmentedControl"]{display:flex;justify-content:flex-end;gap:.45rem!important;background:transparent!important;border:0!important;box-shadow:none!important}
-.st-key-sessions_filter [data-testid="stSegmentedControl"] button{border-radius:999px!important;padding:.4rem 1rem!important;border:1px solid var(--sd-border)!important;background:var(--sd-surface)!important;color:var(--sd-muted)!important;font-weight:650!important}
-.st-key-sessions_filter [data-testid="stSegmentedControl"] button:is([aria-checked="true"],[data-active="true"]){background:var(--sd-text)!important;border-color:var(--sd-text)!important;color:var(--sd-surface)!important}
+.st-key-sessions_filter{display:flex;justify-content:flex-end}
+.st-key-sessions_filter [data-testid="stSegmentedControl"]{margin-left:auto;display:flex;justify-content:flex-end;gap:.45rem!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.st-key-sessions_filter [data-testid="stSegmentedControl"] button{min-height:52px;border-radius:14px!important;padding:.65rem 1.1rem!important;border:1.5px solid #4f46e5!important;background:var(--sd-surface)!important;color:#4f46e5!important;font-weight:700!important;box-shadow:none!important}
+.st-key-sessions_filter [data-testid="stSegmentedControl"] button:is([aria-checked="true"],[data-active="true"]){background:#4f46e5!important;border-color:#4f46e5!important;color:white!important}
+.st-key-sessions_filter [data-testid="stSegmentedControl"] button:hover{background:#4338ca!important;border-color:#4338ca!important;color:white!important}
 .st-key-sessions_continue{border-radius:20px!important;padding:18px 22px!important;border-color:transparent!important;background:color-mix(in srgb,var(--sd-accent) 11%,var(--sd-surface))!important}
 .st-key-sessions_continue [data-testid="stCaptionContainer"] p{color:var(--sd-accent)!important;font-weight:600}
 .st-key-sessions_continue strong{font-size:1.2rem;color:var(--sd-text)}
