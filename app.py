@@ -1467,10 +1467,20 @@ def study_plan_editor(client,profile,decks,user_id=''):
                     picked=st.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course)
                     chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
         with st.container(border=True,key='study_plan_editor_goal'):
-            level,legend=st.columns([5,1],vertical_alignment='bottom')
-            with level:st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">2</span>Goal for every question</p>',unsafe_allow_html=True)
-            target=level.radio('Target level for every question',[1,2,3],index=draft['target']-1,horizontal=True,format_func=lambda v:{1:'Level 1 · answered correctly once',2:'Level 2 · answered correctly twice',3:'Level 3 · answered correctly three times'}[v],key=key+'target')
-            st.html('<style>'+''.join(f'[class*="st-key-plan_"][class*="_target"] [role="radiogroup"]>:nth-child({v}) [data-testid="stRadioOption"] [data-testid="stMarkdownContainer"] p::before{{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[str(v)]};box-shadow:inset 0 0 0 1px #00000015}}' for v in (1,2,3))+'</style>')
+            goal_heading,legend=st.columns([5,1],vertical_alignment='bottom')
+            with goal_heading:st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">2</span>Goal for every question</p>',unsafe_allow_html=True)
+            target_key=key+'target_choice'
+            if target_key not in st.session_state:st.session_state[target_key]=draft['target']
+            target=st.session_state[target_key]
+            goal_text={1:('Correct once','Level 1'),2:('Correct twice','Level 2'),3:('Correct three times','Level 3')}
+            for target_col,value in zip(st.columns(3),(1,2,3)):
+                selected=target==value
+                with target_col:
+                    with st.container(border=True,key=f'study_plan_goal_card_{value}'+('_selected' if selected else '')):
+                        if st.button(goal_text[value][1],key=key+f'goal_{value}',use_container_width=True):
+                            st.session_state[target_key]=value;st.rerun()
+                        st.caption(goal_text[value][0])
+                        if value==2:st.caption('Recommended')
             with legend.popover(' ',icon=':material/info:',help='What the learning levels mean'):
                 st.write('**Learning levels**')
                 for v,text in [(1,'One correct answer earned.'),(2,'Two correct answers earned.'),(3,'Three correct answers earned, the highest level.')]:
@@ -1478,8 +1488,17 @@ def study_plan_editor(client,profile,decks,user_id=''):
                 st.caption('Each correct answer moves a question up one level and each wrong answer moves it down one. The plan counts how many levels every question still has to climb to your target.')
         with st.container(border=True,key='study_plan_editor_week'):
             st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">3</span>Your week</p>',unsafe_allow_html=True)
-            fixed=st.radio('Weekly days off',['None','Choose weekdays'],index=1 if draft['weekdays_off'] else 0,horizontal=True,key=key+'weekdays_mode')=='Choose weekdays'
-            weekdays_off=st.multiselect('Weekdays without studying',list(range(7)),default=draft['weekdays_off'],format_func=lambda d:WEEKDAYS[d],key=key+'weekdays') if fixed else []
+            st.markdown('**Study days**')
+            study_days_key=key+'study_days'
+            if study_days_key not in st.session_state:st.session_state[study_days_key]=[day for day in range(7) if day not in draft['weekdays_off']]
+            study_days=set(st.session_state[study_days_key])
+            for day_col,day in zip(st.columns(7),range(7)):
+                with day_col:
+                    if st.button(WEEKDAYS[day][:2],key=key+f'study_day_{day}',type='primary' if day in study_days else 'secondary',use_container_width=True):
+                        updated=study_days^{day}
+                        if updated:
+                            st.session_state[study_days_key]=sorted(updated);st.rerun()
+            weekdays_off=[day for day in range(7) if day not in study_days]
             st.caption('Optional: add single dates without studying, such as holidays.')
             for part in ('dates_options','dates_off'):
                 if key+part not in st.session_state:st.session_state[key+part]=list(draft['dates_off'])
@@ -1487,7 +1506,14 @@ def study_plan_editor(client,profile,decks,user_id=''):
             pick.date_input('Single day without studying',value=None,min_value=today,key=key+'extra_day')
             add.button('Add day off',on_click=study_plan_add_day_off,args=(key,),key=key+'add_day')
             dates_off=st.multiselect('Days off',st.session_state[key+'dates_options'],key=key+'dates_off',help='Remove a date to study on it again.') if st.session_state[key+'dates_options'] else []
-            sessions=st.radio('Sessions per study day',[1,2,3],index=draft['sessions']-1,horizontal=True,key=key+'sessions',help='A session is one sitting in Study Mode.')
+            st.markdown('**Sessions per study day**')
+            sessions_key=key+'sessions_choice'
+            if sessions_key not in st.session_state:st.session_state[sessions_key]=draft['sessions']
+            sessions=st.session_state[sessions_key]
+            for session_col,amount in zip(st.columns(3),(1,2,3)):
+                with session_col:
+                    if st.button(str(amount),key=key+f'session_{amount}',type='primary' if sessions==amount else 'secondary',use_container_width=True):
+                        st.session_state[sessions_key]=amount;st.rerun()
             st.caption('A session is one sitting in Study Mode. Splitting a day into 2 or 3 sessions keeps each sitting short; every session gets its own start time and calendar entry.')
             times=[]
             for i,col in enumerate(st.columns(sessions)):

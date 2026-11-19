@@ -51,8 +51,9 @@ def test_create_plan_shows_workload_and_saves_only_on_save(monkeypatch):
     assert widget(at.multiselect,'Decks to study').options==['Returns · 30 questions','Bonds (shared with me) · 30 questions']
     widget(at.multiselect,'Decks to study').set_value(['d1']).run()
     assert any('**20 questions per day**' in m.value and 'on 3 study days' in m.value and '7 days before your target date' in m.value for m in at.markdown)
-    assert widget(at.radio,'Target level for every question').options[0]=='Level 1 · answered correctly once'
-    widget(at.radio,'Sessions per study day').set_value(2).run()
+    assert button(at,'Level 1') and button(at,'Level 2') and button(at,'Level 3')
+    button(at,'Level 2').click().run()
+    button(at,'2').click().run()
     assert [w.label for w in at.time_input]==['Session 1 starts at','Session 2 starts at']
     assert any('**20 questions per day**, 10 per session' in m.value for m in at.markdown)
     assert any('A session is one sitting' in c.value for c in at.caption)
@@ -77,14 +78,25 @@ def test_cancel_and_unsaved_edit_change_nothing(monkeypatch):
     button(at,'Edit').click().run()
     assert widget(at.text_input,'Plan name').value=='Winter exams'
     widget(at.text_input,'Plan name').set_value('Changed').run()
-    assert widget(at.radio,'Weekly days off').value=='None' and not any(w.label=='Weekdays without studying' for w in at.multiselect)
-    widget(at.radio,'Weekly days off').set_value('Choose weekdays').run()
-    widget(at.multiselect,'Weekdays without studying').set_value([5,6]).run()
+    button(at,'Sa').click().run();button(at,'Su').click().run()
     button(at,'Cancel').click().run()
     assert not any(a in ('save','delete','events') for a,_ in calls)
     assert any(s.value=='Winter exams' for s in at.subheader)
     button(at,'Edit').click().run()
-    assert widget(at.text_input,'Plan name').value=='Winter exams' and widget(at.radio,'Weekly days off').value=='None'
+    assert widget(at.text_input,'Plan name').value=='Winter exams' and button(at,'Sa') and button(at,'Su')
+    assert not at.exception
+
+
+def test_direct_weekday_buttons_are_saved_as_days_off(monkeypatch):
+    end=(date.today()+timedelta(days=9)).isoformat()
+    existing={'id':'plan-1','plan':{'name':'Winter exams','target':2,'sessions':1,'times':['09:00'],'weekdays_off':[],'dates_off':[],'courses':[{'course':'Finance','end':end,'decks':['d1']}]},'calendar_events':[]}
+    at,calls=setup(monkeypatch,[existing])
+    button(at,'Edit').click().run()
+    button(at,'Sa').click().run()
+    button(at,'Su').click().run()
+    button(at,'Save study plan').click().run()
+    saved=next(value for action,value in calls if action=='save')
+    assert saved['id']=='plan-1' and saved['plan']['weekdays_off']==[5,6]
     assert not at.exception
 
 
