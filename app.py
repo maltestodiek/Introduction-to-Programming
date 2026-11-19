@@ -263,6 +263,21 @@ def friends_screen(friends,repo,state):
             if friend_action(friends,"request",preview["code"]):
                 st.session_state.pop("friend_preview",None)
                 st.rerun()
+    st.subheader("Find students at your university")
+    try:university_directory=friends.university_profiles()
+    except ValueError as exc:st.error(str(exc));university_directory={'profiles':[]}
+    students=university_directory['profiles']
+    if students:
+        st.caption(f"Students with a profile at {university_directory['university']}.")
+        for student in students:
+            with st.container(border=True):
+                public_person(student,repo)
+                if st.button("Send friend request",key="university_friend_"+student['id']):
+                    try:
+                        result=friends.request_university_friend(student['id'])
+                        st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
+                    except ValueError as exc:st.error(str(exc))
+    else:st.caption("No other students from your university are available to add right now.")
     st.subheader("Invite a friend with a link")
     if st.button("Create new invitation link"):
         result=friend_action(friends,"create_invite")

@@ -30,6 +30,16 @@ def test_invalid_lookup_never_contacts_provider():
     with pytest.raises(ValueError):FriendsRepository(client).lookup('bad')
     client.rpc.assert_not_called()
 
+
+def test_university_directory_uses_dedicated_server_checked_actions():
+    client=Mock();client.rpc.return_value.execute.return_value.data={'university':'Nova SBE','profiles':[{'id':'b','username':'student_b','image_path':None}]}
+    directory=FriendsRepository(client).university_profiles()
+    assert directory['profiles'][0]['username']=='student_b'
+    client.rpc.assert_called_once_with('university_friend_profiles',{})
+    client.rpc.reset_mock();client.rpc.return_value.execute.return_value.data={'message':'Friend request sent.'}
+    assert FriendsRepository(client).request_university_friend('b')['message']=='Friend request sent.'
+    client.rpc.assert_called_once_with('request_university_friend',{'p_user_id':'b'})
+
 def test_errors_are_safe_and_not_false_success():
     client=Mock();client.rpc.return_value.execute.return_value.data={'error':'Request no longer available.'}
     with pytest.raises(ValueError,match='no longer available'):FriendsRepository(client).action('accept','test')
