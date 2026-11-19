@@ -1391,8 +1391,34 @@ def study_plan_total_text(schedule):
     return f"All courses together: **{sum(schedule[first].values())} questions** on your next study day, {first:%d %b}." if first else ''
 
 
+def study_plan_live_preview(rules,plan,levels,today,schedule):
+    """Read-only summary for the editor; it deliberately reuses the real schedule."""
+    from math import ceil
+    with st.container(border=True,key='study_plan_preview_editor'):
+        st.subheader('Live preview')
+        upcoming=next(iter(schedule),None)
+        if upcoming:
+            total=sum(schedule[upcoming].values())
+            st.html(f'<div class="study-plan-preview-stat">Next study day<strong>{upcoming:%a, %d %b}</strong></div>')
+            st.html(f'<div class="study-plan-preview-stat">Questions on that day<strong>~{total} questions</strong></div>')
+            st.caption('The preview is recalculated from your current learning progress.')
+        else:
+            st.info('Choose valid courses, dates and decks to see the workload preview.')
+            return
+        for item in plan['courses']:
+            outlook=rules.course_outlook(schedule,item['course'])
+            if outlook:
+                each=ceil(outlook['per_day']/plan['sessions'])
+                st.write(f"**{item['course']}** · ~{each} questions per session")
+        st.success(f"Your plan uses {plan['sessions']} session{'s' if plan['sessions'] != 1 else ''} on each study day.")
+
+
 def study_plan_close_editor():
     for k in [k for k in st.session_state if str(k).startswith('plan_')]:st.session_state.pop(k,None)
+
+
+def study_plan_design():
+    st.html('<style>'+(Path(__file__).parent/'assets'/'study-plan.css').read_text()+'</style>')
 
 
 def study_plan_add_day_off(key):
@@ -1450,10 +1476,15 @@ def study_plan_editor(client,profile,decks,user_id=''):
     if clean:
         levels=study_plan_levels(client,clean,decks)
         if levels is not None:
-            st.write('**Your workload**');schedule=rules.plan_schedule(clean,levels,today)
-            for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
-            if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
-            st.caption('A question counts once for every level it still has to climb, so new questions count more than practised ones. Every study day of the plan has at least 20 questions in total; if fewer are left, they are all planned for one day. The numbers adjust every day to your progress.')
+            workload,preview=st.columns([1.15,.85],vertical_alignment='top')
+            schedule=rules.plan_schedule(clean,levels,today)
+            with workload:
+                with st.container(border=True,key='study_plan_editor_workload'):
+                    st.write('**Your workload**')
+                    for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
+                    if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
+                    st.caption('A question counts once for every level it still has to climb, so new questions count more than practised ones. Every study day of the plan has at least 20 questions in total; if fewer are left, they are all planned for one day. The numbers adjust every day to your progress.')
+            with preview:study_plan_live_preview(rules,clean,levels,today,schedule)
     save,cancel=st.columns(2)
     if save.button('Save study plan',type='primary',disabled=clean is None,use_container_width=True):
         payload={'plan':clean}
@@ -1565,6 +1596,7 @@ def study_plan_screen(client,profile,user_id=''):
     from datetime import date
     import google_calendar as google
     import study_plan as rules
+    study_plan_design()
     st.title('Study Plan')
     decks=study_plan_decks(client)
     if decks is None:return
@@ -1574,25 +1606,45 @@ def study_plan_screen(client,profile,user_id=''):
     if data is None:return
     saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
     if saved:return study_plan_finish(client,saved,decks,user_id)
-    st.write('Plan your Study Mode sessions until your exams and follow your progress.')
-    if st.button('Create study plan',type='primary',icon=':material/add:'):
+    heading,action=st.columns([4,1],vertical_alignment='bottom')
+    with heading:st.markdown('<p class="study-plan-intro">Plan your Study Mode sessions until your exams and follow your progress.</p>',unsafe_allow_html=True)
+    with action:create=st.button('Create study plan',type='primary',icon=':material/add:',use_container_width=True)
+    if create:
         st.session_state.plan_draft={'name':'','target':2,'sessions':1,'times':rules.DEFAULT_TIMES[:1],'weekdays_off':[],'dates_off':[],'courses':[]};st.rerun()
-    if not data['plans']:st.caption('No study plans yet.')
+    if not data['plans']:
+        st.caption('No study plans yet.')
+        st.write('**Build a plan in three simple steps**')
+        for col,(number,title,detail) in zip(st.columns(3),[
+            ('1','Pick courses and exam dates','Choose the decks you want to master and when you want to be ready.'),
+            ('2','Set your goal','Choose the learning level each question should reach.'),
+            ('3','Get a daily plan','Choose your study days and sessions. You can add the plan to your calendar after saving.'),
+        ]):
+            with col:
+                with st.container(border=True,key='study_plan_empty_step_'+number):
+                    st.markdown(f'**{number} · {title}**')
+                    st.caption(detail)
     today=date.today()
     for stored in data['plans']:
         plan={**stored['plan'],'id':stored['id']}
-        with st.container(border=True):
-            st.subheader(plan['name'])
+        with st.container(border=True,key='study_plan_overview_'+plan['id']):
+            title,edit=st.columns([4,1],vertical_alignment='center')
+            with title:st.subheader(plan['name'])
+            with edit:
+                if st.button('Edit',key='plan_edit_'+plan['id'],icon=':material/edit:',use_container_width=True):
+                    st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
             by_deck={};levels=study_plan_levels(client,plan,decks,by_deck)
             if levels is None:continue
-            if len(plan['courses'])>1:
-                everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
-                st.progress(overall,text=f"Overall progress {overall:.0%}")
-            for item in plan['courses']:
-                share=rules.plan_progress(levels[item['course']],plan['target']);st.progress(share,text=f"{item['course']} {share:.0%} · finish by {date.fromisoformat(item['end']):%d %b}")
-            study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
-            if st.button('Edit',key='plan_edit_'+plan['id'],icon=':material/edit:',use_container_width=True):
-                st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
+            progress,today_card=st.columns([1.35,.85],vertical_alignment='top')
+            with progress:
+                st.write('**Progress towards your exams**')
+                if len(plan['courses'])>1:
+                    everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
+                    st.progress(overall,text=f"Overall progress {overall:.0%}")
+                for item in plan['courses']:
+                    share=rules.plan_progress(levels[item['course']],plan['target']);st.progress(share,text=f"{item['course']} {share:.0%} · finish by {date.fromisoformat(item['end']):%d %b}")
+            with today_card:
+                with st.container(border=True,key='study_plan_today_'+plan['id']):
+                    study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
 
 
 def study_design():

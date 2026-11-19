@@ -1,0 +1,11 @@
+/* Study Plan keeps Streamlit's accessible controls and adds a calm desktop workspace around them. */
+.study-plan-intro{margin:0 0 1.25rem;color:var(--sd-muted);font-size:1.08rem}
+[class*="st-key-study_plan_overview_"]{border-radius:22px!important;padding:1.05rem!important;background:var(--sd-surface)!important}
+[class*="st-key-study_plan_today_"]{border-radius:18px!important;background:linear-gradient(135deg,var(--sd-study-end),var(--sd-surface))!important;border-color:var(--sd-border)!important}
+[class*="st-key-study_plan_empty_step_"]{border-radius:18px!important;min-height:146px;background:var(--sd-surface)!important}
+[class*="st-key-study_plan_editor_"]{border-radius:18px!important;background:var(--sd-surface)!important}
+[class*="st-key-study_plan_preview_"]{border-radius:18px!important;background:linear-gradient(145deg,var(--sd-study-end),var(--sd-surface))!important;position:sticky;top:1rem}
+.study-plan-preview-note{margin:.5rem 0 0;color:var(--sd-muted);line-height:1.5}
+.study-plan-preview-stat{padding:.85rem;border:1px solid var(--sd-border);border-radius:14px;background:var(--sd-surface);margin:.7rem 0}
+.study-plan-preview-stat strong{display:block;font-size:1.35rem;margin-top:.25rem}
+@media(max-width:700px){[class*="st-key-study_plan_preview_"]{position:static}.study-plan-intro{font-size:1rem}}
