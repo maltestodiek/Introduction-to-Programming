@@ -206,17 +206,50 @@ def friend_action(friends,action,value=""):
         st.error(str(exc))
         return None
 
-def friend_chat_person(item,repo,client):
-    # An accepted friend's name is a button that opens the private conversation.
+def open_friend_match(person,mode):
+    """Open the existing match setup with a friend already selected."""
+    st.session_state.main_page='Play'
+    if mode=='battle':
+        st.session_state.play_mode_preview='Battle'
+        st.session_state.battle_new_setup=True
+        st.session_state.battle_invite_friend=person
+    else:
+        st.session_state.play_mode_preview='Study'
+        st.session_state.study_active=True
+        st.session_state.study_choice='Study together'
+        st.session_state.study_partner='Friend'
+        st.session_state.study_invite_friend=person
+    st.rerun()
+
+
+def friend_match_row(item,repo,friends):
+    # Keep every frequent friend action visible instead of hiding it in a menu.
     person=item["person"]
-    left,right=st.columns([1,5],vertical_alignment="center")
-    with left:
+    avatar,profile,battle,study,remove=st.columns([0.7,1.55,2.25,1.65,1.45],vertical_alignment="center")
+    with avatar:
         try: data=repo.image(person.get("image_path"))
         except Exception:data=None
-        portrait(data or render_avatar(DEFAULT_AVATAR),56)
-    with right:
+        portrait(data or render_avatar(DEFAULT_AVATAR),48)
+    with profile:
         if st.button(person["username"],key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"]):
-            open_private_chat(client,person["id"])
+            open_private_chat(friends.client,person["id"])
+    with battle:
+        if st.button('Challenge to a Battle',key='friend_battle_'+item['id'],use_container_width=True):
+            open_friend_match(person,'battle')
+    with study:
+        if st.button('Study together',key='friend_study_'+item['id'],use_container_width=True):
+            open_friend_match(person,'study')
+    with remove:
+        if st.button('Remove friend',key='remove_friend_'+item['id'],use_container_width=True):
+            st.session_state.friend_remove_confirm=item['id'];st.rerun()
+    if st.session_state.get('friend_remove_confirm')==item['id']:
+        st.warning(f"Remove {person['username']} as a friend? This removes the friendship for both of you.")
+        confirm,cancel=st.columns(2)
+        if confirm.button('Confirm removal',key='remove_'+item['id'],type='primary'):
+            if friend_action(friends,'remove',item['id']):
+                st.session_state.pop('friend_remove_confirm',None);st.rerun()
+        if cancel.button('Keep friend',key='keep_friend_'+item['id']):
+            st.session_state.pop('friend_remove_confirm',None);st.rerun()
 
 def friends_screen(friends,repo,state):
     if st.session_state.get('study_return_after_friends'):
@@ -304,20 +337,15 @@ def friends_screen(friends,repo,state):
         try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",token))
         except ValueError as exc:st.info(str(exc))
     empty_messages={"Incoming requests":":material/inbox: No Incoming request","Sent requests":"Connect with your friends and Battle them","Your friends":"Nothing here yet."}
-    for title,items,actions in [("Incoming requests",state["incoming"],[("Accept","accept"),("Decline","decline")]),("Sent requests",state["sent"],[("Cancel request","cancel")]),("Your friends",state["friends"],[("Remove friend","remove")])]:
+    for title,items,actions in [("Incoming requests",state["incoming"],[("Accept","accept"),("Decline","decline")]),("Sent requests",state["sent"],[("Cancel request","cancel")]),("Your friends",state["friends"],[])]:
         st.subheader(title)
         if not items:st.caption(empty_messages[title])
         for item in items:
             with st.container(border=True):
-                if title=="Your friends":friend_chat_person(item,repo,friends.client)
+                if title=="Your friends":friend_match_row(item,repo,friends)
                 else:public_person(item["person"],repo)
                 for label,action in actions:
-                    if action=="remove":
-                        with st.expander("Remove friend"):
-                            st.caption("This removes the friendship for both of you.")
-                            if st.button("Confirm removal",key="remove_"+item["id"]):
-                                if friend_action(friends,action,item["id"]):st.rerun()
-                    elif st.button(label,key=action+"_"+item["id"]):
+                    if st.button(label,key=action+"_"+item["id"]):
                         if friend_action(friends,action,item["id"]):st.rerun()
 
 def calculator_input_changed(key):
@@ -1550,7 +1578,7 @@ def study_screen(client,profile):
     if st.session_state.get('study_session'):
         study_round_screen(client,st.session_state.study_session);return
     if st.button('Change study mode',icon=':material/arrow_back:'):
-        st.session_state.pop('study_active',None);st.session_state.pop('study_choose',None);st.session_state.pop('play_mode_preview',None);st.rerun()
+        st.session_state.pop('study_active',None);st.session_state.pop('study_choose',None);st.session_state.pop('study_invite_friend',None);st.session_state.pop('play_mode_preview',None);st.rerun()
     data=study_request(client,'list')
     if data is None:return
     # Incoming invitations stay above all setup, regardless of selected course.
@@ -1634,7 +1662,13 @@ def study_screen(client,profile):
                     else:st.info('None of your friends have this course and deck language in their profile yet. Ask a friend to add them to study together.')
                     valid=False
                 else:
-                    friend=st.selectbox('Choose a friend',[f['id'] for f in friends],format_func=lambda x:next(f['username'] for f in friends if f['id']==x))
+                    friend_ids=[f['id'] for f in friends]
+                    requested_friend=st.session_state.get('study_invite_friend',{})
+                    requested_id=requested_friend.get('id')
+                    if requested_id and requested_id not in friend_ids:
+                        st.warning(f"{requested_friend.get('username','This friend')} is not eligible for the selected course and language. Choose another friend or update the session settings.")
+                    index=friend_ids.index(requested_id) if requested_id in friend_ids else 0
+                    friend=st.selectbox('Choose a friend',friend_ids,index=index,format_func=lambda x:next(f['username'] for f in friends if f['id']==x))
                     request['friend_id']=friend
                     st.caption('Only friends enrolled in this course and speaking the deck language are shown.')
                 st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
@@ -1671,7 +1705,7 @@ def study_screen(client,profile):
         request['request_id']=st.session_state.study_request_id
         r=study_request(client,'start',request)
         if r is not None:
-            st.session_state.study_session=r['id'];st.session_state.pop('study_request_id',None);st.rerun()
+            st.session_state.study_session=r['id'];st.session_state.pop('study_request_id',None);st.session_state.pop('study_invite_friend',None);st.rerun()
 
 
 def ongoing_sessions(client):
@@ -1952,7 +1986,7 @@ def battle_session_overview(client,sessions,search=None):
 def battle_new_setup_screen(client,profile):
     st.subheader('Start a new Battle')
     if st.button('Back to Game Overview',key='close_new_battle',icon=':material/arrow_back:'):
-        st.session_state.pop('battle_new_setup',None);st.rerun()
+        st.session_state.pop('battle_new_setup',None);st.session_state.pop('battle_invite_friend',None);st.rerun()
     course=st.selectbox('Course',profile['courses'],key='battle_course')
     language=st.selectbox('Language',profile['languages'],key='battle_language')
     source=st.radio('Battle Deck source',('Random Deck','Top Decks'),horizontal=True)
@@ -1990,10 +2024,18 @@ def battle_new_setup_screen(client,profile):
         friends=(friend_options or {}).get('friends',[])
         if not friends:st.info('No accepted friend currently has this course and language at your university.')
         else:
-            friend_id=st.selectbox('Friend',[friend['id'] for friend in friends],format_func=lambda value:next(friend['username'] for friend in friends if friend['id']==value))
+            friend_ids=[friend['id'] for friend in friends]
+            requested_friend=st.session_state.get('battle_invite_friend',{})
+            requested_id=requested_friend.get('id')
+            if requested_id and requested_id not in friend_ids:
+                st.warning(f"{requested_friend.get('username','This friend')} is not eligible for the selected course and language. Choose another friend or change the Battle settings.")
+            index=friend_ids.index(requested_id) if requested_id in friend_ids else 0
+            friend_id=st.selectbox('Friend',friend_ids,index=index,format_func=lambda value:next(friend['username'] for friend in friends if friend['id']==value))
             if st.button('Send Battle invitation',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
                 result=battle_request(client,'invite',{**payload,'friend_id':friend_id})
-                if result is not None:st.success(result.get('message','Battle invitation sent.'))
+                if result is not None:
+                    st.session_state.pop('battle_invite_friend',None)
+                    st.success(result.get('message','Battle invitation sent.'))
 
 
 def battle_screen(client,profile):
