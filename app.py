@@ -525,9 +525,6 @@ def decks_screen(client,profile):
         return
     if st.session_state.get('study_library'):
         study_library(client,profile);return
-    if st.button('Study decks & progress',type='primary'):
-        st.session_state.study_library=True;st.rerun()
-    st.caption('Create questions. Check every answer. Share what you know.')
     if st.session_state.get('deck_open'):
         if st.button('Back to course decks'):
             st.session_state.pop('deck_open',None);st.rerun()
@@ -635,6 +632,9 @@ def decks_screen(client,profile):
     with ai:
         st.write('**AI from lecture slides**');st.caption('Upload text-based PDF slides, then review generated questions.')
         if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
+    if st.button('Study decks & progress',type='primary'):
+        st.session_state.study_library=True;st.rerun()
+    st.caption('Create questions. Check every answer. Share what you know.')
     st.subheader('Your courses')
     st.caption('Decks are shared with signed-in students at your university. Add courses in Edit profile.')
     course=st.selectbox('Browse course',profile['courses'],key='deck_browse_course')
