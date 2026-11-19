@@ -2080,7 +2080,7 @@ def ongoing_sessions(client):
         rows=session_history_rows(groups['completed'] if show_battle else [],study_finished if show_study else [])
         if not rows:st.caption('No finished sessions yet. Your results will appear here.')
         else:
-            widths=[1,3,2.2,1,.8,1.6]
+            widths=[.9,2.6,1.9,.8,.6,2.1]
             for column,label in zip(st.columns(widths),['Result','Deck','Mode','Score','XP','']):column.caption(label)
             limit=st.session_state.get('sessions_history_limit',5)
             for item in rows[:limit]:
