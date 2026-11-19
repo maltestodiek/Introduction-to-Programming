@@ -653,9 +653,10 @@ def decks_screen(client,profile):
             if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     st.divider()
     course_names=list(dict.fromkeys(profile['courses']))
-    try:
-        battle_decks=[deck for course in course_names for deck in repository.list(course)]
-    except ValueError as exc:st.error(str(exc));return
+    from db import BattleRepository
+    # Battle Mode decks live in battle_decks; the old decks table only holds retired classic duel decks.
+    try:battle_decks=BattleRepository(client).catalog()
+    except ValueError as exc:battle_decks=[];st.warning(str(exc))
     public_study=study_public_request(client,'list')
     if public_study is None:return
     course_keys={course.strip().casefold() for course in course_names}
@@ -703,9 +704,8 @@ def decks_screen(client,profile):
 
     st.subheader('Your decks')
     filter_choice=st.segmented_control('Deck filter',['All','Study','Battle','Mine'],default='All',key='course_list_filter',label_visibility='collapsed')
-    current_user=st.session_state.auth.user.id
     if filter_choice=='Mine':
-        deck_rows=[('battle',deck) for deck in battle_decks if deck.get('creator_id')==current_user]+[('study',deck) for deck in study_decks if deck.get('owned')]
+        deck_rows=[('battle',deck) for deck in battle_decks if deck.get('owned')]+[('study',deck) for deck in study_decks if deck.get('owned')]
     else:
         deck_rows=[]
         if filter_choice in ('All','Battle'):deck_rows += [('battle',deck) for deck in battle_decks]
@@ -722,21 +722,23 @@ def decks_screen(client,profile):
                     st.caption(icon+' '+label)
                     st.markdown('#### '+deck['name'])
                     st.caption(course_deck_meta(kind,deck))
-                    if kind=='battle':key='open_'+deck['id']
+                    if kind=='battle':key='course_battle_deck_'+deck['id']
                     else:key=('course_open_study_' if deck.get('owned') else 'course_copy_study_')+deck['id']
                     course_deck_action(client,kind,deck,key)
 
 
 def course_deck_meta(kind,deck):
     if kind=='study':return f"{deck['course']} · {deck['language']} · By {deck['author']} · {deck['count']} questions"
-    return f"{deck['course']} · {deck.get('language') or 'Language not set'} · By {(deck.get('profiles') or {}).get('username','Student')} · 15 questions"
+    return f"{deck['course']} · {deck['language']} · By {deck.get('author','Student')} · {deck.get('count',15)} questions"
 
 
 def course_deck_action(client,kind,deck,key,compact=False):
     """Open an owned Study deck, copy someone else's Study deck, or open a Battle deck."""
     if kind=='battle':
-        if st.button('Open' if compact else 'Open Battle deck',key=key,use_container_width=True):
-            st.session_state.deck_open=deck['id'];st.rerun()
+        # Battle Decks are played, not edited: start a Battle in the deck's course and language.
+        if st.button('Start Battle',key=key,icon=':material/swords:',use_container_width=True):
+            st.session_state.main_page='Play';st.session_state.play_mode_preview='Battle';st.session_state.battle_new_setup=True
+            st.session_state.battle_course=deck['course'];st.session_state.battle_language=deck['language'];st.rerun()
     elif deck.get('owned'):
         if st.button('Open' if compact else 'Open Study deck',key=key,use_container_width=True):
             st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
