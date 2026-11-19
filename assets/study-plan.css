@@ -8,7 +8,23 @@
 .study-plan-breadcrumb{margin:0;color:var(--sd-muted);font-size:1rem}.study-plan-breadcrumb strong{color:var(--sd-text);font-size:1.5rem}
 .study-plan-step-heading{display:flex;align-items:center;gap:.6rem;margin:0 0 .9rem;font-size:1.15rem;font-weight:750}.study-plan-step-number{display:inline-grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:var(--sd-accent);color:#fff;font-size:.95rem}
 [class*="st-key-study_plan_editor_courses"],[class*="st-key-study_plan_editor_goal"],[class*="st-key-study_plan_editor_week"]{margin-bottom:1rem}
-[class*="st-key-study_plan_goal_card_"]{min-height:142px!important;text-align:center}.st-key-study_plan_goal_card_1 button,.st-key-study_plan_goal_card_2 button,.st-key-study_plan_goal_card_3 button{border:0!important;background:transparent!important;color:var(--sd-text)!important;font-size:1.12rem!important;font-weight:750!important}.st-key-study_plan_goal_card_1_selected,.st-key-study_plan_goal_card_2_selected,.st-key-study_plan_goal_card_3_selected{border:3px solid var(--sd-accent)!important;background:var(--sd-study-end)!important}.st-key-study_plan_goal_card_1,.st-key-study_plan_goal_card_1_selected{border-top:7px solid #fec66d!important}.st-key-study_plan_goal_card_2,.st-key-study_plan_goal_card_2_selected{border-top:7px solid #fec66d!important}.st-key-study_plan_goal_card_3,.st-key-study_plan_goal_card_3_selected{border-top:7px solid #94c651!important}.st-key-study_plan_goal_card_2 [data-testid="stCaptionContainer"]:last-child{display:inline-block!important;padding:.18rem .55rem;border-radius:999px;background:#e8e6ff;color:#47419e!important}
+/* Goal cards: a colour bar per level, the whole card is the button. */
+[class*="st-key-study_plan_goal_card_"]{position:relative;min-height:132px!important;text-align:center;border-radius:16px!important;padding:22px 12px 14px!important;overflow:hidden;transition:border-color .16s ease,box-shadow .16s ease}
+[class*="st-key-study_plan_goal_card_"]::before{content:"";position:absolute;top:10px;left:14px;right:14px;height:7px;border-radius:999px;background:#fec66d}
+[class*="st-key-study_plan_goal_card_3"]::before{background:#94c651}
+[class*="st-key-study_plan_goal_card_"] p{margin:0}
+[class*="st-key-study_plan_goal_card_"] [data-testid="stMarkdownContainer"],[class*="st-key-study_plan_goal_card_"] [data-testid="stCaptionContainer"]{text-align:center;width:100%}
+[class*="st-key-study_plan_goal_card_"] [data-testid="stElementContainer"]:has([data-testid="stButton"]){position:absolute!important;inset:0;margin:0!important;z-index:2}
+[class*="st-key-study_plan_goal_card_"] [data-testid="stButton"],[class*="st-key-study_plan_goal_card_"] [data-testid="stButton"] button{width:100%!important;height:100%!important;opacity:0;cursor:pointer}
+[class*="st-key-study_plan_goal_card_"]:hover{border-color:#818cf8!important;box-shadow:0 8px 20px var(--sd-shadow)}
+[class*="st-key-study_plan_goal_card_"]:has(button:focus-visible){outline:3px solid var(--sd-accent);outline-offset:2px}
+[class*="st-key-study_plan_goal_card_"][class*="_selected"]{border:3px solid var(--sd-accent)!important;background:var(--sd-study-end)!important}
+/* Header actions and compact week controls. */
+[class*="st-key-plan_"] button p,.study-plan-actions button p{white-space:nowrap}
+[class*="st-key-plan_"][class*="_course_"]{border-top:1px solid var(--sd-border);padding-top:.5rem}
+[class*="st-key-plan_"][class*="_course_"] [data-testid="stExpander"] details{border:0!important;background:transparent!important}
+[class*="st-key-plan_"][class*="_course_"] [data-testid="stExpander"] summary{padding-left:0;font-size:.85rem;color:var(--sd-muted)}
+[class*="st-key-plan_"][class*="_study_day_"] button,[class*="st-key-plan_"][class*="_session_"] button{min-height:2.4rem;padding:.25rem .4rem;border-radius:999px!important;font-weight:650}
 .study-plan-heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:.34rem;margin:.8rem 0}.study-plan-heatmap span{height:1.55rem;border-radius:5px;background:#dedcf7}.study-plan-heatmap .load-1{background:#c5c1f0}.study-plan-heatmap .load-2{background:#958de0}.study-plan-heatmap .load-3{background:#5b53bc}.study-plan-heatmap .exam{background:#ef9b7b}
 .study-plan-preview-note{margin:.5rem 0 0;color:var(--sd-muted);line-height:1.5}
 .study-plan-preview-stat{padding:.85rem;border:1px solid var(--sd-border);border-radius:14px;background:var(--sd-surface);margin:.7rem 0}
