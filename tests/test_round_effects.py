@@ -45,6 +45,9 @@ def test_countdown_overlay_blocks_no_clicks_and_respects_reduced_motion():
     assert '.round-countdown' in EFFECTS_CSS
     assert '.round-mode-icon .sword-left{transform:rotate(-38deg)' in EFFECTS_CSS
     assert '.round-mode-icon .sword-right{transform:rotate(38deg)' in EFFECTS_CSS
+    # The emblem must still be on screen when the first question replaces the overlay.
+    assert '@keyframes round-go{0%{opacity:0;transform:scale(.4)}40%{opacity:1;transform:scale(1.25)}70%{transform:scale(1)}100%{opacity:1;transform:scale(1)}}' in EFFECTS_CSS
+    assert 'time.sleep(4.5)' in APP
     assert '@media(prefers-reduced-motion:reduce)' in EFFECTS_CSS
 
 
