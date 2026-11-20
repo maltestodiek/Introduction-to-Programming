@@ -25,6 +25,35 @@ def streak_milestone(streak):
     return MILESTONES.get(streak)
 
 
+def answered_accuracy(answers):
+    """Percent of answered questions that were correct, or None before the first answer."""
+    items=[a for a in answers if isinstance(a,dict) and isinstance(a.get('index'),int)]
+    if not items:return None
+    return round(100*sum(1 for a in items if a.get('correct'))/len(items))
+
+
+def accuracy_chip(answers):
+    """The live accuracy chip for the overview heading; empty before the first answer."""
+    accuracy=answered_accuracy(answers)
+    if accuracy is None:return ''
+    return '<span class="round-acc">'+str(accuracy)+'<small>% correct</small></span>'
+
+
+def streak_badge(streak):
+    """The flame badge for the overview panel; empty below two in a row."""
+    if streak<2:return ''
+    return '<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>'
+
+
+def combo_markup(streak,pulse=True):
+    """A five-segment combo meter filled by the current streak; it glows when full."""
+    filled=min(max(streak,0),5)
+    segments=''.join('<span class="round-combo-seg on"></span>' if n<filled else '<span class="round-combo-seg"></span>' for n in range(5))
+    full=' round-combo-full' if filled>=5 and pulse else ''
+    return ('<div class="round-combo'+full+'"><div class="round-combo-label"><span>Combo</span><span>'+str(filled)+' / 5</span></div>'
+            '<div class="round-combo-track">'+segments+'</div></div>')
+
+
 def countdown_overlay(mode,decorative=False):
     """The 3-2-1 start overlay ending on the mode's emblem; decorative overlays hide themselves via CSS."""
     note='Battle starting…' if mode=='battle' else 'Study starting…'

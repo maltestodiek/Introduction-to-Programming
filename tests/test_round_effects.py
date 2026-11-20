@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from round_effects import countdown_overlay, streak_length, streak_milestone
+from round_effects import answered_accuracy, accuracy_chip, combo_markup, countdown_overlay, streak_badge, streak_length, streak_milestone
 
 ROOT=Path(__file__).parents[1]
 APP=(ROOT/'app.py').read_text()
@@ -63,10 +63,39 @@ def test_study_round_shows_a_decorative_countdown_once():
     assert "countdown_overlay('study',decorative=True)" in APP
 
 
-def test_streak_badge_sits_beside_the_overview_heading_in_both_modes():
+def test_overview_heads_carry_the_live_accuracy_chip_in_both_modes():
     assert '.round-overview-head{display:flex;align-items:center;justify-content:space-between' in EFFECTS_CSS
-    assert APP.count('<div class="round-overview-head"><h3>Overview</h3>')==2
+    assert APP.count('<div class="round-overview-head"><h3>Overview</h3>'+"'+accuracy_chip(")==2
     assert "round-streak" not in APP[APP.index("st.caption(f\"Question"):APP.index("st.caption(f\"Question")+600]
+
+
+def test_accuracy_is_computed_from_answered_questions_only():
+    assert answered_accuracy([]) is None
+    assert accuracy_chip([])==''
+    answers=[{'index':0,'correct':True},{'index':1,'correct':False},{'index':2,'correct':True}]
+    assert answered_accuracy(answers)==67
+    assert '67<small>% correct</small>' in accuracy_chip(answers)
+
+
+def test_streak_badge_and_combo_meter_sit_below_the_tile_grid():
+    assert streak_badge(1)=='' and '2 in a row' in streak_badge(2)
+    assert APP.count('round-overview-foot')==2
+    assert combo_markup(0).count('round-combo-seg"')==5 and 'round-combo-seg on' not in combo_markup(0)
+    assert combo_markup(3).count('round-combo-seg on')==3
+    assert 'round-combo-full' in combo_markup(7) and combo_markup(7).count('round-combo-seg on')==5
+    assert 'round-combo-full' not in combo_markup(7,pulse=False)
+    assert "combo_markup(streak,pulse=False)" in APP
+
+
+def test_battle_review_opens_questions_from_clickable_tiles():
+    section=APP[APP.index("@st.dialog('Battle review'"):APP.index('def battle_question_report_form')]
+    assert 'st.expander' not in section
+    assert "review_tile_{state}_{session_id}_{index}" in section
+    assert "st.rerun(scope='fragment')" in section
+    assert 'round-review-q' in section and 'Report this question' in section
+    assert '[class*="st-key-review_tile_correct"] button{background:#dcfce7' in EFFECTS_CSS
+    assert '[class*="st-key-review_tile_incorrect"] button{background:#fee2e2' in EFFECTS_CSS
+    assert '.round-acc' in EFFECTS_CSS
 
 
 def test_feedback_effects_exist_for_both_modes():

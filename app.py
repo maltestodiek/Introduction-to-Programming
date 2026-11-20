@@ -24,7 +24,7 @@ fresh_module("course_catalog")
 from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
 from answer_order import display_options
-from round_effects import countdown_overlay, streak_length, streak_milestone
+from round_effects import accuracy_chip, combo_markup, countdown_overlay, streak_badge, streak_length, streak_milestone
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
@@ -1476,8 +1476,9 @@ def study_round_screen(client,sid):
         markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}{" round-tile-flash" if flash==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
         question,overview=st.columns([3,1],gap='large')
         with overview:
-            badge='<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>' if streak>=2 else ''
-            st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+badge+'</div><div class="study-overview-grid">'+markup+'</div></aside>')
+            badge=streak_badge(streak)
+            foot=('<div class="round-overview-foot">'+badge+'</div>' if badge else '')+combo_markup(streak,pulse=False)
+            st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+accuracy_chip(progress.get('answers',[]))+'</div><div class="study-overview-grid">'+markup+'</div>'+foot+'</aside>')
         with question:
             st.caption(f"Question {r['index']+1} of {r['total']}")
             if state=='question':
@@ -2275,8 +2276,9 @@ def battle_overview(answers,current_index,flash_index=None,streak=0):
     symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
     tiles=battle_progress_tiles(answers,current_index)
     markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}{" round-tile-flash" if flash_index==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
-    badge='<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>' if streak>=2 else ''
-    st.html('<aside class="battle-overview"><div class="round-overview-head"><h3>Overview</h3>'+badge+'</div><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
+    badge=streak_badge(streak)
+    foot=('<div class="round-overview-foot">'+badge+'</div>' if badge else '')+combo_markup(streak)
+    st.html('<aside class="battle-overview"><div class="round-overview-head"><h3>Overview</h3>'+accuracy_chip(answers)+'</div><div class="battle-overview-grid">'+markup+'</div>'+foot+'<div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
 
 
 @st.fragment(run_every='1s')
@@ -2333,20 +2335,37 @@ def battle_leave_control(client,session_id):
 def battle_review_dialog(client,session_id):
     result=battle_request(client,'review',{'id':session_id})
     if result is None:return
-    st.metric('Correct answers',f"{result['score']} / 15")
-    for number,card in enumerate(result['cards'],1):
-        answer=next((item for item in result['answers'] if item['index']==number-1),None)
-        with st.expander(f"Question {number}: {card['question']}"):
-            if answer is None:st.caption('Not answered')
-            elif answer.get('timed_out'):st.caption('Time expired')
-            elif answer.get('correct'):st.success('Correct')
-            else:st.error('Incorrect')
-            for option in card['answers']:
-                label=option['text']+(' — Your answer' if answer and answer.get('answer_id')==option['id'] else '')
-                if option['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
-                else:st.write(label)
-            with st.popover('Report this question',key=f'battle_report_question_{session_id}_{number}'):
-                battle_question_report_form(client,session_id,number-1)
+    st.html('<style>'+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
+    answers={item['index']:item for item in result['answers'] if isinstance(item.get('index'),int)}
+    total=len(result['cards'])
+    st.html('<div class="round-overview-head"><h3>Your round</h3><span class="round-acc">'+str(result['score'])+'<small>/ '+str(total)+'</small></span></div>')
+    st.caption('Click a question to review it.')
+    if st.session_state.get('battle_review_session')!=session_id:
+        st.session_state.battle_review_session=session_id
+        st.session_state.battle_review_selected=next((i for i in range(total) if not (answers.get(i) or {}).get('correct')),0)
+    selected=st.session_state.get('battle_review_selected',0)
+    columns=st.columns(5)
+    for index in range(total):
+        answer=answers.get(index)
+        state='correct' if answer and answer.get('correct') else 'incorrect'
+        label='✓' if state=='correct' else '✗'
+        if columns[index%5].button(label,key=f'review_tile_{state}_{session_id}_{index}',type='primary' if selected==index else 'secondary',use_container_width=True,help=f'Question {index+1}'):
+            st.session_state.battle_review_selected=index;st.rerun(scope='fragment')
+    if 0<=selected<total:
+        card=result['cards'][selected];answer=answers.get(selected)
+        status='Not answered' if answer is None else 'Time expired' if answer.get('timed_out') else 'Correct' if answer.get('correct') else 'Incorrect'
+        rows=''
+        for option in card['answers']:
+            own=answer is not None and answer.get('answer_id')==option['id']
+            if option['id']==card['correct_answer_id']:
+                rows+='<span class="round-review-a ok">'+escape(option['text'])+(' — Your answer' if own else '')+'</span>'
+            elif own:
+                rows+='<span class="round-review-a bad">Your answer: '+escape(option['text'])+'</span>'
+            else:
+                rows+='<span class="round-review-a">'+escape(option['text'])+'</span>'
+        st.html('<div class="round-review-q"><b>Q'+str(selected+1)+' · '+escape(card['question'])+'</b><span class="round-review-a">'+status+'</span>'+rows+'</div>')
+        with st.popover('Report this question',key=f'battle_report_question_{session_id}_{selected+1}'):
+            battle_question_report_form(client,session_id,selected)
 
 
 def battle_question_report_form(client,session_id,card_index):
