@@ -7,6 +7,7 @@ APP=(ROOT/'app.py').read_text()
 EFFECTS_CSS=(ROOT/'assets'/'round-effects.css').read_text()
 BATTLE_CSS=(ROOT/'assets'/'battle-round.css').read_text()
 STUDY_CSS=(ROOT/'assets'/'study-round.css').read_text()
+MODAL_CSS=(ROOT/'assets'/'confirm-modal.css').read_text()
 
 
 def test_streak_counts_consecutive_correct_answers_up_to_the_latest():
@@ -137,8 +138,9 @@ def test_leaving_a_battle_asks_in_a_centred_modal_not_a_dropdown():
     assert 'round-modal-backdrop' in section
     assert "battle_request(client,'abandon',{'id':session_id,'confirmed':True})" in section
     assert 'Keep fighting' in section and 'Leave Battle' in section
-    assert '[class*="st-key-round_leave_modal_"]{position:fixed;z-index:2200;top:50%;left:50%;transform:translate(-50%,-50%)' in EFFECTS_CSS
-    assert '.round-modal-backdrop{position:fixed;inset:0' in EFFECTS_CSS
+    assert '[class*="st-key-round_leave_modal_"]{position:fixed;z-index:2200;top:50%;left:50%;transform:translate(-50%,-50%)' in MODAL_CSS
+    assert '.round-modal-backdrop{position:fixed;inset:0' in MODAL_CSS
+    assert "(Path(__file__).parent/'assets'/'confirm-modal.css').read_text()" in APP
     assert '[class*="st-key-battle_exit_"] button{background:linear-gradient(135deg,#f43f5e,#dc2626)' in BATTLE_CSS
 
 

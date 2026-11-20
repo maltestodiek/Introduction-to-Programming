@@ -47,16 +47,6 @@
 .is-correct-reveal{animation:round-reveal .8s ease-out .25s both}
 @keyframes round-reveal{0%,100%{transform:scale(1)}40%{transform:scale(1.045);box-shadow:0 0 0 6px rgba(22,163,74,.25)}}
 
-/* --- Centred leave-confirmation modal: a dimmed arena with the decision card --- */
-.round-modal-backdrop{position:fixed;inset:0;z-index:2100;background:rgba(15,14,40,.6);backdrop-filter:blur(2px)}
-[class*="st-key-round_leave_modal_"]{position:fixed;z-index:2200;top:50%;left:50%;transform:translate(-50%,-50%);width:min(430px,92vw);padding:1.4rem 1.5rem 1.2rem!important;border-radius:22px;background:var(--sd-surface);border:2px solid #fca5a5;box-shadow:0 30px 80px rgba(0,0,0,.45);animation:round-modal-pop .3s ease-out both}
-@keyframes round-modal-pop{0%{opacity:0;transform:translate(-50%,-46%) scale(.85)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
-.round-modal-title{margin:0;font-size:1.45rem;font-weight:800;color:var(--sd-text);text-align:center}
-.round-modal-text{margin:.5rem 0 .3rem;color:var(--sd-muted);text-align:center;line-height:1.45}
-[class*="st-key-round_leave_stay_"] button{background:linear-gradient(135deg,#4f46e5,#6366f1)!important;border:none!important;border-radius:999px!important;color:#fff!important;font-weight:800!important}
-[class*="st-key-round_leave_confirm_"] button{background:transparent!important;border:2px solid #dc2626!important;border-radius:999px!important;color:#b91c1c!important;font-weight:800!important}
-[class*="st-key-round_leave_confirm_"] button:hover{background:#fee2e2!important}
-
 /* --- Overview header row: the streak badge sits beside the Overview heading --- */
 .round-overview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
 .round-overview-head h3{margin:0}
@@ -116,7 +106,6 @@
  .round-countdown{animation:none}
  .round-confetti,.round-xp,.round-vignette,.round-streak-banner{display:none}
  .round-burst.is-correct,.is-correct-reveal,.round-streak,.round-tile-flash,.round-score,.round-mode-icon .sword-left,.round-mode-icon .sword-right{animation:none}
- [class*="st-key-round_leave_modal_"]{animation:none}
  .round-acc,.round-combo-seg.on,.round-combo-full .round-combo-seg.on{animation:none}
  [class*="st-key-review_tile_"] button:hover{transform:none}
 }
