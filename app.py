@@ -1076,16 +1076,28 @@ def anki_generation_screen(client,profile):
                 try:repository.discard_draft(draft['id'])
                 except ValueError as exc:st.error(str(exc))
                 else:st.rerun()
-    st.subheader('3. Publish after Study review')
+    st.subheader('3. Publish Study deck')
+    st.caption('The review above is the deck review: publishing creates the Study deck directly. You can edit it anytime under Decks.')
     name=st.text_input('Study deck name',value=f"{imported['name']} questions",key='ai_study_name_'+imported['id'])
-    if st.button(f'Create editable Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
+    if st.button(f'Publish Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
+        from logic import validate_study_deck
         cards=[]
         for draft in selected_drafts:
             answer_ids=[str(uuid4()) for _ in draft['options']]
             cards.append({'id':str(uuid4()),'question':draft['question'],'answers':[{'id':answer_id,'text':option} for answer_id,option in zip(answer_ids,draft['options'])],'correct_answer_id':answer_ids[draft['correct_option_index']],'allow_calculator':False,'chapter':''})
-        st.session_state.study_draft={'id':str(uuid4()),'name':name,'course':imported['course'],'language':imported['language'],'cards':cards}
-        st.session_state.study_revision=0;st.session_state.ai_draft_ids=[draft['id'] for draft in selected_drafts]
-        st.session_state.pop('anki_generation_open',None);st.session_state.study_library=True;st.rerun()
+        try:clean=validate_study_deck({'id':str(uuid4()),'name':name,'course':imported['course'],'language':imported['language'],'cards':cards})
+        except ValueError as exc:st.error(str(exc))
+        else:
+            # The server still requires its review handshake; both calls carry the same reviewed snapshot.
+            review=study_request(client,'review_deck',{'draft':clean,'revision':0})
+            if review is not None:
+                saved=study_request(client,'save_deck',{'draft':clean,'revision':0,'review_id':review['id']})
+                if saved is not None:
+                    try:repository.publish_drafts([draft['id'] for draft in selected_drafts])
+                    except ValueError as exc:st.warning(str(exc))
+                    st.session_state.pop('anki_generation_open',None)
+                    st.session_state.study_library=True;st.session_state.study_deck_open={'id':saved['id']}
+                    st.rerun()
 
 
 def play_request(repository,action,data=None):
@@ -1330,11 +1342,6 @@ def study_editor(client,profile):
         if save.button('Confirm and save Study deck',type='primary'):
             r=study_request(client,'save_deck',{'draft':validate_study_deck(d),'revision':revision,'review_id':st.session_state.study_review['id']})
             if r is not None:
-                draft_ids=st.session_state.pop('ai_draft_ids',[])
-                if draft_ids:
-                    from db import AnkiImportRepository
-                    try:AnkiImportRepository(client).publish_drafts(draft_ids)
-                    except ValueError as exc:st.warning(str(exc))
                 st.session_state.pop('study_draft');st.session_state.pop('study_review');st.session_state.study_deck_open={'id':r['id']};st.rerun()
         return
     for label,field,options in [('Course','course',profile['courses']),('Deck language','language',profile['languages'])]:
