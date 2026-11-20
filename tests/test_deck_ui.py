@@ -189,3 +189,10 @@ def test_completed_battle_review_offers_a_report_for_each_question(monkeypatch):
     button(at,'Review').click().run()
     assert any(item.proto.popover.label=='Report this question' for item in at.get('popover'))
     assert not at.exception
+
+
+def test_daily_review_opens_the_deck_studio():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    section=app[app.index("'Daily review'"):]
+    assert section.index('st.session_state.deck_studio=True')<section.index('for index,course in enumerate(course_names)')

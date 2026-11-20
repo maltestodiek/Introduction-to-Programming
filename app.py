@@ -740,7 +740,7 @@ def decks_screen(client,profile):
         st.subheader('Your courses')
     with review_action:
         if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
-            st.session_state.study_library=True;st.rerun()
+            st.session_state.deck_studio=True;st.rerun()
     for index,course in enumerate(course_names):
         course_key=course.strip().casefold()
         study_count=len(study_by_course.get(course_key,[]))
