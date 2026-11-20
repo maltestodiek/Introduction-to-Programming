@@ -8,6 +8,8 @@ Students lose track of the decks they created: new AI-generated Study decks are 
 
 ## What
 
+The studio heading carries the design-services icon used on its entry button, and the Study deck view (shown after creating or publishing a deck) offers a highlighted **Open Deck studio** button beside Back to Study decks.
+
 A large **Deck studio** card on the Decks page, between the deck creation cards and Your courses, shows a short description and an **Open Deck studio** button that opens a page that lists only the signed-in student's own Study and Battle decks, newest first. Filters show All, Private, Published and Battle decks without counts.
 
 Each Study deck shows its course, language, question count, status (Private, only visible to its creator, or Published since a time), its creation time and its last edit. Actions are Edit (opens the existing Study editor with the deck), Publish or Unpublish, and Battle, which opens Create Battle Mode Deck with this deck already selected and returns to Deck studio. Battle needs at least 15 questions. Each Battle deck shows its creation time and is marked as a public fixed snapshot; new Battles start only from Play.

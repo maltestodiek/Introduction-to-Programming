@@ -821,7 +821,7 @@ def deck_studio_screen(client,profile):
     """Own Study and Battle decks with status, times and edit or publish actions."""
     from db import StudyRepository
     from logic import deck_studio_created_text,deck_studio_groups,format_deck_time
-    st.header('Deck studio')
+    st.header(':material/design_services: Deck studio')
     st.caption('Decks created by you. Edit them, publish them to your university or turn them into Battle decks.')
     if st.button('Back to Decks',icon=':material/arrow_back:'):
         st.session_state.pop('deck_studio',None);st.rerun()
@@ -1413,7 +1413,11 @@ def study_library(client,profile):
         study_editor(client,profile);return
     if st.session_state.get('study_deck_open'):
         choice=st.session_state.study_deck_open
-        if st.button('Back to Study decks'):st.session_state.pop('study_deck_open');st.rerun()
+        back,studio=st.columns([1,1])
+        if back.button('Back to Study decks',use_container_width=True):st.session_state.pop('study_deck_open');st.rerun()
+        if studio.button('Open Deck studio',key='deck_view_open_studio',icon=':material/design_services:',type='primary',use_container_width=True):
+            st.session_state.pop('study_deck_open',None);st.session_state.pop('study_library',None)
+            st.session_state.deck_studio=True;st.rerun()
         deck=study_request(client,'deck',choice)
         if deck is None:return
         st.subheader(deck['name']);st.caption(f"{deck['course']} · {deck.get('language')} · By {deck.get('author','you')} · {len(deck['cards'])} questions")
