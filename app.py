@@ -951,11 +951,14 @@ def anki_import_screen(client,profile):
     course=st.selectbox('Course',profile['courses'],key='anki_import_course')
     language=st.selectbox('Deck language',profile['languages'],key='anki_import_language')
     if st.button(f'Save {len(to_save)} source cards',type='primary'):
-        try: saved=repository.save(name=name,course=course,language=language,cards=to_save)
-        except ValueError as exc:st.error(str(exc))
+        from logic import import_save_error
+        if problem:=import_save_error(name,course,language):st.error(problem)
         else:
-            anki_import_reset()
-            st.session_state.anki_import_saved=saved;st.rerun()
+            try: saved=repository.save(name=name.strip(),course=course,language=language,cards=to_save)
+            except ValueError as exc:st.error(str(exc))
+            else:
+                anki_import_reset()
+                st.session_state.anki_import_saved=saved;st.rerun()
 
 def pdf_import_screen(client,profile):
     from pdf_import import SlideImportError,parse_pdf_slides
@@ -983,10 +986,13 @@ def pdf_import_screen(client,profile):
     course=st.selectbox('Course',profile['courses'],key='pdf_import_course')
     language=st.selectbox('Deck language',profile['languages'],key='pdf_import_language')
     if st.button(f"Save {len(result['cards'])} PDF sources",type='primary'):
-        try:saved=AnkiImportRepository(client).save_slides(name=name,course=course,language=language,cards=result['cards'])
-        except ValueError as exc:st.error(str(exc))
+        from logic import import_save_error
+        if problem:=import_save_error(name,course,language):st.error(problem)
         else:
-            st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
+            try:saved=AnkiImportRepository(client).save_slides(name=name.strip(),course=course,language=language,cards=result['cards'])
+            except ValueError as exc:st.error(str(exc))
+            else:
+                st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
 
 def request_ai_generation(import_id,card_ids):
     if not st.session_state.get('ai_generation_request'):
