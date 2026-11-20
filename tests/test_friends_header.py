@@ -52,14 +52,10 @@ def test_friends_button_shares_profile_button_styling_and_keeps_its_icon():
 
 def test_sidebar_has_consistent_vertical_actions_and_reserves_main_content_space():
     assert '.st-key-sidebar_navigation{position:fixed' in NAVIGATION_CSS
-    assert 'top:5rem' in NAVIGATION_CSS
-    assert 'border:2px solid #b9a6ff' in NAVIGATION_CSS
-    assert 'border-radius:24px' in NAVIGATION_CSS
     assert '.st-key-sidebar_navigation .stButton{width:100%}' in NAVIGATION_CSS
     assert '.st-key-open_chats){width:100%!important}' in NAVIGATION_CSS
     assert '.st-key-open_chats){width:calc(14rem - 1.3rem)!important}' in NAVIGATION_CSS
     assert 'padding-top:.75rem!important' in NAVIGATION_CSS
-    assert 'padding:3rem .65rem .45rem' in NAVIGATION_CSS
     assert 'max-width:940px!important' in NAVIGATION_CSS
     assert 'margin-left:auto!important;margin-right:auto!important' in NAVIGATION_CSS
     assert 'text-align:left!important' in NAVIGATION_CSS
@@ -75,3 +71,27 @@ def test_friends_styles_do_not_change_the_shared_page_container_or_header():
 
 def test_invite_card_headings_match_the_friends_section_heading_scale():
     assert 'font-size:1.5rem!important' in FRIENDS_CSS
+
+
+def _sidebar_rule():
+    return re.search(r'\.st-key-sidebar_navigation\{([^}]*)\}',NAVIGATION_CSS).group(1)
+
+
+def test_desktop_sidebar_is_a_full_height_bar_along_the_left_edge():
+    rule=_sidebar_rule()
+    assert 'position:fixed' in rule
+    assert 'top:0' in rule and 'left:0' in rule and 'bottom:0' in rule
+    assert 'width:14rem' in rule
+    assert 'border-radius' not in rule
+    assert 'border-right:1px solid' in rule
+
+
+def test_main_content_is_laid_out_beside_the_full_height_sidebar():
+    desktop=re.search(r'@media\(min-width:761px\)\{\.stMain\{([^}]*)\}',NAVIGATION_CSS)
+    assert desktop and 'padding-left:14rem' in desktop.group(1)
+
+
+def test_narrow_screens_keep_the_sidebar_in_normal_document_flow():
+    narrow=re.search(r'@media\(max-width:760px\)\{\.st-key-sidebar_navigation\{([^}]*)\}',NAVIGATION_CSS)
+    assert narrow and 'position:static' in narrow.group(1) and 'border:none' in narrow.group(1)
+    assert '.stMain{padding-left:0' in NAVIGATION_CSS
