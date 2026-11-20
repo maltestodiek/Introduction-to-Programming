@@ -13,9 +13,9 @@ The Leaderboard tab shows two rankings. Both are built only from Battle XP, the 
 - Global: the ten students with the most Battle XP. If the signed-in student is not among them, their own place is shown as an eleventh row below the ten, with its real place number.
 - Friends: the signed-in student together with their accepted friends, ranked among themselves.
 
-Every row shows the place, the profile picture or avatar, the username and the XP. The student's own row is marked. Students with the same XP share the same place; within a place the order is alphabetical by username.
+Every row shows the place, the profile picture or avatar, the username, university and XP. The university is a muted second line below the username. The student's own row is marked. Students with the same XP share the same place; within a place the order is alphabetical by username.
 
-The leaderboard is read-only. It offers no friend code, no invitation, no chat and no link to a profile, so being at the top does not expose a student to unlimited requests. It returns only what signed-in students can already see about each other: username, picture and XP.
+The leaderboard is read-only. It offers no friend code, no invitation, no chat and no link to a profile, so being at the top does not expose a student to unlimited requests. It returns only what signed-in students can already see about each other: username, university, picture and XP.
 
 For development, a local copy (APP_URL on localhost) can set LEADERBOARD_DEMO to 1 to show invented students instead of the real ranking, with a visible notice. The switch is ignored anywhere else and never reads or writes the database.
 
@@ -27,12 +27,12 @@ Any XP value other than Battle XP or Total XP in the ranking, rankings per cours
 
 ## Done when
 
-1. Allowed: a signed-in student opens Leaderboard and sees the global top ten with place, picture, username and XP, and their own row marked.
+1. Allowed: a signed-in student opens Leaderboard and sees the global top ten with place, picture, username, university and XP, and their own row marked.
 2. A student outside the top ten sees the ten rows plus their own row with its real place; a student inside the top ten sees exactly ten rows.
 3. Students with equal XP share a place, and the next place skips accordingly.
 4. The friends ranking contains only the student and their accepted friends; pending requests and strangers are not included. A student without friends sees only themselves and a hint to add friends.
 5. Rejected: an anonymous caller gets nothing; a signed-in student without a profile gets an error and no data.
-6. Privacy: the response contains only place, username, picture path, XP and the own-row mark. It has no friend codes, emails, courses or invitation data, and the screen offers no invite or chat action.
+6. Privacy: the response contains only place, username, university, picture path, XP and the own-row mark. It has no friend codes, emails, courses or invitation data, and the screen offers no invite or chat action.
 7. A Study session or study plan activity does not change any place; a settled Battle result does.
 8. Restart: the ranking is the same after a full restart, because it is read from stored XP.
 
