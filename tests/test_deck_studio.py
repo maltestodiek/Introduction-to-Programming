@@ -64,7 +64,7 @@ def row_titles(at):
 
 def test_deck_studio_lists_own_decks_with_status_and_times(monkeypatch):
     at=studio_app(monkeypatch,[])
-    assert any(item.value=='Deck studio' for item in at.header)
+    assert any(item.value==':material/design_services: Deck studio' for item in at.header)
     text=' '.join([item.value for item in at.markdown]+[item.value for item in at.caption])
     assert 'MarketAnomalies_CF questions' in text and 'Private' in text
     assert 'Published since 18 Nov 2026, 12:00' in text
@@ -99,7 +99,7 @@ def test_battle_action_preselects_the_deck_and_returns_to_the_studio(monkeypatch
     at.button(key='studio_battle_study-private').click().run()
     assert next(field for field in at.selectbox if field.label=='Source Study deck').value=='study-private'
     button(at,'Back to Deck studio').click().run()
-    assert any(item.value=='Deck studio' for item in at.header)
+    assert any(item.value==':material/design_services: Deck studio' for item in at.header)
     button(at,'Back to Decks').click().run()
     assert 'deck_studio' not in at.session_state
 
@@ -115,3 +115,11 @@ def test_decks_page_shows_a_large_deck_studio_entry_between_creation_and_courses
     assert 'Deck studio' not in [item.label for item in at.button]
     assert blocks.index('Your courses')>studio
     assert not at.exception
+
+
+def test_the_deck_view_offers_a_highlighted_link_into_the_studio():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    section=app[app.index("st.session_state.study_deck_open"):app.index("data=study_request(client,'list')")]
+    assert "studio.button('Open Deck studio',key='deck_view_open_studio',icon=':material/design_services:',type='primary'" in section
+    assert "st.session_state.deck_studio=True" in section
