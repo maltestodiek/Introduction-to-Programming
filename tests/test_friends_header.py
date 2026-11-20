@@ -4,6 +4,7 @@ from pathlib import Path
 from test_deck_ui import button, deck_app
 
 NAVIGATION_CSS=(Path(__file__).parents[1]/'assets'/'navigation.css').read_text()
+FRIENDS_CSS=(Path(__file__).parents[1]/'assets'/'friends.css').read_text()
 APP=(Path(__file__).parents[1]/'app.py').read_text()
 
 
@@ -18,20 +19,20 @@ def test_large_tabs_no_longer_include_friends(monkeypatch):
     assert not at.exception
 
 
-def test_friends_sits_in_the_separate_account_header_group(monkeypatch):
+def test_friends_sits_in_the_separate_sidebar_account_group(monkeypatch):
     at=deck_app(monkeypatch)
     keys=[str(b.key) for b in at.button]
     assert keyed(at,'open_friends').label=='Friends'
     assert keys.index('nav_Decks')<keys.index('open_friends')<keys.index('open_profile')
 
 
-def test_header_uses_one_compact_navigation_shell_with_separate_account_actions():
-    assert "with st.container(key='top_brand')" in APP
-    assert "main_navigation,account_navigation=st.columns([4,1.2],gap='medium'" in APP
+def test_navigation_uses_a_left_sidebar_with_separate_account_actions():
+    assert "with st.container(key='sidebar_navigation'):" in APP
+    assert "with st.container(key='top_brand'):" in APP
     assert "['Decks','Play','Leaderboard','Study Plan']" in APP
-    assert "st.columns(4,gap='small')" in APP
-    assert "friends_slot,chats_slot,profile_slot=st.columns(3" in APP
-    assert "chat_dropdown(auth.client,compact=True)" in APP
+    assert "with st.container(key='sidebar_main_actions'):" in APP
+    assert "with st.container(key='sidebar_account_actions'):" in APP
+    assert "chat_dropdown(auth.client)" in APP
 
 
 def test_header_friends_button_opens_the_friends_page(monkeypatch):
@@ -49,8 +50,28 @@ def test_friends_button_shares_profile_button_styling_and_keeps_its_icon():
     assert re.search(r'\.st-key-open_friends button::before\{mask-image:url\("data:image/svg\+xml',NAVIGATION_CSS)
 
 
-def test_compact_header_actions_and_navigation_tabs_have_matching_compact_heights():
-    assert 'min-height:44px' in NAVIGATION_CSS
-    assert 'gap:.35rem!important' in NAVIGATION_CSS
-    assert 'gap:.5rem!important' in NAVIGATION_CSS
-    assert 'left:50%;top:50%;transform:translate(-50%,-50%)' in NAVIGATION_CSS
+def test_sidebar_has_consistent_vertical_actions_and_reserves_main_content_space():
+    assert '.st-key-sidebar_navigation{position:fixed' in NAVIGATION_CSS
+    assert 'top:5rem' in NAVIGATION_CSS
+    assert 'border:2px solid #b9a6ff' in NAVIGATION_CSS
+    assert 'border-radius:24px' in NAVIGATION_CSS
+    assert '.st-key-sidebar_navigation .stButton{width:100%}' in NAVIGATION_CSS
+    assert '.st-key-open_chats){width:100%!important}' in NAVIGATION_CSS
+    assert '.st-key-open_chats){width:calc(14rem - 1.3rem)!important}' in NAVIGATION_CSS
+    assert 'padding-top:.75rem!important' in NAVIGATION_CSS
+    assert 'padding:3rem .65rem .45rem' in NAVIGATION_CSS
+    assert 'max-width:940px!important' in NAVIGATION_CSS
+    assert 'margin-left:auto!important;margin-right:auto!important' in NAVIGATION_CSS
+    assert 'text-align:left!important' in NAVIGATION_CSS
+    assert 'justify-content:flex-start' in NAVIGATION_CSS
+    assert '.st-key-open_chats button{position:relative!important;justify-content:flex-start!important;gap:8px!important}' in NAVIGATION_CSS
+    assert 'left:57%!important;top:50%!important;width:auto!important;transform:translate(-50%,-50%)!important' in NAVIGATION_CSS
+    assert 'white-space:nowrap!important;word-break:normal!important' in NAVIGATION_CSS
+
+
+def test_friends_styles_do_not_change_the_shared_page_container_or_header():
+    assert '.block-container' not in FRIENDS_CSS
+
+
+def test_invite_card_headings_match_the_friends_section_heading_scale():
+    assert 'font-size:1.5rem!important' in FRIENDS_CSS

@@ -1,6 +1,9 @@
 from copy import deepcopy
+from pathlib import Path
 
 from test_deck_ui import deck_app
+
+APP=(Path(__file__).parents[1]/'app.py').read_text()
 
 FRIEND={'id':'edge1','person':{'id':'b','username':'student_b','image_path':None}}
 INCOMING={'id':'edge2','person':{'id':'c','username':'student_c','image_path':None}}
@@ -66,6 +69,11 @@ def test_friend_actions_are_visible_and_removal_keeps_a_confirmation(monkeypatch
     next(b for b in at.button if b.key=='remove_edge1').click().run()
     assert ('remove','edge1') in friend_calls
     assert not at.exception
+
+
+def test_friend_action_columns_reserve_equal_spacing_for_each_control():
+    assert "battle,study,chat,remove=st.columns([1.35,1.2,.7,.7],gap='small'" in APP
+    assert 'key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"],use_container_width=True' in APP
 
 
 def test_friend_match_actions_open_the_matching_invitation_setup(monkeypatch):

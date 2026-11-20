@@ -321,6 +321,11 @@ def battle_session_groups(sessions):
     }
 
 
+def recent_completed_battles(sessions,limit=3):
+    """Keep the persisted server ordering and expose only the newest completed Battles."""
+    return [session for session in sessions if session.get('status')=='completed'][:limit]
+
+
 def study_level(current,correct):
     return max(0,min(3,(current or 0)+(1 if correct else -1)))
 

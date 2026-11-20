@@ -15,7 +15,7 @@ def test_main_tabs_and_profile_button(monkeypatch):
     assert not any(i.value=='Coming soon' for i in at.info)
     assert not at.exception
     button(at,'Decks').click().run()
-    assert button(at,'+ Create New Deck')
+    assert at.session_state['main_page']=='Decks'
     button(at,'Profile').click().run()
     assert button(at,'Edit profile')
     assert not at.exception

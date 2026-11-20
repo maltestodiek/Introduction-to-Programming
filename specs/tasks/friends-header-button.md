@@ -8,7 +8,7 @@ Friends is an account-level destination like Profile and Chats, not a study acti
 
 ## What
 
-Friends is removed from the row of large navigation tabs. The logo sits above a wide navigation band holding Decks, Play, Leaderboard and Study Plan. Friends, Chats and Profile form a distinct icon-only account/social group to the right of that band. The Friends icon opens the unchanged Friends page; the Profile avatar remains the final item in the group. Like Chats, Friends is shown once the user has a profile.
+Navigation is a fixed left sidebar on desktop. The logo appears at the top, followed by Decks, Play, Leaderboard and Study Plan. A divider separates these activity destinations from Friends, Chats and Profile. The Friends icon opens the unchanged Friends page; the Profile avatar remains the final item in the account/social group. Like Chats, Friends is shown once the user has a profile. On narrow screens the sidebar returns to normal document flow so it does not cover page content.
 
 ## Out of scope
 
@@ -17,9 +17,9 @@ Changing the Friends page itself, friend codes, invitations, requests, chat, the
 ## Done when
 
 1. The large tabs are exactly Decks, Play, Leaderboard and Study Plan.
-2. The header shows the logo above four wide activity tabs, then Friends, Chats and Profile as a separate icon-only group to their right.
+2. On desktop, the sidebar shows the logo above four activity destinations, then Friends, Chats and Profile as a separate account/social group below a divider.
 3. Clicking the header Friends button opens the Friends page.
-4. The account/social icon group remains visually separate from the four activity tabs.
+4. The account/social group remains visually separate from the four activity destinations.
 5. A pending invitation can still be accepted from the Friends page.
 
 Checks: `tests/test_friends_header.py`, `tests/test_friends.py`, plus a manual look in the running app.
