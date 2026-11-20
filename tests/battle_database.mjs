@@ -99,6 +99,16 @@ try{
   assert.equal((await db.query('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,B])).rows[0].n,1);
   assert.deepEqual((await db.query('select game_xp,xp from public.profiles where id=$1',[A])).rows[0],{game_xp:0,xp:0});
   assert.equal((await db.query("select count(*)::int n from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='creator_xp'")).rows[0].n,0);
+  const abandonedSessionId=randomUUID();
+  await db.exec('reset role');
+  await db.query('insert into public.battle_sessions(id,p1,p2,battle_deck_id,source_kind,cards,course,language) values($1,$2,$3,$4,$5,$6::jsonb,$7,$8)',[abandonedSessionId,A,B,created.id,'random',JSON.stringify(stored.cards),'Finance','English']);
+  await db.query("insert into public.battle_rounds(session_id,user_id) values($1,$2),($1,$3)",[abandonedSessionId,A,B]);
+  await fail(A,'abandon',{id:abandonedSessionId});
+  assert.equal((await ok(A,'abandon',{id:abandonedSessionId,confirmed:true})).state,'completed');
+  assert.equal((await ok(A,'round',{id:abandonedSessionId})).state,'completed','an abandoned Battle cannot be resumed');
+  const abandoned=(await ok(A,'list')).sessions.find(session=>session.id===abandonedSessionId);
+  assert.deepEqual([abandoned.status,abandoned.result],['completed','loss']);
+  assert.equal((await db.query('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,A])).rows[0].n,1);
   const sessionId=randomUUID();
   await db.exec('reset role');
   await db.query('insert into public.battle_sessions(id,p1,p2,battle_deck_id,source_kind,cards,course,language) values($1,$2,$3,$4,$5,$6::jsonb,$7,$8)',[sessionId,A,B,created.id,'random',JSON.stringify(stored.cards),'Finance','English']);
@@ -108,7 +118,8 @@ try{
   await assert.rejects(()=>db.query("select report_battle_question($1,0,'unclear_question','Needs context')",[sessionId]));
   await db.exec('reset role');await db.query('update public.battle_sessions set settled_at=now() where id=$1',[sessionId]);
   await asUser(A);const sessions=(await db.query('select battle_sessions_list() sessions')).rows[0].sessions;
-  assert.deepEqual([sessions[0].opponent_username,sessions[0].score,sessions[0].opponent_score],['Bob',1,0]);
+  const reviewable=sessions.find(session=>session.id===sessionId);
+  assert.deepEqual([reviewable.opponent_username,reviewable.score,reviewable.opponent_score],['Bob',1,0]);
   const report=(await db.query("select report_battle_question($1,0,'unclear_question','Needs context') result",[sessionId])).rows[0].result;
   assert.equal(report.reported,true);
   const duplicate=(await db.query("select report_battle_question($1,0,'unclear_question','Needs context') result",[sessionId])).rows[0].result;

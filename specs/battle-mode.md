@@ -6,7 +6,7 @@ Offer short, competitive course quizzes separately from non-rewarded Study sessi
 ## What
 Battle Mode replaces the former 30-question duel workflow. There must be no user-facing route to create or start a new 30-question duel: every new Battle uses exactly one 15-question Battle Deck. Existing legacy rows are not deleted or retroactively changed by this feature, but they are not selectable for new Play sessions.
 
-The redesigned Battle workflow keeps the existing friend-challenge and mutual random-opponent choices, server-owned timing, 24-hour deadline, saved resumption, answer validation and settlement safeguards unless this specification explicitly changes them.
+The redesigned Battle workflow keeps the existing friend-challenge and mutual random-opponent choices, server-owned timing, 24-hour deadline, answer validation and settlement safeguards unless this specification explicitly changes them. An unfinished Battle may be resumed only while the player remains in it; explicitly leaving requires confirmation, immediately forfeits the Battle as a loss, and cannot be reversed by reopening it.
 
 ### Creating a Battle Deck
 A Battle Deck is a separate, immutable 15-question snapshot created from one of the creator's own published UniArena decks. It is not a second manual authoring form.

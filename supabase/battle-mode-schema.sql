@@ -97,12 +97,13 @@ begin
  end loop;
 end $$;
 
-create function public.battle_action(p_action text,p_data jsonb default '{}') returns jsonb language plpgsql security definer set search_path='' as $$
-declare me uuid:=auth.uid(); campus text; langs text[]; courses text[]; d jsonb; source public.study_decks; deck public.battle_decks; s public.battle_sessions; r public.battle_rounds; peer record; invite record; chosen uuid; card jsonb; idx integer; correct boolean; origin text; ids text[]:='{}';
+create or replace function public.battle_action(p_action text,p_data jsonb default '{}') returns jsonb language plpgsql security definer set search_path='' as $$
+#variable_conflict use_column
+declare me uuid:=auth.uid(); campus text; langs text[]; profile_courses text[]; d jsonb; source public.study_decks; deck public.battle_decks; s public.battle_sessions; round_state public.battle_rounds; peer record; invite record; chosen uuid; card jsonb; idx integer; correct boolean; origin text; ids text[]:='{}';
 begin
  if me is null then raise exception 'Sign in first'; end if; perform pg_advisory_xact_lock(791146221);
- select university,languages into campus,langs from public.profiles where id=me; select courses into courses from public.profile_private where user_id=me;
- if campus is null or courses is null then raise exception 'Complete your profile first'; end if;
+ select university,languages into campus,langs from public.profiles where id=me; select pp.courses into profile_courses from public.profile_private pp where pp.user_id=me;
+ if campus is null or profile_courses is null then raise exception 'Complete your profile first'; end if;
  delete from public.battle_searches where expires_at<=now();
  for s in select * from public.battle_sessions where settled_at is null and (p1=me or p2=me) loop
   if s.deadline<=now() then
@@ -124,20 +125,20 @@ begin
   if jsonb_array_length(source.snapshot->'cards')<15 then raise exception 'This source deck is not Battle-capable yet'; end if;
   if jsonb_typeof(p_data->'card_ids') is distinct from 'array' or jsonb_array_length(p_data->'card_ids')<>15 then raise exception 'Choose exactly 15 questions'; end if;
   for d in select value from jsonb_array_elements(p_data->'card_ids') loop if d #>> '{}' is null or d #>> '{}' = any(ids) or not exists(select 1 from jsonb_array_elements(source.snapshot->'cards') c where c->>'id'=d #>> '{}') then raise exception 'Choose 15 distinct source questions'; end if; ids:=array_append(ids,d #>> '{}'); end loop;
-  if not coalesce((source.snapshot->>'language')=any(langs),false) or not exists(select 1 from unnest(courses) c where lower(trim(c))=lower(trim(source.snapshot->>'course'))) then raise exception 'Select a source deck for one of your profile courses and languages'; end if;
+  if not coalesce((source.snapshot->>'language')=any(langs),false) or not exists(select 1 from unnest(profile_courses) c where lower(trim(c))=lower(trim(source.snapshot->>'course'))) then raise exception 'Select a source deck for one of your profile courses and languages'; end if;
   origin:=case when exists(select 1 from public.ai_question_drafts q where q.owner_id=me and q.status='published' and q.question in (select c->>'question' from jsonb_array_elements(source.snapshot->'cards') c where c->>'id'=any(ids))) then 'ai' else 'human' end;
   insert into public.battle_decks(creator_id,source_deck_id,source_revision,source_origin,university,course,language,name,cards,public_consent_at)
   values(me,source.id,source.revision,origin,campus,source.snapshot->>'course',source.snapshot->>'language',coalesce(nullif(trim(p_data->>'name'),''),source.snapshot->>'name'),(select jsonb_agg(c order by array_position(ids,c->>'id')) from jsonb_array_elements(source.snapshot->'cards') c where c->>'id'=any(ids)),now()) returning * into deck;
   return jsonb_build_object('id',deck.id);
  elsif p_action='top' then
-  if not exists(select 1 from unnest(courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages'; end if;
+  if not exists(select 1 from unnest(profile_courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages'; end if;
   return jsonb_build_object('decks',coalesce((select jsonb_agg(jsonb_build_object('id',x.id,'name',x.name,'score',x.score,'rating_count',x.rating_count,'creator',x.username) order by x.score desc,x.rating_count desc,x.id) from (select b.id,b.name,dr.score,dr.rating_count,p.username from public.battle_daily_ratings dr join public.battle_decks b on b.id=dr.battle_deck_id join public.profiles p on p.id=b.creator_id where dr.berlin_day=(now() at time zone 'Europe/Berlin')::date and dr.rating_count>=3 and b.university=campus and lower(trim(b.course))=lower(trim(p_data->>'course')) and b.language=p_data->>'language' order by dr.score desc,dr.rating_count desc,b.id limit 10)x),'[]'::jsonb));
  elsif p_action='friend_options' then
-  if not exists(select 1 from unnest(courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages'; end if;
+  if not exists(select 1 from unnest(profile_courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages'; end if;
   return jsonb_build_object('friends',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'username',p.username)) from public.friend_edges f join public.profiles p on p.id=case when f.low_id=me then f.high_id else f.low_id end join public.profile_private v on v.user_id=p.id where f.state='accepted' and me in(f.low_id,f.high_id) and p.university=campus and p_data->>'language'=any(p.languages) and exists(select 1 from unnest(v.courses)c where lower(trim(c))=lower(trim(p_data->>'course')))),'[]'::jsonb));
  elsif p_action='invite' then
   if p_data->>'source_kind' not in ('random','top') then raise exception 'Choose Random Deck or Top Decks';end if;
-  if not exists(select 1 from unnest(courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages';end if;
+  if not exists(select 1 from unnest(profile_courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages';end if;
   if not exists(select 1 from public.friend_edges where state='accepted' and me in(low_id,high_id) and (p_data->>'friend_id')::uuid in(low_id,high_id)) then raise exception 'Choose an accepted friend';end if;
   if not exists(select 1 from public.profiles p join public.profile_private v on v.user_id=p.id where p.id=(p_data->>'friend_id')::uuid and p.university=campus and p_data->>'language'=any(p.languages) and exists(select 1 from unnest(v.courses)c where lower(trim(c))=lower(trim(p_data->>'course')))) then raise exception 'Your friend needs this course, language and university in their profile';end if;
   if p_data->>'source_kind'='top' then select * into deck from public.battle_decks where id=(p_data->>'deck_id')::uuid and university=campus and lower(trim(course))=lower(trim(p_data->>'course')) and language=p_data->>'language';if deck.id is null then raise exception 'Choose an eligible Top Deck';end if;end if;
@@ -153,7 +154,7 @@ begin
   insert into public.battle_sessions(p1,p2,battle_deck_id,source_kind,cards,course,language) values(invite.sender,me,deck.id,invite.source_kind,deck.cards,deck.course,deck.language) returning * into s;
   insert into public.battle_rounds(session_id,user_id) values(s.id,s.p1),(s.id,s.p2);update public.battle_invites set state='accepted',session_id=s.id where id=invite.id;return jsonb_build_object('session_id',s.id);
  elsif p_action='join' then
-  if not exists(select 1 from unnest(courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages'; end if;
+  if not exists(select 1 from unnest(profile_courses)c where lower(trim(c))=lower(trim(p_data->>'course'))) or not coalesce((p_data->>'language')=any(langs),false) then raise exception 'Choose one of your courses and languages'; end if;
   if p_data->>'source_kind' not in ('random','top') then raise exception 'Choose Random Deck or Top Decks'; end if;
   if p_data->>'source_kind'='top' then select * into deck from public.battle_decks where id=(p_data->>'deck_id')::uuid and university=campus and lower(trim(course))=lower(trim(p_data->>'course')) and language=p_data->>'language'; if deck.id is null then raise exception 'Choose an eligible Top Deck'; end if; end if;
   select * into peer from public.battle_searches q join public.profiles p on p.id=q.user_id join public.profile_private v on v.user_id=q.user_id where q.user_id<>me and q.expires_at>now() and q.university=campus and lower(trim(q.course))=lower(trim(p_data->>'course')) and q.language=p_data->>'language' and q.language=any(p.languages) and exists(select 1 from unnest(v.courses)c where lower(trim(c))=lower(trim(q.course))) order by q.created_at limit 1;
