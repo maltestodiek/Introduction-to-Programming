@@ -2373,7 +2373,8 @@ def battle_round_screen(client,session_id):
         st.session_state[countdown_key]=True
         if not answers and not (feedback and feedback.get('id')==session_id):
             st.html(countdown_overlay('battle'))
-            time.sleep(3.8)
+            # The emblem beat runs from second 3 to 4; fetch the first question only after it.
+            time.sleep(4.5)
             st.rerun()
     if feedback and feedback.get('id')==session_id:
         card=feedback['card'];response=feedback['feedback']

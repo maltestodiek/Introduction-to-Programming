@@ -18,9 +18,9 @@
 @keyframes round-sword-right{0%{transform:rotate(62deg)}60%{transform:rotate(30deg)}100%{transform:rotate(38deg)}}
 .round-countdown-note{margin:0;color:#e0e7ff;font-size:1.1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .round-countdown-still{display:none;margin:0;color:#e0e7ff;font-size:1.3rem;font-weight:700}
-.round-countdown.is-decorative{animation:round-overlay-out .35s ease-in 3.6s forwards}
+.round-countdown.is-decorative{animation:round-overlay-out .35s ease-in 4.4s forwards}
 @keyframes round-digit{0%{opacity:0;transform:scale(2.4)}18%{opacity:1;transform:scale(1)}80%{opacity:1;transform:scale(.92)}100%{opacity:0;transform:scale(.7)}}
-@keyframes round-go{0%{opacity:0;transform:scale(.4)}35%{opacity:1;transform:scale(1.25)}70%{transform:scale(1)}100%{opacity:0;transform:scale(1.05)}}
+@keyframes round-go{0%{opacity:0;transform:scale(.4)}40%{opacity:1;transform:scale(1.25)}70%{transform:scale(1)}100%{opacity:1;transform:scale(1)}}
 @keyframes round-overlay-out{to{opacity:0;visibility:hidden}}
 
 /* --- Answer fields match the question card height while answering --- */
