@@ -9,12 +9,36 @@
 .st-key-battle_game_overview .st-key-open_new_battle button:hover{transform:translateY(-1px);background:#4338ca!important}
 .st-key-battle_game_overview [data-testid="stHorizontalBlock"]{gap:1.25rem!important}
 [class*="st-key-battle_overview_group_"]{min-height:100%;padding:.75rem!important;border-radius:14px!important}
+.st-key-battle_overview_group_completed{margin-top:1.1rem;min-height:0}
 .st-key-battle_overview_group_ongoing{background:#f0ecff!important}.st-key-battle_overview_group_pending{background:#f7f6fb!important}.st-key-battle_overview_group_completed{background:#e8f8f5!important}
 .battle-overview-column-heading{display:flex;align-items:center;gap:.55rem;margin:0 0 .9rem;font-size:1rem;font-weight:800;color:var(--sd-text)}
-.battle-overview-column-heading>span{width:.55rem;height:.55rem;border-radius:50%;background:#6045df}.st-key-battle_overview_group_pending .battle-overview-column-heading>span{background:#9691b9}.st-key-battle_overview_group_completed .battle-overview-column-heading>span{background:#0c9383}
-.battle-overview-column-heading b{margin-left:auto;min-width:1.75rem;padding:.12rem .45rem;border-radius:99px;background:#fff;color:#6045df;font-size:.82rem;text-align:center}.st-key-battle_overview_group_completed .battle-overview-column-heading b{color:#0c9383}
-[class*="st-key-battle_overview_card_"],[class*="st-key-battle_overview_invite_"],.st-key-battle_overview_search{min-height:7.75rem;box-sizing:border-box;padding:.75rem!important;margin-bottom:.65rem;border:0!important;border-radius:12px!important;background:var(--sd-surface)!important;box-shadow:0 4px 10px rgba(31,35,69,.08)!important}
-[class*="st-key-battle_overview_card_pending_"],[class*="st-key-battle_overview_card_completed_"],[class*="st-key-battle_overview_invite_"]{height:13rem!important;min-height:13rem!important}
+.battle-overview-column-heading .bo-ic{font-size:1.05rem}.st-key-battle_overview_group_ongoing .battle-overview-column-heading{color:#4f46e5}.st-key-battle_overview_group_pending .battle-overview-column-heading{color:#92400e}.st-key-battle_overview_group_completed .battle-overview-column-heading{color:#047857}
+.battle-overview-column-heading b{margin-left:auto;min-width:1.75rem;padding:.12rem .45rem;border-radius:99px;background:#fff;font-size:.82rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+[class*="st-key-battle_overview_card_"],[class*="st-key-battle_overview_invite_"],.st-key-battle_overview_search{box-sizing:border-box;padding:.9rem 1rem!important;margin-bottom:.65rem;border:0!important;border-radius:16px!important;background:var(--sd-surface)!important;box-shadow:0 6px 16px rgba(79,70,229,.08)!important}
+/* Versus cards */
+.bo-vs{display:flex;align-items:center;gap:10px;margin:0 0 .45rem}
+.bo-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:.95rem;flex-shrink:0}
+.bo-av-me{background:linear-gradient(135deg,#4f46e5,#818cf8)}
+.bo-av-op{background:linear-gradient(135deg,#f59e0b,#ec4899)}
+.bo-vs i{font-style:normal;font-size:.72rem;font-weight:800;color:var(--sd-muted);background:var(--sd-hover);border-radius:6px;padding:2px 7px}
+.bo-vs b{font-size:.98rem;color:var(--sd-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bo-deck{margin:0 0 .5rem!important;color:var(--sd-muted);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bo-score{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bo-score b{font-size:1.7rem;font-weight:800;color:var(--sd-text);line-height:1.1}
+.bo-score i{font-style:normal;font-weight:800;color:var(--sd-muted)}
+.bo-pill{border-radius:999px;padding:3px 12px;font-weight:800;font-size:.82rem;white-space:nowrap}
+.bo-win{background:#dcfce7;color:#15803d}.bo-loss{background:#fee2e2;color:#b91c1c}.bo-draw,.bo-completed{background:var(--sd-hover);color:var(--sd-muted)}
+.bo-xp-plus{background:#eeeaff;color:#4f46e5}.bo-xp-minus{background:#f6f5fb;color:#6d6a90}
+.bo-wait{display:flex;align-items:center;gap:8px;margin-top:.5rem;color:#92400e;font-weight:700;font-size:.9rem}
+.bo-wait span{width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:bo-blink 1.2s ease-in-out infinite;flex-shrink:0}
+@keyframes bo-blink{50%{opacity:.25}}
+.bo-empty{display:grid;place-items:center;gap:6px;padding:1.6rem .5rem;color:var(--sd-muted);text-align:center;line-height:1.5}
+.bo-empty span{font-size:2rem;opacity:.65}
+[class*="st-key-battle_overview_card_ongoing_"]{border:2px solid var(--sd-accent)!important;animation:bo-live 1.6s ease-in-out infinite}
+@keyframes bo-live{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.3)}50%{box-shadow:0 0 0 7px rgba(79,70,229,0)}}
+[class*="st-key-battle_overview_card_completed_"]:has(.bo-win){border-left:5px solid #16a34a!important}
+[class*="st-key-battle_overview_card_completed_"]:has(.bo-loss){border-left:5px solid #dc2626!important}
+@media(prefers-reduced-motion:reduce){[class*="st-key-battle_overview_card_ongoing_"],.bo-wait span{animation:none}}
 [class*="st-key-battle_overview_card_"] p{margin-bottom:.3rem!important;font-size:1rem!important}.st-key-battle_overview_search [data-testid="stProgress"]{margin:.55rem 0!important}
 .st-key-battle_overview_search button,[class*="st-key-battle_overview_card_"] button,[class*="st-key-battle_overview_invite_"] button{min-height:2.5rem!important;height:2.5rem!important;border-radius:10px!important;font-size:.88rem!important;font-weight:750!important;padding:.35rem .75rem!important}
 [class*="st-key-battle_overview_card_completed_"] button,[class*="st-key-battle_overview_invite_"] button{font-size:1rem!important}

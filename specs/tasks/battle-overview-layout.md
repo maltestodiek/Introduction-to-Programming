@@ -8,7 +8,7 @@ The wide, ungrouped Battle overview made it difficult to scan available actions 
 
 ## What
 
-Battle Mode opens with a compact indigo-to-mint summary hero. It shows durable Battle XP, the win/loss record, and the signed-in player's real global Leaderboard rank, plus **New Battle**. If the read-only Leaderboard is temporarily unavailable, the rank is omitted while Battle remains usable. A single Game Overview card beneath it has three compact, visually distinct columns: Ongoing, Pending and Completed. Cards keep their existing Start/Resume, Cancel search and Review actions. Completed cards show the opponent, stored score, outcome and Battle-XP result. Pending random searches retain their live one-hour countdown.
+Battle Mode opens with a compact indigo-to-mint summary hero. It shows durable Battle XP, the win/loss record, and the signed-in player's real global Leaderboard rank, plus **New Battle**. If the read-only Leaderboard is temporarily unavailable, the rank is omitted while Battle remains usable. A single Game Overview card beneath it shows Ongoing and Pending as two lanes side by side, with Recently completed as a full-width lane below whose cards sit three abreast. Every Battle renders as a versus card: the player\u2019s and the opponent\u2019s initial around a VS tag, with the deck name as a subline. Ongoing cards pulse and keep Start/Resume; pending cards show the own result large with a waiting indicator; completed cards show the stored score large with a Win/Loss pill, the Battle-XP delta as a chip and a green or red edge, and keep Review. Searches keep Cancel and their live one-hour countdown. Empty lanes show a friendly empty state. Pending random searches retain their live one-hour countdown.
 
 ## Out of scope
 
