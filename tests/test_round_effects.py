@@ -29,11 +29,13 @@ def test_streak_milestones_are_announced_at_three_five_and_ten():
     assert streak_milestone(4) is None
 
 
-def test_countdown_overlay_counts_down_and_names_the_mode():
+def test_countdown_overlay_counts_down_and_ends_on_the_mode_emblem():
     battle=countdown_overlay('battle')
     study=countdown_overlay('study',decorative=True)
-    for digit in ('>3<','>2<','>1<','GO!'):
+    for digit in ('>3<','>2<','>1<','round-mode-icon'):
         assert digit in battle and digit in study
+    assert 'GO!' not in battle
+    assert 'battle-emblem' in battle and 'study-emblem' in study
     assert 'Battle starting' in battle and 'Study starting' in study
     assert 'is-decorative' in study and 'is-decorative' not in battle
 
@@ -41,6 +43,8 @@ def test_countdown_overlay_counts_down_and_names_the_mode():
 def test_countdown_overlay_blocks_no_clicks_and_respects_reduced_motion():
     assert 'pointer-events:none' in EFFECTS_CSS
     assert '.round-countdown' in EFFECTS_CSS
+    assert '.round-mode-icon .sword-left{transform:rotate(-38deg)' in EFFECTS_CSS
+    assert '.round-mode-icon .sword-right{transform:rotate(38deg)' in EFFECTS_CSS
     assert '@media(prefers-reduced-motion:reduce)' in EFFECTS_CSS
 
 
@@ -54,6 +58,12 @@ def test_battle_requests_the_first_question_only_after_the_countdown():
 def test_study_round_shows_a_decorative_countdown_once():
     assert 'study_countdown_' in APP
     assert "countdown_overlay('study',decorative=True)" in APP
+
+
+def test_streak_badge_sits_beside_the_overview_heading_in_both_modes():
+    assert '.round-overview-head{display:flex;align-items:center;justify-content:space-between' in EFFECTS_CSS
+    assert APP.count('<div class="round-overview-head"><h3>Overview</h3>')==2
+    assert "round-streak" not in APP[APP.index("st.caption(f\"Question"):APP.index("st.caption(f\"Question")+600]
 
 
 def test_feedback_effects_exist_for_both_modes():

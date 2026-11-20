@@ -1476,10 +1476,10 @@ def study_round_screen(client,sid):
         markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}{" round-tile-flash" if flash==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
         question,overview=st.columns([3,1],gap='large')
         with overview:
-            st.html('<aside class="study-overview"><h3>Overview</h3><div class="study-overview-grid">'+markup+'</div></aside>')
+            badge='<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>' if streak>=2 else ''
+            st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+badge+'</div><div class="study-overview-grid">'+markup+'</div></aside>')
         with question:
             st.caption(f"Question {r['index']+1} of {r['total']}")
-            if streak>=2:st.html('<div class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</div>')
             if state=='question':
                 st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
                 if r.get('deadline'):st.caption('Finish by '+r['deadline'])
@@ -2270,12 +2270,13 @@ def battle_progress(client,session_id):
     except ValueError as exc:st.error(str(exc));return None
 
 
-def battle_overview(answers,current_index,flash_index=None):
+def battle_overview(answers,current_index,flash_index=None,streak=0):
     from battle_ui import battle_progress_tiles
     symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
     tiles=battle_progress_tiles(answers,current_index)
     markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}{" round-tile-flash" if flash_index==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
-    st.html('<aside class="battle-overview"><h3>Overview</h3><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
+    badge='<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>' if streak>=2 else ''
+    st.html('<aside class="battle-overview"><div class="round-overview-head"><h3>Overview</h3>'+badge+'</div><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
 
 
 @st.fragment(run_every='1s')
@@ -2380,7 +2381,6 @@ def battle_round_screen(client,session_id):
         question,overview=st.columns([3,1],gap='large')
         with question:
             st.caption(f"Question {response['index']+1} of 15")
-            if streak>=2:st.html('<div class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</div>')
             st.html('<div class="battle-question-card">'+escape(card['question'])+'</div>')
             if response['correct']:st.success('Correct!')
             elif response.get('timed_out'):st.error('Time expired.')
@@ -2404,7 +2404,7 @@ def battle_round_screen(client,session_id):
                 st.session_state.pop('battle_feedback',None);st.rerun()
         with overview:
             battle_leave_control(client,session_id)
-            battle_overview(answers,response['index']+1,flash_index=response['index'])
+            battle_overview(answers,response['index']+1,flash_index=response['index'],streak=streak)
         if response.get('timed_out') and st.session_state.pop(f'battle_timeout_notice_{session_id}',False):
             st.toast('Time has passed',icon='⏱️')
         return
@@ -2418,7 +2418,6 @@ def battle_round_screen(client,session_id):
         with question:
             st.caption(f"Question {result['index']+1} of 15")
             streak=streak_length(answers)
-            if streak>=2:st.html('<div class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</div>')
             st.html('<div class="battle-question-card">'+escape(result['question'])+'</div>')
             question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
             columns=st.columns(2)
@@ -2430,7 +2429,7 @@ def battle_round_screen(client,session_id):
             battle_timer(client,session_id,result['index'],result['seconds'])
         with overview:
             battle_leave_control(client,session_id)
-            battle_overview(answers,result['index'])
+            battle_overview(answers,result['index'],streak=streak)
         return
     if state=='finish':
         if battle_request(client,'finish',{'id':session_id}) is not None:

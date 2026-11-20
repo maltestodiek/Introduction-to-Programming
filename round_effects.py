@@ -4,6 +4,10 @@ Everything here is derived from data the round already loaded; nothing
 changes scoring, timing or persistence.
 """
 
+from pathlib import Path
+
+ASSETS=Path(__file__).parent/'assets'
+
 MILESTONES={3:'On fire!',5:'Unstoppable!',10:'Legendary!'}
 
 
@@ -22,12 +26,13 @@ def streak_milestone(streak):
 
 
 def countdown_overlay(mode,decorative=False):
-    """The 3-2-1-GO! start overlay; decorative overlays hide themselves via CSS."""
+    """The 3-2-1 start overlay ending on the mode's emblem; decorative overlays hide themselves via CSS."""
     note='Battle starting…' if mode=='battle' else 'Study starting…'
+    icon=(ASSETS/('battle-mode.svg' if mode=='battle' else 'study-mode.svg')).read_text()
     classes='round-countdown round-countdown-'+mode+(' is-decorative' if decorative else '')
     return ('<div class="'+classes+'" role="status" aria-label="Round starting">'
             '<div class="round-countdown-digits">'
             '<span class="round-digit n3">3</span><span class="round-digit n2">2</span>'
-            '<span class="round-digit n1">1</span><span class="round-digit go">GO!</span>'
+            '<span class="round-digit n1">1</span><span class="round-digit round-mode-icon">'+icon+'</span>'
             '</div><p class="round-countdown-note">'+note+'</p>'
             '<p class="round-countdown-still">Get ready…</p></div>')

@@ -5,11 +5,17 @@
 .round-countdown{position:fixed;inset:0;z-index:2000;display:grid;place-content:center;gap:10px;text-align:center;background:radial-gradient(circle at 50% 40%,rgba(79,70,229,.88),rgba(15,14,40,.94));pointer-events:none}
 .round-countdown-digits{position:relative;height:150px;width:220px;margin:0 auto}
 .round-digit{position:absolute;inset:0;display:grid;place-items:center;font-size:96px;font-weight:800;color:#fff;opacity:0;text-shadow:0 10px 36px rgba(0,0,0,.35)}
-.round-digit.go{color:#6EE7B7;font-size:72px;letter-spacing:2px}
 .round-digit.n3{animation:round-digit 1s ease-out 0s both}
 .round-digit.n2{animation:round-digit 1s ease-out 1s both}
 .round-digit.n1{animation:round-digit 1s ease-out 2s both}
-.round-digit.go{animation:round-go .9s ease-out 3s both}
+.round-mode-icon{animation:round-go 1s ease-out 3s both}
+.round-mode-icon svg{width:160px;height:160px;overflow:visible;filter:drop-shadow(0 14px 34px rgba(0,0,0,.35))}
+/* The emblem's crossed swords are positioned by the Play page styles; the round loads these rules itself. */
+.round-mode-icon .sword{transform-origin:64px 64px}
+.round-mode-icon .sword-left{transform:rotate(-38deg);animation:round-sword-left .55s ease-out 3.05s both}
+.round-mode-icon .sword-right{transform:rotate(38deg);animation:round-sword-right .55s ease-out 3.05s both}
+@keyframes round-sword-left{0%{transform:rotate(-62deg)}60%{transform:rotate(-30deg)}100%{transform:rotate(-38deg)}}
+@keyframes round-sword-right{0%{transform:rotate(62deg)}60%{transform:rotate(30deg)}100%{transform:rotate(38deg)}}
 .round-countdown-note{margin:0;color:#e0e7ff;font-size:1.1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .round-countdown-still{display:none;margin:0;color:#e0e7ff;font-size:1.3rem;font-weight:700}
 .round-countdown.is-decorative{animation:round-overlay-out .35s ease-in 3.6s forwards}
@@ -41,8 +47,12 @@
 .is-correct-reveal{animation:round-reveal .8s ease-out .25s both}
 @keyframes round-reveal{0%,100%{transform:scale(1)}40%{transform:scale(1.045);box-shadow:0 0 0 6px rgba(22,163,74,.25)}}
 
+/* --- Overview header row: the streak badge sits beside the Overview heading --- */
+.round-overview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.round-overview-head h3{margin:0}
+
 /* --- Streak badge and milestone banner --- */
-.round-streak{display:inline-flex;align-items:center;gap:7px;margin-left:10px;padding:3px 12px;border-radius:999px;border:1.5px solid #f59e0b;background:#fff7ed;color:#b45309;font-weight:800;font-size:.92rem;vertical-align:middle;animation:round-streak-pop .5s ease-out both}
+.round-streak{display:inline-flex;align-items:center;gap:7px;padding:3px 12px;border-radius:999px;border:1.5px solid #f59e0b;background:#fff7ed;color:#b45309;font-weight:800;font-size:.92rem;vertical-align:middle;animation:round-streak-pop .5s ease-out both}
 .round-streak .flame{font-size:1.05rem}
 @keyframes round-streak-pop{0%{transform:scale(.5)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
 .round-streak-banner{position:fixed;top:34%;left:50%;z-index:1600;transform:translate(-50%,-50%);padding:16px 36px;border-radius:999px;background:linear-gradient(90deg,#f59e0b,#ec4899);color:#fff;font-size:2rem;font-weight:800;letter-spacing:.03em;white-space:nowrap;box-shadow:0 18px 50px rgba(0,0,0,.3);pointer-events:none;animation:round-banner 1.7s ease-out both}
@@ -71,5 +81,5 @@
  .round-countdown-still{display:block}
  .round-countdown{animation:none}
  .round-confetti,.round-xp,.round-vignette,.round-streak-banner{display:none}
- .round-burst.is-correct,.is-correct-reveal,.round-streak,.round-tile-flash,.round-score{animation:none}
+ .round-burst.is-correct,.is-correct-reveal,.round-streak,.round-tile-flash,.round-score,.round-mode-icon .sword-left,.round-mode-icon .sword-right{animation:none}
 }

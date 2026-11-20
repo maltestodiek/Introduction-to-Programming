@@ -8,11 +8,11 @@ Battle and Study rounds presented questions like a form. A game-like round — a
 
 ## What
 
-**Start countdown.** Before the first question of a fresh Battle or Study round, an overlay counts 3 — 2 — 1 — GO! with animated digits, then disappears. In Battle the first question (and its server timer) is only requested after the countdown, so no answer time is lost. A resumed round shows no countdown.
+**Start countdown.** Before the first question of a fresh Battle or Study round, an overlay counts 3 — 2 — 1 with animated digits, finishes on the animated mode emblem (crossed swords in Battle, the open book in Study), then disappears. In Battle the first question (and its server timer) is only requested after the countdown, so no answer time is lost. A resumed round shows no countdown.
 
 **Answer feedback.** A correct chosen answer pops with a green glow, a small confetti burst and, in Battle only, a rising "+XP" chip. A wrong answer keeps its shake and adds a brief red edge vignette, while the correct answer pulses once so the eye finds it. The overview tile of the just-answered question flashes as it takes its colour.
 
-**Streak.** From two correct answers in a row, a flame badge with the current run appears beside the question number. Reaching 3, 5 or 10 in a row shows a short banner (On fire! / Unstoppable! / Legendary!). The streak is computed from the round's already-loaded answers, adds no state or persistence and never changes XP or scoring.
+**Streak.** From two correct answers in a row, a flame badge with the current run appears beside the Overview heading in the side panel. Reaching 3, 5 or 10 in a row shows a short banner (On fire! / Unstoppable! / Legendary!). The streak is computed from the round's already-loaded answers, adds no state or persistence and never changes XP or scoring.
 
 **Equal card heights.** Answer fields match the question card's height (150px desktop, 120px narrow screens) both while answering and in feedback, so the layout does not jump between states.
 
