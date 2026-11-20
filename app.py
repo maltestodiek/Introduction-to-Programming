@@ -24,6 +24,7 @@ fresh_module("course_catalog")
 from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
 from answer_order import display_options
+from round_effects import countdown_overlay, streak_length, streak_milestone
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
@@ -1454,7 +1455,7 @@ def study_round_screen(client,sid):
     from db import StudyRepository
     try:progress=StudyRepository(client).progress(sid)
     except ValueError as exc:st.error(str(exc));return
-    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+'</style>')
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     session_partner_chat(client,'study',sid)
     if st.button('Save and leave Study session'):
         st.session_state.pop('study_session',None);st.rerun()
@@ -1463,11 +1464,20 @@ def study_round_screen(client,sid):
         from study_ui import study_progress_tiles
         symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
         current_index=r['index'] if state=='question' else r['index']+1
+        # The decorative start countdown hides itself; it only appears on a fresh round.
+        countdown_key=f'study_countdown_{sid}'
+        if not st.session_state.get(countdown_key):
+            st.session_state[countdown_key]=True
+            if state=='question' and not progress.get('answers'):
+                st.html(countdown_overlay('study',decorative=True))
+        streak=streak_length(progress.get('answers',[]))
+        flash=r['index'] if state=='feedback' else None
         tiles=study_progress_tiles(progress.get('answers',[]),current_index,r['total'])
-        markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
+        markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}{" round-tile-flash" if flash==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
         question,overview=st.columns([3,1],gap='large')
         with overview:
-            st.html('<aside class="study-overview"><h3>Overview</h3><div class="study-overview-grid">'+markup+'</div></aside>')
+            badge='<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>' if streak>=2 else ''
+            st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+badge+'</div><div class="study-overview-grid">'+markup+'</div></aside>')
         with question:
             st.caption(f"Question {r['index']+1} of {r['total']}")
             if state=='question':
@@ -1484,8 +1494,21 @@ def study_round_screen(client,sid):
                 c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
                 if r['correct']:st.success('Correct!')
                 else:st.error('Not quite. Review the correct answer below.')
-                answer_markup=''.join('<div class="study-answer-card '+('is-correct is-correct-animated' if a['id']==c['correct_answer_id'] and r['correct'] else 'is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in display_options(c['answers'],sid,r['index']))
-                st.html('<div class="study-answer-grid">'+answer_markup+'</div>')
+                burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9))
+                parts=[]
+                for a in display_options(c['answers'],sid,r['index']):
+                    text=escape(a['text'])
+                    if a['id']==c['correct_answer_id'] and r['correct']:
+                        parts.append('<div class="study-answer-card round-burst is-correct is-correct-animated">'+text+burst+'</div>')
+                    elif a['id']==c['correct_answer_id']:
+                        parts.append('<div class="study-answer-card is-correct is-correct-reveal">'+text+'</div>')
+                    elif a['id']==r['answer_id']:
+                        parts.append('<div class="study-answer-card is-incorrect">'+text+'</div>')
+                    else:
+                        parts.append('<div class="study-answer-card is-neutral">'+text+'</div>')
+                st.html('<div class="study-answer-grid">'+''.join(parts)+'</div>')
+                if not r['correct']:st.html('<div class="round-vignette"></div>')
+                elif streak_milestone(streak):st.html('<div class="round-streak-banner">'+streak_milestone(streak)+'</div>')
                 prefix=f"{sid}_{r['index']}"
                 with st.expander('Private note / feedback to author'):
                     note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
@@ -2247,12 +2270,13 @@ def battle_progress(client,session_id):
     except ValueError as exc:st.error(str(exc));return None
 
 
-def battle_overview(answers,current_index):
+def battle_overview(answers,current_index,flash_index=None,streak=0):
     from battle_ui import battle_progress_tiles
     symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
     tiles=battle_progress_tiles(answers,current_index)
-    markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
-    st.html('<aside class="battle-overview"><h3>Overview</h3><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
+    markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}{" round-tile-flash" if flash_index==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
+    badge='<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>' if streak>=2 else ''
+    st.html('<aside class="battle-overview"><div class="round-overview-head"><h3>Overview</h3>'+badge+'</div><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
 
 
 @st.fragment(run_every='1s')
@@ -2272,7 +2296,7 @@ def battle_timer(client,session_id,index,server_seconds):
             st.session_state.battle_feedback={**result,'id':session_id}
             st.session_state[f'battle_timeout_notice_{session_id}']=True
             st.rerun(scope='app')
-    start,end=timer_tick_fractions(seconds);urgent=' urgent' if seconds<=10 else ''
+    start,end=timer_tick_fractions(seconds);urgent=' urgent' if seconds<=5 else ' warning' if seconds<=15 else ''
     st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="--timer-start:{start*100:.3f}%;--timer-end:{end*100:.3f}%"></div></div><p class="battle-timer-label">{seconds} seconds</p>')
 
 
@@ -2337,13 +2361,23 @@ def battle_question_report_form(client,session_id,card_index):
 
 
 def battle_round_screen(client,session_id):
-    st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+'</style>')
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     progress=battle_progress(client,session_id)
     if progress is None:return
     answers=progress.get('answers',[])
     feedback=st.session_state.get('battle_feedback')
+    # The animated start countdown runs before the first question is requested,
+    # so the server question timer only starts afterwards. Resumed rounds skip it.
+    countdown_key=f'battle_countdown_{session_id}'
+    if not st.session_state.get(countdown_key):
+        st.session_state[countdown_key]=True
+        if not answers and not (feedback and feedback.get('id')==session_id):
+            st.html(countdown_overlay('battle'))
+            time.sleep(3.8)
+            st.rerun()
     if feedback and feedback.get('id')==session_id:
         card=feedback['card'];response=feedback['feedback']
+        streak=streak_length(answers)
         question,overview=st.columns([3,1],gap='large')
         with question:
             st.caption(f"Question {response['index']+1} of 15")
@@ -2351,13 +2385,26 @@ def battle_round_screen(client,session_id):
             if response['correct']:st.success('Correct!')
             elif response.get('timed_out'):st.error('Time expired.')
             else:st.error('That answer was incorrect.')
-            answer_markup=''.join('<div class="battle-answer-card '+('is-correct is-correct-animated' if answer['id']==card['correct_answer_id'] and response['correct'] else 'is-correct' if answer['id']==card['correct_answer_id'] else 'is-incorrect' if answer['id']==response.get('answer_id') else 'is-neutral')+'">'+escape(answer['text'])+'</div>' for answer in display_options(card['answers'],session_id,response['index']))
-            st.html('<div class="battle-answer-grid">'+answer_markup+'</div>')
+            burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9))
+            parts=[]
+            for answer in display_options(card['answers'],session_id,response['index']):
+                text=escape(answer['text'])
+                if answer['id']==card['correct_answer_id'] and response['correct']:
+                    parts.append('<div class="battle-answer-card round-burst is-correct is-correct-animated">'+text+burst+'<span class="round-xp">+XP</span></div>')
+                elif answer['id']==card['correct_answer_id']:
+                    parts.append('<div class="battle-answer-card is-correct is-correct-reveal">'+text+'</div>')
+                elif answer['id']==response.get('answer_id'):
+                    parts.append('<div class="battle-answer-card is-incorrect">'+text+'</div>')
+                else:
+                    parts.append('<div class="battle-answer-card is-neutral">'+text+'</div>')
+            st.html('<div class="battle-answer-grid">'+''.join(parts)+'</div>')
+            if not response['correct']:st.html('<div class="round-vignette"></div>')
+            elif streak_milestone(streak):st.html('<div class="round-streak-banner">'+streak_milestone(streak)+'</div>')
             if st.button('Continue',type='primary'):
                 st.session_state.pop('battle_feedback',None);st.rerun()
         with overview:
             battle_leave_control(client,session_id)
-            battle_overview(answers,response['index']+1)
+            battle_overview(answers,response['index']+1,flash_index=response['index'],streak=streak)
         if response.get('timed_out') and st.session_state.pop(f'battle_timeout_notice_{session_id}',False):
             st.toast('Time has passed',icon='⏱️')
         return
@@ -2370,6 +2417,7 @@ def battle_round_screen(client,session_id):
         question,overview=st.columns([3,1],gap='large')
         with question:
             st.caption(f"Question {result['index']+1} of 15")
+            streak=streak_length(answers)
             st.html('<div class="battle-question-card">'+escape(result['question'])+'</div>')
             question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
             columns=st.columns(2)
@@ -2381,7 +2429,7 @@ def battle_round_screen(client,session_id):
             battle_timer(client,session_id,result['index'],result['seconds'])
         with overview:
             battle_leave_control(client,session_id)
-            battle_overview(answers,result['index'])
+            battle_overview(answers,result['index'],streak=streak)
         return
     if state=='finish':
         if battle_request(client,'finish',{'id':session_id}) is not None:
@@ -2412,7 +2460,8 @@ def battle_rating_dialog(client,session_id):
     if result.get('state')!='rating':
         return_to_battle_menu()
         return
-    st.metric('Correct answers',f"{result['score']} / 15")
+    burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9)) if result['score']>=8 else ''
+    st.html('<style>'+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style><div class="round-score" role="status" aria-label="Correct answers: '+str(result['score'])+' of 15">'+burst+'<span class="round-score-value">'+str(result['score'])+'</span><span class="round-score-total">/ 15 correct</span></div>')
     if not result.get('can_rate'):
         st.info('You played your own Battle Deck. It does not receive a rating from you.')
         if st.button('Back to Battle Mode',type='primary'):return_to_battle_menu()

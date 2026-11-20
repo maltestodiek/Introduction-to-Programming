@@ -32,6 +32,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
 - [Study Plan desktop layout](tasks/study-plan-desktop-layout.md): wide overview and editor layout without changing Study Plan behaviour.
 - [Course list on Decks](tasks/course-list-layout.md): desktop course overview with Study access plus a searchable, filtered deck catalogue.
+- [Immersive round interface](tasks/immersive-round-ui.md): start countdown, answer-feedback effects, streak display and equal card heights in Battle and Study rounds.
 - [Full-height sidebar](tasks/full-height-sidebar.md): the desktop navigation runs as a continuous bar along the left edge instead of a floating card.
 
 A feature can require several small implementation branches. Add a task spec under `specs/tasks/` when a change needs its own acceptance scenarios; link it to its parent topic. Do not duplicate a rule across multiple feature specs. Before implementation, list state, persistence, an allowed action, a rejected action and restart verification; review expected outcomes with the group.
