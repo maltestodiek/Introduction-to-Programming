@@ -31,8 +31,10 @@
 .st-key-open_home button p strong{font-weight:800;color:var(--sd-accent)}
 .st-key-open_home button:hover{transform:translateY(-2px)}
 .st-key-open_home button:focus-visible{outline:3px solid var(--sd-text)!important;outline-offset:3px}
-/* Desktop navigation is a left sidebar; account actions live below the activity destinations. */
-.st-key-sidebar_navigation{position:fixed;z-index:100;top:5rem;left:1.5rem;width:14rem;max-height:calc(100vh - 6.5rem);box-sizing:border-box;padding:3rem .65rem .45rem;overflow-y:auto;border:2px solid #b9a6ff;border-radius:24px;background:var(--sd-surface);box-shadow:0 12px 28px rgba(79,70,229,.08)}
+/* Desktop navigation is a full-height bar along the left edge; account actions live below the activity destinations. */
+.st-key-sidebar_navigation{position:fixed;z-index:100;top:0;left:0;bottom:0;width:14rem;box-sizing:border-box;padding:1.5rem .65rem .9rem;overflow-y:auto;border-right:1px solid var(--sd-border);background:var(--sd-surface)}
+/* Page content and Streamlit's top bar start to the right of the sidebar so it never covers them. */
+@media(min-width:761px){.stMain{padding-left:14rem}.stAppHeader{left:14rem!important;width:auto!important}}
 .st-key-sidebar_navigation .st-key-top_brand{margin:0 0 1.8rem}
 .st-key-sidebar_navigation .st-key-open_home button{min-height:48px}
 .st-key-sidebar_navigation .st-key-open_home button::before{width:58px;height:42px}
@@ -50,7 +52,7 @@
 .st-key-sidebar_navigation .st-key-open_profile button::before{width:30px;height:30px}
 .st-key-sidebar_navigation hr{margin:1rem .2rem!important;border-color:#e6e2f2}
 @media(min-width:761px){.block-container{max-width:940px!important;margin-left:auto!important;margin-right:auto!important;padding-top:.75rem!important;padding-right:1rem!important;padding-left:1rem!important}}
-@media(max-width:760px){.st-key-sidebar_navigation{position:static;width:auto;max-height:none;margin-bottom:1rem;padding:0;background:transparent}.st-key-sidebar_navigation .st-key-top_brand{margin-bottom:.8rem}.st-key-sidebar_main_actions,[class*="st-key-sidebar_account_actions"]{grid-template-columns:repeat(2,minmax(0,1fr))}.st-key-sidebar_navigation .st-key-open_home button p{font-size:22px}}
+@media(max-width:760px){.st-key-sidebar_navigation{position:static;width:auto;max-height:none;margin-bottom:1rem;padding:0;border:none;background:transparent}.stMain{padding-left:0}.st-key-sidebar_navigation .st-key-top_brand{margin-bottom:.8rem}.st-key-sidebar_main_actions,[class*="st-key-sidebar_account_actions"]{grid-template-columns:repeat(2,minmax(0,1fr))}.st-key-sidebar_navigation .st-key-open_home button p{font-size:22px}}
 @keyframes nav-tilt{0%,100%{transform:rotate(0)}35%{transform:rotate(-13deg)}70%{transform:rotate(7deg)}}
 @keyframes nav-pulse{0%,100%{transform:scale(1)}45%{transform:scale(1.2)}75%{transform:scale(.96)}}
 @keyframes nav-sway{0%,100%{transform:translateX(0)}35%{transform:translateX(-3px)}70%{transform:translateX(3px)}}
