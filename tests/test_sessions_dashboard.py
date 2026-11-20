@@ -61,42 +61,36 @@ def text_of(at):
 def test_dashboard_shows_continue_banner_ongoing_cards_history_and_stats(monkeypatch):
     at=dashboard(monkeypatch)
     headings=[item.value for item in at.subheader]
-    assert 'Ongoing sessions' in headings and 'Session history' in headings
+    assert 'Ongoing study sessions' in headings and 'Study history' in headings
     text=text_of(at)
     assert 'Continue where you left off' in text
-    assert "Your turn" in text and "Opponent's turn" in text
-    assert 'vs Vincent_bcm' in text and '+40' in text
-    assert 'Battle record' in text and '1 – 1' in text
+    assert 'Study together' in text and 'Study sessions finished' in text
+    assert 'Battle record' not in text and 'Battle XP from these Battles' not in text and 'Win streak' not in text
     assert not at.exception
 
 
 def test_existing_session_actions_still_work(monkeypatch):
-    at=dashboard(monkeypatch)
-    at.button(key='home_battle_b-ongoing').click().run()
-    assert at.session_state['battle_session']=='b-ongoing'
     at=dashboard(monkeypatch)
     at.button(key='continue_session').click().run()
     assert at.session_state['study_session']=='s-together'
     at=dashboard(monkeypatch)
     at.button(key='home_study_s-solo').click().run()
     assert at.session_state['study_session']=='s-solo'
-    at=dashboard(monkeypatch)
-    assert at.button(key='history_battle_review_b-win')
-    at.button(key='history_study_s-done').click().run()
+    at=dashboard(monkeypatch);at.button(key='history_study_s-done').click().run()
     assert at.session_state['study_session']=='s-done'
 
 
-def test_filter_shows_only_battle_sessions(monkeypatch):
+def test_dashboard_keeps_battle_sessions_outside_the_play_page(monkeypatch):
     at=dashboard(monkeypatch)
-    at.segmented_control(key='sessions_filter').set_value('Battle').run()
     keys=[getattr(item,'key','') or '' for item in at.button]
-    assert 'home_battle_b-ongoing' in keys and 'home_study_s-solo' not in keys and 'history_study_s-done' not in keys
+    assert 'home_battle_b-ongoing' not in keys and 'history_battle_review_b-win' not in keys
+    assert 'home_study_s-solo' in keys and 'history_study_s-done' in keys
 
 
 def test_history_shows_five_rows_and_more_on_request(monkeypatch):
-    many=[{**BATTLES[2],'id':f'b-{index}'} for index in range(7)]
-    at=dashboard(monkeypatch,battles=many,study=[])
-    keys=lambda:[getattr(item,'key','') or '' for item in at.button if (getattr(item,'key','') or '').startswith('history_battle_review_')]
+    many=[{**STUDY[2],'id':f's-{index}'} for index in range(7)]
+    at=dashboard(monkeypatch,battles=BATTLES,study=many)
+    keys=lambda:[getattr(item,'key','') or '' for item in at.button if (getattr(item,'key','') or '').startswith('history_study_')]
     assert len(keys())==5
     button(at,'Show more').click().run()
     assert len(keys())==7

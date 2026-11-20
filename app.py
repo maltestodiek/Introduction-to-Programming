@@ -226,7 +226,7 @@ def open_friend_match(person,mode):
 def friend_match_row(item,repo,friends):
     """Render an accepted friend with the social actions that are already authorized."""
     person=item["person"]
-    avatar,profile,actions=st.columns([.65,2.15,3.35],vertical_alignment="center")
+    avatar,profile,actions=st.columns([.65,1.65,3.85],vertical_alignment="center")
     with avatar:
         try: data=repo.image(person.get("image_path"))
         except Exception:data=None
@@ -235,7 +235,7 @@ def friend_match_row(item,repo,friends):
         st.markdown("**"+person["username"]+"**")
         st.caption("Friend")
     with actions:
-        battle,study,chat,remove=st.columns([1.35,1.2,.48,.48],gap='small',vertical_alignment='center')
+        battle,study,chat,remove=st.columns([1.35,1.2,.7,.7],gap='small',vertical_alignment='center')
         with battle:
             if st.button('Battle',key='friend_battle_'+item['id'],icon=':material/swords:',use_container_width=True,type='primary'):
                 open_friend_match(person,'battle')
@@ -243,7 +243,7 @@ def friend_match_row(item,repo,friends):
             if st.button('Study',key='friend_study_'+item['id'],icon=':material/menu_book:',use_container_width=True):
                 open_friend_match(person,'study')
         with chat:
-            if st.button('Chat',key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"]):
+            if st.button('Chat',key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"],use_container_width=True):
                 open_private_chat(friends.client,person["id"])
         with remove:
             if st.button('Remove',key='remove_friend_'+item['id'],use_container_width=True,icon=':material/person_remove:',help='Remove '+person['username']+' as a friend'):
@@ -1048,6 +1048,10 @@ def navigate(page):
     if st.session_state.get('play_in_round'):
         st.session_state.play_exit_to=page
     else:
+        # A completed/abandoned Google Calendar callback must not keep the user
+        # pinned to Study Plan after they choose another navigation destination.
+        if page!='Study Plan' and str(st.query_params.get('state','')).startswith('sdplan.'):
+            del st.query_params['state']
         if page=='Decks':
             for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','battle_source_id','battle_return_study','deck_studio','anki_import_open','pdf_import_open','anki_generation_open'):
                 st.session_state.pop(key,None)
@@ -1057,6 +1061,7 @@ def navigate(page):
             st.session_state.pop('study_choose',None)
             st.session_state.pop('play_mode_preview',None)
             st.session_state.pop('battle_new_setup',None)
+        st.rerun()
     st.rerun()
 
 
@@ -1855,11 +1860,11 @@ def study_plan_screen(client,profile,user_id=''):
     import google_calendar as google
     import study_plan as rules
     study_plan_design()
+    st.title('Study Plan')
     decks=study_plan_decks(client)
     if decks is None:return
     study_plan_google_answer(client,decks,user_id)
     if 'plan_draft' in st.session_state:return study_plan_editor(client,profile,decks,user_id)
-    st.title('Study Plan')
     data=study_plan_request(client,'list')
     if data is None:return
     saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
@@ -2114,47 +2119,38 @@ def session_card(client,kind,session):
 
 
 def ongoing_sessions(client):
-    """Play overview: continue banner, ongoing sessions, history table and Battle and Study figures."""
-    from db import BattleRepository
-    from logic import STUDY_ONGOING_STATES,battle_record,battle_session_groups,session_continue_pick,session_history_rows,time_left_text
-    battle_data=play_request(BattleRepository(client),'list')
+    """Play overview: continue banner, Study sessions, Study history and Study figures."""
+    from logic import STUDY_ONGOING_STATES,session_continue_pick,session_history_rows,time_left_text
     study_data=study_request(client,'list')
     st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
-    battles=(battle_data or {}).get('sessions',[]);groups=battle_session_groups(battles)
     study_sessions=(study_data or {}).get('sessions',[])
     study_ongoing=[s for s in study_sessions if s['state'] in STUDY_ONGOING_STATES]
     study_finished=[s for s in study_sessions if s['state'] not in STUDY_ONGOING_STATES]
-    heading,filters=st.columns([3,2],vertical_alignment='center')
-    heading.subheader('Your sessions')
-    with filters:choice=st.segmented_control('Session filter',['All','Battle','Study'],default='All',key='sessions_filter',label_visibility='collapsed') or 'All'
-    show_battle=choice in ('All','Battle');show_study=choice in ('All','Study')
-    battle_ongoing=groups['ongoing'] if show_battle else [];study_active=study_ongoing if show_study else []
+    st.subheader('Your study sessions')
     main,side=st.columns([2.3,1],gap='large')
     with main:
-        pick=session_continue_pick(battle_ongoing,study_active)
+        pick=session_continue_pick([],study_ongoing)
         if pick:
-            session=pick['session'];study=pick['kind']=='study'
+            session=pick['session']
             with st.container(border=True,key='sessions_continue'):
                 text,action=st.columns([3,1.2],vertical_alignment='center')
                 with text:
-                    left=time_left_text(session.get('deadline')) if study else None
+                    left=time_left_text(session.get('deadline'))
                     st.caption('Continue where you left off'+(' · '+left if left else ''))
-                    st.markdown('**'+(session['name'] if study else session['deck_name'])+'**')
-                    if study:
-                        st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
-                        st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
-                    else:st.caption(f"Battle · {session['course']} · {session['language']} · your turn")
+                    st.markdown('**'+session['name']+'**')
+                    st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
+                    st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
                 if action.button('Resume',key='continue_session',icon=':material/play_arrow:',type='primary',use_container_width=True):
-                    resume_study_session(session) if study else resume_battle_session(session['id'])
-        st.subheader('Ongoing sessions')
-        cards=[('battle',session) for session in battle_ongoing]+[('study',session) for session in study_active]
+                    resume_study_session(session)
+        st.subheader('Ongoing study sessions')
+        cards=[('study',session) for session in study_ongoing]
         if not cards:st.caption('No ongoing sessions. Start a new one above.')
         else:st.caption(f"{len(cards)} active")
         for row in range(0,len(cards),2):
             for column,(kind,session) in zip(st.columns(2),cards[row:row+2]):
                 with column:session_card(client,kind,session)
-        st.subheader('Session history')
-        rows=session_history_rows(groups['completed'] if show_battle else [],study_finished if show_study else [])
+        st.subheader('Study history')
+        rows=session_history_rows([],study_finished)
         if not rows:st.caption('No finished sessions yet. Your results will appear here.')
         else:
             widths=[.9,2.6,1.9,.8,.6,2.1]
@@ -2169,33 +2165,15 @@ def ongoing_sessions(client):
                         if item['kind']=='study' and item['session']['mode']!='solo':session_partner_chat(client,'study',item['id'],'history')
                         else:st.markdown(item['mode'])
                     score.markdown(item['score']);xp.markdown(item['xp'])
-                    if item['kind']=='battle':
-                        if action.button('Review Battle',key='history_battle_review_'+item['id'],use_container_width=True):
-                            battle_review_dialog(client,item['id'])
-                    elif action.button('View Study session',key='history_study_'+item['id'],use_container_width=True):
+                    if action.button('View Study session',key='history_study_'+item['id'],use_container_width=True):
                         st.session_state.study_active=True;st.session_state.study_session=item['id'];st.rerun()
             if len(rows)>limit:st.button('Show more',key='sessions_history_more',on_click=show_more_history,use_container_width=True)
     with side:
-        record=battle_record(battles);played=record['wins']+record['losses']
-        with st.container(key='sessions_stat_record'):
-            st.caption('Battle record')
-            st.markdown(f"### {record['wins']} – {record['losses']}")
-            if played:st.progress(record['wins']/played)
-            if record['draws']:st.caption(f"{record['draws']} draw{'s' if record['draws']!=1 else ''}")
-        with st.container(key='sessions_stat_xp'):
-            st.caption('Battle XP from these Battles')
-            st.markdown(f"### {sum(b.get('game_xp_delta',0) or 0 for b in groups['completed']):+d}")
         with st.container(key='sessions_stat_study'):
             st.caption('Study sessions finished')
             st.markdown(f"### {sum(1 for s in study_finished if s['state']=='completed')}")
             st.caption(f"{sum(s.get('cursor',0) for s in study_sessions)} questions answered in Study sessions")
-        streak=(globals().get('profile') or {}).get('win_streak')
-        if streak is not None:
-            with st.container(key='sessions_stat_streak'):
-                st.caption(':material/local_fire_department: Win streak')
-                st.markdown(f'### {streak}')
-                st.caption('Win your next Battle to extend it.')
-        if show_study:study_plan_play_todos(client,study_data)
+        study_plan_play_todos(client,study_data)
 
 
 def battle_request(client,action,data=None):
@@ -2430,38 +2408,85 @@ def battle_pending_search(client,search):
                 st.rerun()
 
 
-def battle_session_overview(client,sessions,search=None):
+def battle_session_overview(client,sessions,search=None,invites=()):
     """Compact three-column Battle dashboard using only persisted session state."""
-    groups=(('Ongoing','ongoing'),('Pending','pending'),('Completed','completed'))
+    from logic import recent_completed_battles
+    groups=(('Ongoing','ongoing'),('Pending','pending'),('Recently completed','completed'))
     with st.container(border=True,key='battle_game_overview'):
         st.subheader('Game Overview')
         for column,(label,status) in zip(st.columns(3,gap='medium'),groups):
-            rows=[session for session in sessions if session['status']==status]
-            count=len(rows)+(1 if status=='pending' and search else 0)
+            rows=recent_completed_battles(sessions) if status=='completed' else [session for session in sessions if session['status']==status]
+            pending_invites=list(invites) if status=='pending' else []
+            count=len(rows)+(1 if status=='pending' and search else 0)+len(pending_invites)
             with column:
-                st.html(f'<p class="battle-overview-column-heading"><span></span>{label}<b>{count}</b></p>')
-                if not rows and not (status=='pending' and search):
-                    st.caption('No '+label.lower()+' Battles.')
-                if status=='pending' and search:battle_pending_search(client,search)
-                for session in rows:
-                    opponent=session.get('opponent_username','Unknown opponent')
-                    with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
-                        st.markdown('**'+session['deck_name']+'**')
-                        st.caption('vs. '+opponent)
-                        if status=='ongoing':
-                            st.markdown(':violet-badge[:material/schedule: Your turn]')
-                            if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary'):
-                                st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
-                        elif status=='pending':
-                            st.caption(f"Your result: {session['score']} / 15")
-                            st.caption('Waiting for '+opponent+'.')
-                        else:
-                            opponent_score=session.get('opponent_score')
-                            score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
-                            result=str(session.get('result') or 'completed').title()
-                            st.markdown(f'<p class="battle-overview-result">{score} <span class="battle-overview-result-{result.lower()}">{result}</span></p>',unsafe_allow_html=True)
-                            st.caption(f"{session.get('game_xp_delta',0):+d} Battle XP")
-                            if st.button('Review',key='overview_battle_review_'+session['id']):battle_review_dialog(client,session['id'])
+                with st.container(key=f'battle_overview_group_{status}'):
+                    st.html(f'<p class="battle-overview-column-heading"><span></span>{label}<b>{count}</b></p>')
+                    if not rows and not (status=='pending' and (search or pending_invites)):
+                        st.caption('No '+label.lower()+' Battles.')
+                    if status=='pending' and search:battle_pending_search(client,search)
+                    for invite in pending_invites:
+                        with st.container(border=True,key='battle_overview_invite_'+invite['id']):
+                            direction='Invitation received' if invite['incoming'] else 'Invitation sent'
+                            deck_name=str(invite.get('deck_name') or 'Random Deck')
+                            safe_deck=escape(deck_name,quote=True)
+                            st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p>'+escape(direction.upper()+' · '+invite['username'])+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                            if invite['incoming']:
+                                accept,decline=st.columns(2)
+                                if accept.button('Accept',key='battle_accept_'+invite['id'],use_container_width=True):
+                                    result=battle_request(client,'accept_invite',{'invite_id':invite['id']})
+                                    if result is not None:st.session_state.battle_session=result['session_id'];st.rerun()
+                                if decline.button('Decline',key='battle_decline_'+invite['id'],use_container_width=True):
+                                    if battle_request(client,'decline_invite',{'invite_id':invite['id']}) is not None:st.rerun()
+                            elif st.button('Cancel invitation',key='battle_cancel_'+invite['id'],use_container_width=True):
+                                if battle_request(client,'cancel_invite',{'invite_id':invite['id']}) is not None:st.rerun()
+                    for session in rows:
+                        opponent=session.get('opponent_username','Unknown opponent')
+                        with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
+                            if status=='ongoing':
+                                st.markdown('**'+session['deck_name']+'**')
+                                st.caption('vs. '+opponent)
+                                st.markdown(':violet-badge[:material/schedule: Your turn]')
+                                if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary'):
+                                    st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
+                            elif status=='pending':
+                                st.markdown('**'+session['deck_name']+'**')
+                                st.caption('vs. '+opponent)
+                                st.caption(f"Your result: {session['score']} / 15")
+                                st.caption('Waiting for '+opponent+'.')
+                            else:
+                                opponent_score=session.get('opponent_score')
+                                score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
+                                result=str(session.get('result') or 'completed').title()
+                                deck_name=str(session['deck_name'])
+                                safe_deck=escape(deck_name,quote=True)
+                                st.html(f'<div class="battle-overview-card-copy"><strong title="{safe_deck}">{safe_deck}</strong><p>vs. {escape(str(opponent))}</p><p class="battle-overview-result">{score} <span class="battle-overview-result-{result.lower()}">{result}</span><em>{session.get("game_xp_delta",0):+d} Battle XP</em></p></div>')
+                                if st.button('Review',key='overview_battle_review_'+session['id']):battle_review_dialog(client,session['id'])
+
+
+def battle_session_history(client,sessions):
+    """Show completed Battle results in a compact history table using stored values only."""
+    completed=[session for session in sessions if session['status']=='completed']
+    with st.container(border=True,key='battle_session_history'):
+        title,filters=st.columns([4,1.7],vertical_alignment='center')
+        with title:st.subheader('Battle history')
+        with filters:
+            selected=st.segmented_control('Result filter',('All','Wins','Losses'),default='All',label_visibility='collapsed',key='battle_history_filter')
+        if selected=='Wins':completed=[session for session in completed if session.get('result')=='win']
+        if selected=='Losses':completed=[session for session in completed if session.get('result')=='loss']
+        if not completed:st.caption('No completed Battles match this filter.')
+        for session in completed:
+            opponent=session.get('opponent_username','Unknown opponent')
+            opponent_score=session.get('opponent_score')
+            score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
+            result=str(session.get('result') or 'completed').title()
+            outcome,deck,opponent_cell,score_cell,xp,review=st.columns([1.05,2.8,1.65,.85,.7,1.25],vertical_alignment='center')
+            with outcome:st.markdown(f'<span class="battle-history-result battle-overview-result-{result.lower()}">{result}</span>',unsafe_allow_html=True)
+            with deck:st.write('**'+session['deck_name']+'**')
+            with opponent_cell:st.caption('vs. '+opponent)
+            with score_cell:st.write(score)
+            with xp:st.markdown(f'**{session.get("game_xp_delta",0):+d} XP**')
+            with review:
+                if st.button('Review Battle',key='history_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
 
 
 def battle_dashboard_rank(client):
@@ -2480,14 +2505,15 @@ def battle_dashboard_hero(client,profile,sessions):
     xp=xp_breakdown(profile)['battle']
     rank=battle_dashboard_rank(client)
     rank_html=f'<div><strong>#{rank}</strong><span>Leaderboard</span></div>' if rank is not None else ''
+    streak_html=f'<div><strong>{int(profile.get("win_streak",0) or 0)}</strong><span>Win streak</span></div>'
     with st.container(key='battle_dashboard_hero'):
         details,action=st.columns([4,1],vertical_alignment='center')
         with details:
             st.subheader('Battle Mode')
             st.caption('15 shared questions · 30 seconds per question · Battle XP')
-            st.html(f'<div class="battle-hero-metrics"><div><strong>{xp:,}</strong><span>Battle XP</span></div><div><strong>{record["wins"]} / {record["losses"]}</strong><span>Wins / Losses</span></div>{rank_html}</div>')
+            st.html(f'<div class="battle-hero-metrics"><div><strong>{xp:,}</strong><span>Battle XP</span></div><div><strong>{record["wins"]} / {record["losses"]}</strong><span>Wins / Losses</span></div>{rank_html}{streak_html}</div>')
         with action:
-            if st.button('New Battle',key='open_new_battle',type='primary',icon=':material/add:',use_container_width=True):
+            if st.button('New Battle',key='hero_new_battle',type='primary',icon=':material/add:',use_container_width=True):
                 st.session_state.battle_new_setup=True;st.rerun()
 
 
@@ -2558,23 +2584,8 @@ def battle_screen(client,profile):
     st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
     battle_dashboard_hero(client,profile,state.get('sessions',[]))
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
-    battle_session_overview(client,state.get('sessions',[]),state.get('search'))
-    if state.get('invites'):
-        st.subheader('Battle invitations')
-        for invite in state['invites']:
-            with st.container(border=True):
-                st.write(('From ' if invite['incoming'] else 'To ')+invite['username'])
-                deck_name=invite.get('deck_name') or 'Random Deck'
-                st.caption(f"{deck_name} · {invite['course']} · {invite['language']}")
-                if invite['incoming']:
-                    accept,decline=st.columns(2)
-                    if accept.button('Accept',key='battle_accept_'+invite['id']):
-                        result=battle_request(client,'accept_invite',{'invite_id':invite['id']})
-                        if result is not None:st.session_state.battle_session=result['session_id'];st.rerun()
-                    if decline.button('Decline',key='battle_decline_'+invite['id']):
-                        if battle_request(client,'decline_invite',{'invite_id':invite['id']}) is not None:st.rerun()
-                elif st.button('Cancel invitation',key='battle_cancel_'+invite['id']):
-                    if battle_request(client,'cancel_invite',{'invite_id':invite['id']}) is not None:st.rerun()
+    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]))
+    battle_session_history(client,state.get('sessions',[]))
 
 
 LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-name{flex:1}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
@@ -2864,30 +2875,25 @@ if profile:
     except Exception:pass
 page=st.session_state.get('main_page','Play')
 if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
-with st.container(key='top_brand'):
-    # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
-    st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_small+'")}</style>')
-    if st.button('Uni**Arena**',key='open_home') and profile:
-        navigate('Play')
 if profile:
-    main_navigation,account_navigation=st.columns([4,1.2],gap='medium',vertical_alignment='center')
-    with main_navigation:
-        with st.container(key='top_navigation_tabs'):
-            for col,label in zip(st.columns(4,gap='small'),['Decks','Play','Leaderboard','Study Plan']):
-                if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
+    with st.container(key='sidebar_navigation'):
+        with st.container(key='top_brand'):
+            # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
+            st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_small+'")}</style>')
+            if st.button('Uni**Arena**',key='open_home'):
+                navigate('Play')
+        with st.container(key='sidebar_main_actions'):
+            for label in ['Decks','Play','Leaderboard','Study Plan']:
+                if st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
                     navigate(label)
-    with account_navigation:
-        with st.container(key='top_account_actions'):
-            friends_slot,chats_slot,profile_slot=st.columns(3,gap='small',vertical_alignment='center')
-            with friends_slot:
-                if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',help='Friends',use_container_width=True):
-                    navigate('Friends')
-            with chats_slot:
-                chat_dropdown(auth.client,compact=True)
-            with profile_slot:
-                st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
-                if st.button('Profile',key='open_profile',help='Profile',use_container_width=True):
-                    navigate('Profile')
+        st.divider()
+        with st.container(key='sidebar_account_actions'):
+            if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',help='Friends',use_container_width=True):
+                navigate('Friends')
+            chat_dropdown(auth.client)
+            st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
+            if st.button('Profile',key='open_profile',help='Profile',use_container_width=True):
+                navigate('Profile')
 if profile and st.session_state.get('chat_open'):
     private_chat_dialog(auth.client,st.session_state.chat_open,picture)
 if profile:

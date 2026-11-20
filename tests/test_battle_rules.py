@@ -3,7 +3,7 @@ from datetime import datetime,timezone
 
 import pytest
 
-from logic import battle_rating_score, battle_search_remaining_seconds, battle_search_timer_text, battle_session_groups, select_battle_cards
+from logic import battle_rating_score, battle_search_remaining_seconds, battle_search_timer_text, battle_session_groups, recent_completed_battles, select_battle_cards
 from test_deck_rules import complete_deck
 
 
@@ -42,6 +42,11 @@ def test_battle_session_groups_use_new_battle_mode_status_values():
     ])
     assert [session['id'] for session in groups['ongoing']] == ['ongoing', 'pending']
     assert [session['id'] for session in groups['completed']] == ['completed']
+
+
+def test_recent_completed_battles_shows_only_the_three_newest_saved_results():
+    sessions=[{'id':str(index),'status':'completed'} for index in range(4)]+[{'id':'open','status':'ongoing'}]
+    assert [session['id'] for session in recent_completed_battles(sessions)]==['0','1','2']
 
 
 def test_pending_battle_search_timer_counts_down_and_stops_at_zero():

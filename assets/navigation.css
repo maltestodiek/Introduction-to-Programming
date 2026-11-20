@@ -31,24 +31,26 @@
 .st-key-open_home button p strong{font-weight:800;color:var(--sd-accent)}
 .st-key-open_home button:hover{transform:translateY(-2px)}
 .st-key-open_home button:focus-visible{outline:3px solid var(--sd-text)!important;outline-offset:3px}
-/* The logo sits above a wide primary-navigation band; account actions stay separate. */
-.st-key-top_brand{margin-bottom:.45rem}
-.st-key-top_navigation_tabs{background:#f6f7fb;border-radius:16px;padding:.4rem .5rem}
-.st-key-top_navigation_tabs [data-testid="stHorizontalBlock"]{gap:.35rem!important}
-.st-key-top_navigation_tabs [class*="st-key-nav_"] button{min-height:44px;padding:.4rem .7rem;border-radius:12px;box-shadow:none!important;font-size:1rem}
-.st-key-top_navigation_tabs [class*="st-key-nav_"] button::before{width:22px;height:22px}
-.st-key-top_navigation_tabs [class*="st-key-nav_"] button[kind="primary"]{background:#fff!important;color:var(--sd-accent)!important;box-shadow:0 2px 7px rgba(79,70,229,.12)!important}
-.st-key-top_account_actions{margin-left:.15rem}
-.st-key-top_account_actions [data-testid="stHorizontalBlock"]{justify-content:flex-end;gap:.5rem!important}
-.st-key-top_account_actions :is(.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button{width:100%;min-width:0;min-height:44px;padding:.3rem;justify-content:center;border-color:#e4e0f2!important;border-radius:12px;background:#fff!important;color:var(--sd-text)!important;box-shadow:none!important}
-.st-key-top_account_actions :is(.st-key-open_profile,.st-key-open_friends) button [data-testid="stMarkdownContainer"]{display:none!important}
-.st-key-top_account_actions :is(.st-key-open_profile,.st-key-open_friends) button{position:relative}
-.st-key-top_account_actions :is(.st-key-open_profile,.st-key-open_friends) button::before{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
-.st-key-top_account_actions :is(.st-key-open_profile,.st-key-open_friends) button:is(:hover,:focus-visible)::before{animation:none!important;transform:translate(-50%,-50%)!important}
-.st-key-top_account_actions .st-key-open_chats button{gap:0!important;overflow:hidden}
-.st-key-top_account_actions .st-key-open_profile button::before{width:30px;height:30px}
-.st-key-top_account_actions .st-key-open_friends button::before{width:23px;height:23px}
-@media(max-width:760px){.st-key-top_brand .st-key-open_home button p{font-size:22px}.st-key-top_navigation_tabs{padding:.35rem}.st-key-top_navigation_tabs [class*="st-key-nav_"] button{min-height:46px;padding:.35rem .25rem;font-size:.78rem}}
+/* Desktop navigation is a left sidebar; account actions live below the activity destinations. */
+.st-key-sidebar_navigation{position:fixed;z-index:100;top:5rem;left:1.5rem;width:14rem;max-height:calc(100vh - 6.5rem);box-sizing:border-box;padding:3rem .65rem .45rem;overflow-y:auto;border:2px solid #b9a6ff;border-radius:24px;background:var(--sd-surface);box-shadow:0 12px 28px rgba(79,70,229,.08)}
+.st-key-sidebar_navigation .st-key-top_brand{margin:0 0 1.8rem}
+.st-key-sidebar_navigation .st-key-open_home button{min-height:48px}
+.st-key-sidebar_navigation .st-key-open_home button::before{width:58px;height:42px}
+.st-key-sidebar_navigation .st-key-open_home button p{font-size:24px}
+.st-key-sidebar_main_actions,[class*="st-key-sidebar_account_actions"]{display:grid;gap:.35rem}
+.st-key-sidebar_navigation .stButton{width:100%}
+.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats){width:100%!important}
+@media(min-width:761px){.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats){width:calc(14rem - 1.3rem)!important}}
+.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button{width:100%;min-height:46px;padding:.5rem .7rem;justify-content:flex-start;border-color:transparent!important;background:transparent!important;box-shadow:none!important;color:#6d6a90!important;font-size:1rem}
+.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button [data-testid="stMarkdownContainer"],.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button p{text-align:left!important;flex:1}
+.st-key-sidebar_navigation .st-key-open_chats button{position:relative!important;justify-content:flex-start!important;gap:8px!important}.st-key-sidebar_navigation .st-key-open_chats button [data-testid="stMarkdownContainer"]{position:absolute!important;left:57%!important;top:50%!important;width:auto!important;transform:translate(-50%,-50%)!important}.st-key-sidebar_navigation .st-key-open_chats button p{flex:none!important;text-align:center!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important}
+.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button:hover{background:#f4f2fc!important;box-shadow:none!important;transform:none}
+.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button[kind="primary"]{border-left:4px solid var(--sd-accent)!important;background:linear-gradient(90deg,#eeeaff,#effaf8)!important;color:var(--sd-accent)!important;font-weight:800}
+.st-key-sidebar_navigation [class*="st-key-nav_"] button::before,.st-key-sidebar_navigation .st-key-open_friends button::before{width:22px;height:22px}
+.st-key-sidebar_navigation .st-key-open_profile button::before{width:30px;height:30px}
+.st-key-sidebar_navigation hr{margin:1rem .2rem!important;border-color:#e6e2f2}
+@media(min-width:761px){.block-container{max-width:940px!important;margin-left:auto!important;margin-right:auto!important;padding-top:.75rem!important;padding-right:1rem!important;padding-left:1rem!important}}
+@media(max-width:760px){.st-key-sidebar_navigation{position:static;width:auto;max-height:none;margin-bottom:1rem;padding:0;background:transparent}.st-key-sidebar_navigation .st-key-top_brand{margin-bottom:.8rem}.st-key-sidebar_main_actions,[class*="st-key-sidebar_account_actions"]{grid-template-columns:repeat(2,minmax(0,1fr))}.st-key-sidebar_navigation .st-key-open_home button p{font-size:22px}}
 @keyframes nav-tilt{0%,100%{transform:rotate(0)}35%{transform:rotate(-13deg)}70%{transform:rotate(7deg)}}
 @keyframes nav-pulse{0%,100%{transform:scale(1)}45%{transform:scale(1.2)}75%{transform:scale(.96)}}
 @keyframes nav-sway{0%,100%{transform:translateX(0)}35%{transform:translateX(-3px)}70%{transform:translateX(3px)}}

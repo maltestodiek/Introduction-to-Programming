@@ -9,6 +9,7 @@ from test_deck_ui import Obj
 
 
 BATTLE_OVERVIEW_CSS=(Path(__file__).parents[1]/'assets'/'battle-overview.css').read_text()
+APP=(Path(__file__).parents[1]/'app.py').read_text()
 
 BATTLE=[
     {'id':'battle-own','name':'Market efficiency Battle','course':'Corporate Finance','language':'English','author':'student_a','count':15,'owned':True},
@@ -90,8 +91,34 @@ def test_unavailable_battle_catalogue_keeps_study_decks_visible(monkeypatch):
     assert not at.exception
 
 
-def test_battle_dashboard_hero_uses_compact_even_vertical_spacing():
-    assert 'padding:22px 28px!important' in BATTLE_OVERVIEW_CSS
-    assert 'margin:0 0 .45rem!important' in BATTLE_OVERVIEW_CSS
-    assert 'margin:0!important' in BATTLE_OVERVIEW_CSS
-    assert 'margin-top:14px;margin-bottom:0' in BATTLE_OVERVIEW_CSS
+def test_battle_dashboard_uses_distinct_ongoing_pending_and_completed_columns():
+    assert '.st-key-battle_overview_group_ongoing{background:#f0ecff!important}' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_overview_group_pending{background:#f7f6fb!important}' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_overview_group_completed{background:#e8f8f5!important}' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_game_overview{margin-top:1rem;border:1px solid #e1ddf3!important' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_dashboard_hero{overflow:hidden' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_session_history{margin-top:1rem' in BATTLE_OVERVIEW_CSS
+
+
+def test_battle_dashboard_shows_the_persisted_win_streak_next_to_the_rank():
+    assert 'profile.get("win_streak",0)' in APP
+    assert '<span>Win streak</span>' in APP
+
+
+def test_battle_history_and_overview_cards_use_the_requested_compact_layout():
+    assert "st.subheader('Battle history')" in APP
+    assert 'battle-overview-result-{result.lower()}\">{result}</span><em>' in APP
+    assert 'min-height:7.75rem' in BATTLE_OVERVIEW_CSS
+    assert 'height:13rem!important;min-height:13rem!important' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_session_history h3{font-size:1.65rem!important' in BATTLE_OVERVIEW_CSS
+    assert 'card_completed_"] button,[class*="st-key-battle_overview_invite_"] button{font-size:1rem!important}' in BATTLE_OVERVIEW_CSS
+    assert 'button p{font-family:inherit!important;font-size:1rem!important' in BATTLE_OVERVIEW_CSS
+    assert 'grid-template-rows:4rem 2rem 2rem' in BATTLE_OVERVIEW_CSS
+    assert '-webkit-line-clamp:2' in BATTLE_OVERVIEW_CSS
+
+
+def test_pending_invitation_card_lists_the_deck_before_status_opponent_and_course():
+    assert 'battle-overview-card-copy' in APP
+    assert "direction.upper()+' · '+invite['username']" in APP
+    assert "escape(str(invite['course']))" in APP
+    assert 'strong title="'+"'+safe_deck+'" in APP

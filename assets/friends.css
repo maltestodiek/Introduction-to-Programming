@@ -1,8 +1,7 @@
 /* Friends mirrors the spacious social dashboard while showing only stored data. */
-.block-container{max-width:1280px!important;padding-top:2.75rem!important}
 .friends-heading-inline{display:flex;align-items:center;gap:.45rem;margin:.3rem 0 1rem;color:var(--sd-text);font-size:1.42rem;font-weight:700;letter-spacing:-.02em}
 .friends-heading-inline strong{color:var(--sd-accent);font-size:1rem;font-weight:800}
-.friends-card-title{margin:.15rem 0 1.15rem!important;color:var(--sd-text)!important;font-size:2.1rem!important;font-weight:700!important;letter-spacing:-.035em!important;line-height:1.15!important}
+.friends-card-title{margin:.15rem 0 1.15rem!important;color:var(--sd-text)!important;font-size:1.5rem!important;font-weight:700!important;letter-spacing:-.035em!important;line-height:1.15!important}
 [class*="st-key-friends_incoming_"],.st-key-friends_list,[class*="st-key-friends_university_"],.st-key-friends_invite_card,.st-key-friends_code_preview{
   border-color:#dcd6f7!important;border-radius:22px!important;background:var(--sd-surface)!important;
 }
@@ -18,7 +17,4 @@
 [class*="st-key-friend_chat_"] button,[class*="st-key-friend_battle_"] button,[class*="st-key-friend_study_"] button,[class*="st-key-remove_friend_"] button{height:42px!important;min-height:42px!important;white-space:nowrap;padding:.35rem .55rem}
 [class*="st-key-friend_chat_"] button,[class*="st-key-remove_friend_"] button{width:42px!important;min-width:42px!important;padding:.35rem!important;justify-content:center}
 [class*="st-key-friend_chat_"] button p,[class*="st-key-remove_friend_"] button p{font-size:0!important}
-@media(max-width:760px){
- .block-container{max-width:940px!important;padding-top:2.25rem!important}
- .st-key-friends_invite_card{position:static}
-}
+@media(max-width:760px){.st-key-friends_invite_card{position:static}}
