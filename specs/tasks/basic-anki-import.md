@@ -16,5 +16,5 @@ AI generation, Cloze conversion, media extraction, shared imports, quiz publicat
 
 1. A signed-in user imports one Basic `.apkg` with text-only notes and receives a private import with the same front/back text and order.
 2. Cloze and image/media notes are skipped with distinct messages; valid Basic notes in the same file remain importable.
-3. Only the first 100 valid notes are stored. Invalid archives create no import or cards.
+3. Only the first 100 valid notes are stored. Invalid archives create no import or cards. Saving without an import name, course or deck language is rejected before any server call, with a message naming the exact missing field (for example "Import name is missing."); the file and reviewed cards stay unchanged.
 4. Another user cannot read or create cards in the first user's import. Imported cards survive a full restart.

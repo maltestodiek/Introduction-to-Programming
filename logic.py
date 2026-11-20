@@ -483,3 +483,11 @@ def combine_card_text(written,image_texts):
     """Card text from what is written on the card plus the text read from its images, one per line."""
     parts=[part.strip() for part in [written or '',*image_texts] if part and part.strip()]
     return '\n'.join(parts)
+
+
+def import_save_error(name,course,language):
+    """The precise reason a source import cannot be saved yet, or None when it can."""
+    if not (name or '').strip():return 'Import name is missing. Give this import a name.'
+    if not course:return 'Course is missing. Choose the course this import belongs to.'
+    if not language:return 'Deck language is missing. Choose the language of these cards.'
+    return None

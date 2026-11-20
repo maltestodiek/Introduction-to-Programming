@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 import json
 import sqlite3
 import tempfile
@@ -176,3 +177,18 @@ def test_image_cards_count_towards_the_hundred_card_limit():
     result = parse_basic_apkg(legacy_media_apkg(notes, {"a.png": PNG}))
     assert len(result["cards"]) + len(result["image_cards"]) == 100
     assert result["skipped"][-1]["reason"] == "limit"
+
+
+def test_saving_an_import_names_the_exact_missing_field():
+    from logic import import_save_error
+    assert import_save_error('','Corporate Finance','German')=='Import name is missing. Give this import a name.'
+    assert import_save_error('   ','Corporate Finance','German')=='Import name is missing. Give this import a name.'
+    assert import_save_error('CF notes',None,'German')=='Course is missing. Choose the course this import belongs to.'
+    assert import_save_error('CF notes','Corporate Finance',None)=='Deck language is missing. Choose the language of these cards.'
+    assert import_save_error('CF notes','Corporate Finance','German') is None
+
+
+def test_both_import_screens_validate_before_calling_the_server():
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    assert app.count('if problem:=import_save_error(name,course,language):st.error(problem)')==2
+    assert app.count('name=name.strip()')==2
