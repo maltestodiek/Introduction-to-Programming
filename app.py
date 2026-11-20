@@ -877,14 +877,34 @@ def course_deck_action(client,kind,deck,key,compact=False):
             st.success('Saved a private Study copy.');st.rerun()
 
 
+def anki_import_reset():
+    for key in [key for key in st.session_state if str(key).startswith(('anki_import_result','anki_image_'))]:st.session_state.pop(key,None)
+
+
+def anki_read_image_cards(repository,image_cards):
+    """Read the text on every image card once and keep it in the session for review."""
+    from logic import combine_card_text
+    results=[];bar=st.progress(0.0,text='Reading text from images…')
+    for index,card in enumerate(image_cards):
+        images=[{**image,'id':f'{index}-{number}'} for number,image in enumerate(card['images'])]
+        try:texts=repository.read_image_text(images);error=''
+        except ValueError as exc:texts={};error=str(exc)
+        sides={side:combine_card_text(card[side],[texts.get(image['id'],'') for image in images if image['side']==side]) for side in ('front','back')}
+        results.append({**sides,'error':error})
+        st.session_state[f'anki_image_front_{index}']=sides['front'];st.session_state[f'anki_image_back_{index}']=sides['back']
+        bar.progress((index+1)/len(image_cards),text=f'Read {index+1} of {len(image_cards)} image cards')
+    bar.empty();st.session_state.anki_image_text=results
+
+
 def anki_import_screen(client,profile):
     from anki_import import AnkiImportError,parse_basic_apkg
     from db import AnkiImportRepository
+    repository=AnkiImportRepository(client)
     st.caption('Decks › Import from Anki')
     st.header('Import Basic Anki cards')
-    st.info('Only two-field Basic text cards are accepted. Cloze, image and media cards stay in your Anki file and are not imported.')
+    st.info('Two-field Basic cards are accepted, also with images: the text on the images is read with AI and you review it before importing. Cloze, audio and video cards stay in your Anki file.')
     if st.button('Back to Decks'):
-        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.session_state.pop('anki_import_saved',None);st.rerun()
+        anki_import_reset();st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_saved',None);st.rerun()
     if saved:=st.session_state.get('anki_import_saved'):
         st.success(f"Saved {saved['count']} private source cards.")
         if st.button('Continue to question generation',type='primary'):
@@ -892,26 +912,48 @@ def anki_import_screen(client,profile):
         return
     upload=st.file_uploader('Anki package (.apkg)',type=['apkg'])
     if upload and st.button('Check Anki package',type='primary'):
+        anki_import_reset()
         try:st.session_state.anki_import_result=parse_basic_apkg(upload.getvalue())
-        except AnkiImportError as exc:st.error(str(exc));st.session_state.pop('anki_import_result',None)
+        except AnkiImportError as exc:st.error(str(exc))
     result=st.session_state.get('anki_import_result')
     if not result:return
-    cards=result['cards'];skipped=result['skipped']
-    reasons={'cloze':'Cloze cards are not supported yet.','image':'Image or media cards are not supported yet.','incomplete':'Cards without text on both sides were skipped.','unsupported':'Only two-field Basic cards are supported.','limit':'Only the first 100 valid Basic cards can be imported.'}
+    cards=result['cards'];image_cards=result.get('image_cards',[]);skipped=result['skipped']
+    reasons={'cloze':'Cloze cards are not supported yet.','media':'Audio and video cards are not supported.','image':'Image cards were skipped because an image is missing, not PNG, JPEG, GIF or WebP, larger than 4 MB, or one of more than three images on a card.','incomplete':'Cards without content on both sides were skipped.','unsupported':'Only two-field Basic cards are supported.','limit':'Only the first 100 valid Basic cards can be imported.'}
     st.success(f'{len(cards)} Basic text cards are ready to import.')
     for reason,text in reasons.items():
         count=sum(item['reason']==reason for item in skipped)
         if count:st.warning(f'{count}: {text}')
-    if not cards:
-        st.error('No importable Basic text cards were found.');return
+    reviewed=[]
+    if image_cards:
+        count=len(image_cards)
+        st.info(f"{count} card{'s' if count!=1 else ''} contain{'s' if count==1 else ''} images. UniArena can read the text on the images with AI so they become text cards. The images are sent to the AI provider only for reading and are not stored.")
+        read=st.session_state.get('anki_image_text')
+        if read is None:
+            if st.button(f"Read text from {count} image card{'s' if count!=1 else ''}",icon=':material/document_scanner:'):
+                anki_read_image_cards(repository,image_cards);st.rerun()
+        else:
+            failed=[item['error'] for item in read if item['error']]
+            if failed:st.error(f"{len(failed)} image card{'s' if len(failed)!=1 else ''} could not be read: {failed[0]}")
+            with st.expander(f'Review text read from images ({count})',expanded=True):
+                st.caption('Check and correct the text. Cards with an empty side are not imported.')
+                for index in range(count):
+                    front=st.text_area(f'Image card {index+1} · front',key=f'anki_image_front_{index}',height=80)
+                    back=st.text_area(f'Image card {index+1} · back',key=f'anki_image_back_{index}',height=80)
+                    if front.strip() and back.strip():reviewed.append({'front':front.strip(),'back':back.strip()})
+            empty=count-len(reviewed)
+            if empty:st.warning(f"No readable text on {empty} image card{'s' if empty!=1 else ''} yet. Type the text yourself or leave {'them' if empty!=1 else 'it'} out.")
+    to_save=(cards+reviewed)[:100]
+    if not to_save:
+        if not image_cards:st.error('No importable Basic cards were found.')
+        return
     name=st.text_input('Import name',placeholder='For example: Corporate Finance Anki notes')
     course=st.selectbox('Course',profile['courses'],key='anki_import_course')
     language=st.selectbox('Deck language',profile['languages'],key='anki_import_language')
-    if st.button(f'Save {len(cards)} source cards',type='primary'):
-        try: saved=AnkiImportRepository(client).save(name=name,course=course,language=language,cards=cards)
+    if st.button(f'Save {len(to_save)} source cards',type='primary'):
+        try: saved=repository.save(name=name,course=course,language=language,cards=to_save)
         except ValueError as exc:st.error(str(exc))
         else:
-            st.session_state.pop('anki_import_result',None)
+            anki_import_reset()
             st.session_state.anki_import_saved=saved;st.rerun()
 
 def pdf_import_screen(client,profile):

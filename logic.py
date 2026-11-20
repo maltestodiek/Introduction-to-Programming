@@ -477,3 +477,9 @@ def session_history_rows(battle_completed,study_finished):
 def battle_record(battle_sessions):
     results=[b.get('result') for b in battle_sessions or [] if b.get('status')=='completed']
     return {'wins':results.count('win'),'losses':results.count('loss'),'draws':results.count('draw')}
+
+
+def combine_card_text(written,image_texts):
+    """Card text from what is written on the card plus the text read from its images, one per line."""
+    parts=[part.strip() for part in [written or '',*image_texts] if part and part.strip()]
+    return '\n'.join(parts)

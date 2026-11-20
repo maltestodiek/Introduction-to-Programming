@@ -88,9 +88,91 @@ def modern_apkg(notes):
 
 
 def test_imports_current_anki21b_basic_cards_instead_of_legacy_placeholder():
-    data = modern_apkg([(1, 1, "What is WACC?\\x1fWeighted average cost of capital")])
+    # Anki separates fields with the real unit separator \x1f, not a literal backslash sequence.
+    data = modern_apkg([(1, 1, "What is WACC?\x1fWeighted average cost of capital")])
     result = parse_basic_apkg(data)
     assert result["cards"] == [
         {"front": "What is WACC?", "back": "Weighted average cost of capital"}
     ]
     assert result["skipped"] == []
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+
+
+def legacy_media_apkg(notes, files, models=BASIC):
+    """Older export: a JSON media map and media files stored under their index."""
+    archive = io.BytesIO(apkg(notes, models))
+    with zipfile.ZipFile(archive, "a") as bundle:
+        bundle.writestr("media", json.dumps({str(index): name for index, name in enumerate(files)}))
+        for index, data in enumerate(files.values()):
+            bundle.writestr(str(index), data)
+    return archive.getvalue()
+
+
+def _varint(value):
+    out = bytearray()
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        out.append(byte | (0x80 if value else 0))
+        if not value:
+            return bytes(out)
+
+
+def modern_media_apkg(notes, files):
+    """Current export: zstd-compressed protobuf media entries and zstd-compressed files."""
+    entries = b""
+    for name, data in files.items():
+        encoded = name.encode()
+        entry = b"\x0a" + _varint(len(encoded)) + encoded + b"\x10" + _varint(len(data))
+        entries += b"\x0a" + _varint(len(entry)) + entry
+    archive = io.BytesIO(modern_apkg(notes))
+    with zipfile.ZipFile(archive, "a") as bundle:
+        bundle.writestr("media", zstd.ZstdCompressor().compress(entries))
+        for index, data in enumerate(files.values()):
+            bundle.writestr(str(index), zstd.ZstdCompressor().compress(data))
+    return archive.getvalue()
+
+
+def test_image_cards_are_kept_with_their_images_for_text_reading():
+    data = legacy_media_apkg(
+        [(1, 1, "Formula <img src=\"wacc.png\">\x1fWeighted average"), (2, 1, "Plain\x1fText")],
+        {"wacc.png": PNG},
+    )
+    result = parse_basic_apkg(data)
+    assert result["cards"] == [{"front": "Plain", "back": "Text"}]
+    assert len(result["image_cards"]) == 1
+    card = result["image_cards"][0]
+    assert (card["front"], card["back"]) == ("Formula", "Weighted average")
+    assert [(image["side"], image["name"], image["mime"], image["data"]) for image in card["images"]] == [("front", "wacc.png", "image/png", PNG)]
+    assert result["skipped"] == []
+
+
+def test_current_anki_media_format_is_read():
+    data = modern_media_apkg([(1, 1, "<img src=\"slide.jpg\">\x1fAnswer")], {"slide.jpg": b"\xff\xd8\xff" + b"\x00" * 20})
+    card = parse_basic_apkg(data)["image_cards"][0]
+    assert card["front"] == "" and card["back"] == "Answer"
+    assert (card["images"][0]["mime"], card["images"][0]["data"][:3]) == ("image/jpeg", b"\xff\xd8\xff")
+
+
+def test_audio_unsupported_and_oversized_images_are_skipped_with_reasons():
+    data = legacy_media_apkg(
+        [
+            (1, 1, "[sound:intro.mp3]\x1fAnswer"),
+            (2, 1, "<img src=\"vector.svg\">\x1fAnswer"),
+            (3, 1, "<img src=\"huge.png\">\x1fAnswer"),
+        ],
+        {"vector.svg": b"<svg/>", "huge.png": PNG + b"\x00" * (4 * 1024 * 1024)},
+    )
+    result = parse_basic_apkg(data)
+    assert result["image_cards"] == []
+    assert [entry["reason"] for entry in result["skipped"]] == ["media", "image", "image"]
+
+
+def test_image_cards_count_towards_the_hundred_card_limit():
+    notes = [(index, 1, f"Question {index}\x1fAnswer {index}") for index in range(99)]
+    notes += [(100, 1, "<img src=\"a.png\">\x1fAnswer"), (101, 1, "<img src=\"a.png\">\x1fAnswer")]
+    result = parse_basic_apkg(legacy_media_apkg(notes, {"a.png": PNG}))
+    assert len(result["cards"]) + len(result["image_cards"]) == 100
+    assert result["skipped"][-1]["reason"] == "limit"
