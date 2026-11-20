@@ -9,6 +9,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Battle Mode](battle-mode.md): future competitive rules and the boundary around existing classic duels.
 - [Appearance and navigation](appearance-and-navigation.md): branding, dark/light themes, backgrounds, icons, animations, page layout and history navigation.
 - [Basic Anki text-card import](tasks/basic-anki-import.md): private import of up to 100 text-only Basic Anki notes.
+- [Text from images on Anki cards](tasks/anki-image-text.md): read the text on Anki card images with AI, review it and import it as text cards.
 - [AI question generation](tasks/ai-question-generation.md): private, server-side Requesty generation of reviewed MC drafts from imported source cards.
 - [Question notepad](tasks/question-notepad.md): unsaved 500-character scratch notepad beside the calculator during questions.
 - [Leaderboard](tasks/leaderboard.md): global top ten with own place and a friends ranking, by Battle XP, read-only.
@@ -31,6 +32,9 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
 - [Study Plan desktop layout](tasks/study-plan-desktop-layout.md): wide overview and editor layout without changing Study Plan behaviour.
 - [Course list on Decks](tasks/course-list-layout.md): desktop course overview with Study access plus a searchable, filtered deck catalogue.
+- [Immersive round interface](tasks/immersive-round-ui.md): start countdown, answer-feedback effects, streak display and equal card heights in Battle and Study rounds.
+- [Unsaved-creation warning](tasks/unsaved-creation-warning.md): a confirmation modal before unsaved deck-creation content is discarded in the manual editor and both imports.
+- [Full-height sidebar](tasks/full-height-sidebar.md): the desktop navigation runs as a continuous bar along the left edge instead of a floating card.
 
 A feature can require several small implementation branches. Add a task spec under `specs/tasks/` when a change needs its own acceptance scenarios; link it to its parent topic. Do not duplicate a rule across multiple feature specs. Before implementation, list state, persistence, an allowed action, a rejected action and restart verification; review expected outcomes with the group.
 

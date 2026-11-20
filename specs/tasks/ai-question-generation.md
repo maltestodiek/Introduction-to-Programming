@@ -22,7 +22,7 @@ Each AI draft contains a question, exactly four answer options, exactly one corr
 
 The Requesty key is stored exclusively as the Supabase secret `REQUESTY_API_KEY`. It is never returned to the browser, committed to Git or placed in Streamlit secrets.
 
-A student reviews every draft, can edit or discard it, and explicitly publishes the approved questions into a UniArena deck. A published deck may contain one to 100 questions. Drafts never appear in Study Mode or in playable deck lists.
+A student reviews every draft, can edit or discard it, and explicitly publishes the approved questions into a UniArena deck in one step from that review: the app performs the Study review handshake (`review_deck` then `save_deck` with the identical reviewed snapshot) and marks the drafts published, without routing through the Study deck editor. The created deck remains editable later under Decks like any other Study deck. A published deck may contain one to 100 questions. Drafts never appear in Study Mode or in playable deck lists.
 
 ### Limits and concurrency
 

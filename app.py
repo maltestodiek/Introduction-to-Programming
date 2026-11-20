@@ -24,6 +24,7 @@ fresh_module("course_catalog")
 from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
 from answer_order import display_options
+from round_effects import accuracy_chip, combo_markup, countdown_overlay, streak_badge, streak_length, streak_milestone
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
@@ -39,7 +40,7 @@ h1{letter-spacing:-.04em}div[data-testid="stForm"]{border-radius:18px;padding:24
 .stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 .sd-xp-summary{background:var(--sd-surface);border:1px solid var(--sd-border);border-radius:16px;border-top:4px solid #6EE7B7;padding:20px;min-height:126px}.sd-xp-summary__label{font-size:1rem;font-weight:500}.sd-xp-summary__total{font-size:2.6rem;font-weight:600;line-height:1.15;margin:14px 0}.sd-xp-summary__breakdown{font-size:.92rem;line-height:1.35}.sd-xp-summary__game{color:#7C3AED}.sd-xp-summary__creator{color:#047857}
 </style>""",unsafe_allow_html=True)
-st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
+st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+(Path(__file__).parent/'assets'/'confirm-modal.css').read_text()+'</style>')
 import time
 page_speed=fresh_module("page_speed")
 logo_copies=page_speed.logo_variants(str(LOGO_PATH),LOGO_PATH.stat().st_mtime)
@@ -749,7 +750,7 @@ def decks_screen(client,profile):
         st.subheader('Your courses')
     with review_action:
         if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
-            st.session_state.study_library=True;st.rerun()
+            st.session_state.deck_studio=True;st.rerun()
     for index,course in enumerate(course_names):
         course_key=course.strip().casefold()
         study_count=len(study_by_course.get(course_key,[]))
@@ -830,7 +831,7 @@ def deck_studio_screen(client,profile):
     """Own Study and Battle decks with status, times and edit or publish actions."""
     from db import StudyRepository
     from logic import deck_studio_created_text,deck_studio_groups,format_deck_time
-    st.header('Deck studio')
+    st.header(':material/design_services: Deck studio')
     st.caption('Decks created by you. Edit them, publish them to your university or turn them into Battle decks.')
     if st.button('Back to Decks',icon=':material/arrow_back:'):
         st.session_state.pop('deck_studio',None);st.rerun()
@@ -887,14 +888,51 @@ def course_deck_action(client,kind,deck,key,compact=False):
             st.success('Saved a private Study copy.');st.rerun()
 
 
+def anki_import_reset():
+    for key in [key for key in st.session_state if str(key).startswith(('anki_import_result','anki_image_'))]:st.session_state.pop(key,None)
+
+
+def anki_read_image_cards(repository,image_cards):
+    """Read the text on every image card once and keep it in the session for review."""
+    from logic import combine_card_text
+    results=[];bar=st.progress(0.0,text='Reading text from images…')
+    for index,card in enumerate(image_cards):
+        images=[{**image,'id':f'{index}-{number}'} for number,image in enumerate(card['images'])]
+        try:texts=repository.read_image_text(images);error=''
+        except ValueError as exc:texts={};error=str(exc)
+        sides={side:combine_card_text(card[side],[texts.get(image['id'],'') for image in images if image['side']==side]) for side in ('front','back')}
+        results.append({**sides,'error':error})
+        st.session_state[f'anki_image_front_{index}']=sides['front'];st.session_state[f'anki_image_back_{index}']=sides['back']
+        bar.progress((index+1)/len(image_cards),text=f'Read {index+1} of {len(image_cards)} image cards')
+    bar.empty();st.session_state.anki_image_text=results
+
+
+def leave_creation_control(label,key,has_unsaved,message,leave):
+    """A Back control that warns in a centred modal before unsaved creation content is dropped."""
+    if st.button(label,key=key):
+        if has_unsaved:st.session_state.leave_creation_prompt=key;st.rerun()
+        else:leave()
+    if st.session_state.get('leave_creation_prompt')==key:
+        st.html('<div class="round-modal-backdrop"></div>')
+        with st.container(key=f'round_leave_modal_{key}'):
+            st.html('<p class="round-modal-title">Leave without saving?</p><p class="round-modal-text">'+message+'</p>')
+            stay,leave_column=st.columns(2)
+            if stay.button('Keep working',key=f'round_leave_stay_{key}',use_container_width=True):
+                st.session_state.pop('leave_creation_prompt',None);st.rerun()
+            if leave_column.button('Leave and discard',key=f'round_leave_confirm_{key}',use_container_width=True):
+                st.session_state.pop('leave_creation_prompt',None);leave()
+
+
 def anki_import_screen(client,profile):
     from anki_import import AnkiImportError,parse_basic_apkg
     from db import AnkiImportRepository
+    repository=AnkiImportRepository(client)
     st.caption('Decks › Import from Anki')
     st.header('Import Basic Anki cards')
-    st.info('Only two-field Basic text cards are accepted. Cloze, image and media cards stay in your Anki file and are not imported.')
-    if st.button('Back to Decks'):
-        st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_result',None);st.session_state.pop('anki_import_saved',None);st.rerun()
+    st.info('Two-field Basic cards are accepted, also with images: the text on the images is read with AI and you review it before importing. Cloze, audio and video cards stay in your Anki file.')
+    def leave_anki_import():
+        anki_import_reset();st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_saved',None);st.rerun()
+    leave_creation_control('Back to Decks','anki_import_back',bool(st.session_state.get('anki_import_result')) and not st.session_state.get('anki_import_saved'),'Your checked Anki package, including any text read from images, is not saved yet and will be discarded.',leave_anki_import)
     if saved:=st.session_state.get('anki_import_saved'):
         st.success(f"Saved {saved['count']} private source cards.")
         if st.button('Continue to question generation',type='primary'):
@@ -902,27 +940,52 @@ def anki_import_screen(client,profile):
         return
     upload=st.file_uploader('Anki package (.apkg)',type=['apkg'])
     if upload and st.button('Check Anki package',type='primary'):
+        anki_import_reset()
         try:st.session_state.anki_import_result=parse_basic_apkg(upload.getvalue())
-        except AnkiImportError as exc:st.error(str(exc));st.session_state.pop('anki_import_result',None)
+        except AnkiImportError as exc:st.error(str(exc))
     result=st.session_state.get('anki_import_result')
     if not result:return
-    cards=result['cards'];skipped=result['skipped']
-    reasons={'cloze':'Cloze cards are not supported yet.','image':'Image or media cards are not supported yet.','incomplete':'Cards without text on both sides were skipped.','unsupported':'Only two-field Basic cards are supported.','limit':'Only the first 100 valid Basic cards can be imported.'}
+    cards=result['cards'];image_cards=result.get('image_cards',[]);skipped=result['skipped']
+    reasons={'cloze':'Cloze cards are not supported yet.','media':'Audio and video cards are not supported.','image':'Image cards were skipped because an image is missing, not PNG, JPEG, GIF or WebP, larger than 4 MB, or one of more than three images on a card.','incomplete':'Cards without content on both sides were skipped.','unsupported':'Only two-field Basic cards are supported.','limit':'Only the first 100 valid Basic cards can be imported.'}
     st.success(f'{len(cards)} Basic text cards are ready to import.')
     for reason,text in reasons.items():
         count=sum(item['reason']==reason for item in skipped)
         if count:st.warning(f'{count}: {text}')
-    if not cards:
-        st.error('No importable Basic text cards were found.');return
+    reviewed=[]
+    if image_cards:
+        count=len(image_cards)
+        st.info(f"{count} card{'s' if count!=1 else ''} contain{'s' if count==1 else ''} images. UniArena can read the text on the images with AI so they become text cards. The images are sent to the AI provider only for reading and are not stored.")
+        read=st.session_state.get('anki_image_text')
+        if read is None:
+            if st.button(f"Read text from {count} image card{'s' if count!=1 else ''}",icon=':material/document_scanner:'):
+                anki_read_image_cards(repository,image_cards);st.rerun()
+        else:
+            failed=[item['error'] for item in read if item['error']]
+            if failed:st.error(f"{len(failed)} image card{'s' if len(failed)!=1 else ''} could not be read: {failed[0]}")
+            with st.expander(f'Review text read from images ({count})',expanded=True):
+                st.caption('Check and correct the text. Cards with an empty side are not imported.')
+                for index in range(count):
+                    front=st.text_area(f'Image card {index+1} · front',key=f'anki_image_front_{index}',height=80)
+                    back=st.text_area(f'Image card {index+1} · back',key=f'anki_image_back_{index}',height=80)
+                    if front.strip() and back.strip():reviewed.append({'front':front.strip(),'back':back.strip()})
+            empty=count-len(reviewed)
+            if empty:st.warning(f"No readable text on {empty} image card{'s' if empty!=1 else ''} yet. Type the text yourself or leave {'them' if empty!=1 else 'it'} out.")
+    to_save=(cards+reviewed)[:100]
+    if not to_save:
+        if not image_cards:st.error('No importable Basic cards were found.')
+        return
     name=st.text_input('Import name',placeholder='For example: Corporate Finance Anki notes')
     course=st.selectbox('Course',profile['courses'],key='anki_import_course')
     language=st.selectbox('Deck language',profile['languages'],key='anki_import_language')
-    if st.button(f'Save {len(cards)} source cards',type='primary'):
-        try: saved=AnkiImportRepository(client).save(name=name,course=course,language=language,cards=cards)
-        except ValueError as exc:st.error(str(exc))
+    if st.button(f'Save {len(to_save)} source cards',type='primary'):
+        from logic import import_save_error
+        if problem:=import_save_error(name,course,language):st.error(problem)
         else:
-            st.session_state.pop('anki_import_result',None)
-            st.session_state.anki_import_saved=saved;st.rerun()
+            try: saved=repository.save(name=name.strip(),course=course,language=language,cards=to_save)
+            except ValueError as exc:st.error(str(exc))
+            else:
+                anki_import_reset()
+                st.session_state.anki_import_saved=saved;st.rerun()
 
 def pdf_import_screen(client,profile):
     from pdf_import import SlideImportError,parse_pdf_slides
@@ -930,8 +993,9 @@ def pdf_import_screen(client,profile):
     st.caption('Decks › AI from lecture slides')
     st.header('Import PDF lecture slides')
     st.info('PDF slides stay private. Only selectable text is supported; scanned PDFs need OCR before import.')
-    if st.button('Back to Decks'):
+    def leave_pdf_import():
         st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_result',None);st.session_state.pop('pdf_import_saved',None);st.rerun()
+    leave_creation_control('Back to Decks','pdf_import_back',bool(st.session_state.get('pdf_import_result')) and not st.session_state.get('pdf_import_saved'),'Your extracted slide texts are not saved yet and will be discarded.',leave_pdf_import)
     if saved:=st.session_state.get('pdf_import_saved'):
         st.success(f"Saved {saved['count']} private PDF sources.")
         if st.button('Continue to question generation',type='primary'):
@@ -950,10 +1014,13 @@ def pdf_import_screen(client,profile):
     course=st.selectbox('Course',profile['courses'],key='pdf_import_course')
     language=st.selectbox('Deck language',profile['languages'],key='pdf_import_language')
     if st.button(f"Save {len(result['cards'])} PDF sources",type='primary'):
-        try:saved=AnkiImportRepository(client).save_slides(name=name,course=course,language=language,cards=result['cards'])
-        except ValueError as exc:st.error(str(exc))
+        from logic import import_save_error
+        if problem:=import_save_error(name,course,language):st.error(problem)
         else:
-            st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
+            try:saved=AnkiImportRepository(client).save_slides(name=name.strip(),course=course,language=language,cards=result['cards'])
+            except ValueError as exc:st.error(str(exc))
+            else:
+                st.session_state.pop('pdf_import_result',None);st.session_state.pdf_import_saved=saved;st.rerun()
 
 def request_ai_generation(import_id,card_ids):
     if not st.session_state.get('ai_generation_request'):
@@ -1037,16 +1104,28 @@ def anki_generation_screen(client,profile):
                 try:repository.discard_draft(draft['id'])
                 except ValueError as exc:st.error(str(exc))
                 else:st.rerun()
-    st.subheader('3. Publish after Study review')
+    st.subheader('3. Publish Study deck')
+    st.caption('The review above is the deck review: publishing creates the Study deck directly. You can edit it anytime under Decks.')
     name=st.text_input('Study deck name',value=f"{imported['name']} questions",key='ai_study_name_'+imported['id'])
-    if st.button(f'Create editable Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
+    if st.button(f'Publish Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
+        from logic import validate_study_deck
         cards=[]
         for draft in selected_drafts:
             answer_ids=[str(uuid4()) for _ in draft['options']]
             cards.append({'id':str(uuid4()),'question':draft['question'],'answers':[{'id':answer_id,'text':option} for answer_id,option in zip(answer_ids,draft['options'])],'correct_answer_id':answer_ids[draft['correct_option_index']],'allow_calculator':False,'chapter':''})
-        st.session_state.study_draft={'id':str(uuid4()),'name':name,'course':imported['course'],'language':imported['language'],'cards':cards}
-        st.session_state.study_revision=0;st.session_state.ai_draft_ids=[draft['id'] for draft in selected_drafts]
-        st.session_state.pop('anki_generation_open',None);st.session_state.study_library=True;st.rerun()
+        try:clean=validate_study_deck({'id':str(uuid4()),'name':name,'course':imported['course'],'language':imported['language'],'cards':cards})
+        except ValueError as exc:st.error(str(exc))
+        else:
+            # The server still requires its review handshake; both calls carry the same reviewed snapshot.
+            review=study_request(client,'review_deck',{'draft':clean,'revision':0})
+            if review is not None:
+                saved=study_request(client,'save_deck',{'draft':clean,'revision':0,'review_id':review['id']})
+                if saved is not None:
+                    try:repository.publish_drafts([draft['id'] for draft in selected_drafts])
+                    except ValueError as exc:st.warning(str(exc))
+                    st.session_state.pop('anki_generation_open',None)
+                    st.session_state.study_library=True;st.session_state.study_deck_open={'id':saved['id']}
+                    st.rerun()
 
 
 def play_request(repository,action,data=None):
@@ -1291,11 +1370,6 @@ def study_editor(client,profile):
         if save.button('Confirm and save Study deck',type='primary'):
             r=study_request(client,'save_deck',{'draft':validate_study_deck(d),'revision':revision,'review_id':st.session_state.study_review['id']})
             if r is not None:
-                draft_ids=st.session_state.pop('ai_draft_ids',[])
-                if draft_ids:
-                    from db import AnkiImportRepository
-                    try:AnkiImportRepository(client).publish_drafts(draft_ids)
-                    except ValueError as exc:st.warning(str(exc))
                 st.session_state.pop('study_draft');st.session_state.pop('study_review');st.session_state.study_deck_open={'id':r['id']};st.rerun()
         return
     for label,field,options in [('Course','course',profile['courses']),('Deck language','language',profile['languages'])]:
@@ -1335,9 +1409,9 @@ def study_editor(client,profile):
         else:
             r=study_request(client,'review_deck',{'draft':clean,'revision':revision})
             if r is not None:st.session_state.study_review=r;st.rerun()
-    with st.expander('Discard unsaved Study changes'):
-        if st.button('Confirm discard Study changes'):
-            st.session_state.pop('study_draft');st.session_state.pop('study_review',None);st.rerun()
+    def leave_study_editor():
+        st.session_state.pop('study_draft');st.session_state.pop('study_review',None);st.rerun()
+    leave_creation_control('Leave Study editor','study_editor_leave',True,'Changes that were not saved through a Study review will be discarded. A saved deck keeps its last saved version.',leave_study_editor)
 
 
 def study_library(client,profile):
@@ -1349,7 +1423,11 @@ def study_library(client,profile):
         study_editor(client,profile);return
     if st.session_state.get('study_deck_open'):
         choice=st.session_state.study_deck_open
-        if st.button('Back to Study decks'):st.session_state.pop('study_deck_open');st.rerun()
+        back,studio=st.columns([1,1])
+        if back.button('Back to Study decks',use_container_width=True):st.session_state.pop('study_deck_open');st.rerun()
+        if studio.button('Open Deck studio',key='deck_view_open_studio',icon=':material/design_services:',type='primary',use_container_width=True):
+            st.session_state.pop('study_deck_open',None);st.session_state.pop('study_library',None)
+            st.session_state.deck_studio=True;st.rerun()
         deck=study_request(client,'deck',choice)
         if deck is None:return
         st.subheader(deck['name']);st.caption(f"{deck['course']} · {deck.get('language')} · By {deck.get('author','you')} · {len(deck['cards'])} questions")
@@ -1422,7 +1500,7 @@ def study_round_screen(client,sid):
     from db import StudyRepository
     try:progress=StudyRepository(client).progress(sid)
     except ValueError as exc:st.error(str(exc));return
-    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+'</style>')
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     session_partner_chat(client,'study',sid)
     if st.button('Save and leave Study session'):
         st.session_state.pop('study_session',None);st.rerun()
@@ -1431,11 +1509,21 @@ def study_round_screen(client,sid):
         from study_ui import study_progress_tiles
         symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
         current_index=r['index'] if state=='question' else r['index']+1
+        # The decorative start countdown hides itself; it only appears on a fresh round.
+        countdown_key=f'study_countdown_{sid}'
+        if not st.session_state.get(countdown_key):
+            st.session_state[countdown_key]=True
+            if state=='question' and not progress.get('answers'):
+                st.html(countdown_overlay('study',decorative=True))
+        streak=streak_length(progress.get('answers',[]))
+        flash=r['index'] if state=='feedback' else None
         tiles=study_progress_tiles(progress.get('answers',[]),current_index,r['total'])
-        markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
+        markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}{" round-tile-flash" if flash==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
         question,overview=st.columns([3,1],gap='large')
         with overview:
-            st.html('<aside class="study-overview"><h3>Overview</h3><div class="study-overview-grid">'+markup+'</div></aside>')
+            badge=streak_badge(streak)
+            foot=('<div class="round-overview-foot">'+badge+'</div>' if badge else '')+combo_markup(streak,pulse=False)
+            st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+accuracy_chip(progress.get('answers',[]))+'</div><div class="study-overview-grid">'+markup+'</div>'+foot+'</aside>')
         with question:
             st.caption(f"Question {r['index']+1} of {r['total']}")
             if state=='question':
@@ -1452,8 +1540,21 @@ def study_round_screen(client,sid):
                 c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
                 if r['correct']:st.success('Correct!')
                 else:st.error('Not quite. Review the correct answer below.')
-                answer_markup=''.join('<div class="study-answer-card '+('is-correct is-correct-animated' if a['id']==c['correct_answer_id'] and r['correct'] else 'is-correct' if a['id']==c['correct_answer_id'] else 'is-incorrect' if a['id']==r['answer_id'] else 'is-neutral')+'">'+escape(a['text'])+'</div>' for a in display_options(c['answers'],sid,r['index']))
-                st.html('<div class="study-answer-grid">'+answer_markup+'</div>')
+                burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9))
+                parts=[]
+                for a in display_options(c['answers'],sid,r['index']):
+                    text=escape(a['text'])
+                    if a['id']==c['correct_answer_id'] and r['correct']:
+                        parts.append('<div class="study-answer-card round-burst is-correct is-correct-animated">'+text+burst+'</div>')
+                    elif a['id']==c['correct_answer_id']:
+                        parts.append('<div class="study-answer-card is-correct is-correct-reveal">'+text+'</div>')
+                    elif a['id']==r['answer_id']:
+                        parts.append('<div class="study-answer-card is-incorrect">'+text+'</div>')
+                    else:
+                        parts.append('<div class="study-answer-card is-neutral">'+text+'</div>')
+                st.html('<div class="study-answer-grid">'+''.join(parts)+'</div>')
+                if not r['correct']:st.html('<div class="round-vignette"></div>')
+                elif streak_milestone(streak):st.html('<div class="round-streak-banner">'+streak_milestone(streak)+'</div>')
                 prefix=f"{sid}_{r['index']}"
                 with st.expander('Private note / feedback to author'):
                     note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
@@ -2215,12 +2316,14 @@ def battle_progress(client,session_id):
     except ValueError as exc:st.error(str(exc));return None
 
 
-def battle_overview(answers,current_index):
+def battle_overview(answers,current_index,flash_index=None,streak=0):
     from battle_ui import battle_progress_tiles
     symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
     tiles=battle_progress_tiles(answers,current_index)
-    markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
-    st.html('<aside class="battle-overview"><h3>Overview</h3><div class="battle-overview-grid">'+markup+'</div><div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
+    markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}{" round-tile-flash" if flash_index==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
+    badge=streak_badge(streak)
+    foot=('<div class="round-overview-foot">'+badge+'</div>' if badge else '')+combo_markup(streak)
+    st.html('<aside class="battle-overview"><div class="round-overview-head"><h3>Overview</h3>'+accuracy_chip(answers)+'</div><div class="battle-overview-grid">'+markup+'</div>'+foot+'<div class="battle-legend"><span><i class="correct"></i>Correct</span><span><i class="incorrect"></i>Incorrect or time expired</span></div></aside>')
 
 
 @st.fragment(run_every='1s')
@@ -2240,7 +2343,7 @@ def battle_timer(client,session_id,index,server_seconds):
             st.session_state.battle_feedback={**result,'id':session_id}
             st.session_state[f'battle_timeout_notice_{session_id}']=True
             st.rerun(scope='app')
-    start,end=timer_tick_fractions(seconds);urgent=' urgent' if seconds<=10 else ''
+    start,end=timer_tick_fractions(seconds);urgent=' urgent' if seconds<=5 else ' warning' if seconds<=15 else ''
     st.html(f'<div class="battle-timer-track" role="progressbar" aria-label="Time remaining" aria-valuemin="0" aria-valuemax="30" aria-valuenow="{seconds}"><div class="battle-timer-fill{urgent}" style="--timer-start:{start*100:.3f}%;--timer-end:{end*100:.3f}%"></div></div><p class="battle-timer-label">{seconds} seconds</p>')
 
 
@@ -2253,34 +2356,61 @@ def return_to_battle_menu(message=None):
 
 
 def battle_leave_control(client,session_id):
-    """An explicit abandon action; the server records the resulting loss."""
-    with st.popover('Leave',icon=':material/close:',use_container_width=True,key=f'battle_leave_{session_id}'):
-        st.warning('Do you really want to leave? The game will count as a loss.')
-        if st.button('Leave Battle',type='primary',key=f'battle_leave_confirm_{session_id}',use_container_width=True):
-            if battle_request(client,'abandon',{'id':session_id,'confirmed':True}) is not None:
-                st.session_state.pop(f'battle_timer_{session_id}',None)
-                st.session_state.pop(f'battle_timeout_notice_{session_id}',None)
-                return_to_battle_menu('You left the Battle. It was recorded as a loss.')
+    """An explicit abandon action; the server records the resulting loss.
+
+    The confirmation is a centred modal over a dimmed round, not a dropdown."""
+    if st.button('Leave',icon=':material/swords:',key=f'battle_exit_{session_id}',use_container_width=True):
+        st.session_state.round_leave_prompt=session_id;st.rerun()
+    if st.session_state.get('round_leave_prompt')==session_id:
+        st.html('<div class="round-modal-backdrop"></div>')
+        with st.container(key=f'round_leave_modal_{session_id}'):
+            st.html('<p class="round-modal-title">Leave the Battle?</p><p class="round-modal-text">Leaving counts as a loss and your opponent wins. Your question timer keeps running while you decide.</p>')
+            stay,leave=st.columns(2)
+            if stay.button('Keep fighting',key=f'round_leave_stay_{session_id}',use_container_width=True):
+                st.session_state.pop('round_leave_prompt',None);st.rerun()
+            if leave.button('Leave Battle',key=f'round_leave_confirm_{session_id}',use_container_width=True):
+                if battle_request(client,'abandon',{'id':session_id,'confirmed':True}) is not None:
+                    st.session_state.pop('round_leave_prompt',None)
+                    st.session_state.pop(f'battle_timer_{session_id}',None)
+                    st.session_state.pop(f'battle_timeout_notice_{session_id}',None)
+                    return_to_battle_menu('You left the Battle. It was recorded as a loss.')
 
 
 @st.dialog('Battle review',width='large')
 def battle_review_dialog(client,session_id):
     result=battle_request(client,'review',{'id':session_id})
     if result is None:return
-    st.metric('Correct answers',f"{result['score']} / 15")
-    for number,card in enumerate(result['cards'],1):
-        answer=next((item for item in result['answers'] if item['index']==number-1),None)
-        with st.expander(f"Question {number}: {card['question']}"):
-            if answer is None:st.caption('Not answered')
-            elif answer.get('timed_out'):st.caption('Time expired')
-            elif answer.get('correct'):st.success('Correct')
-            else:st.error('Incorrect')
-            for option in card['answers']:
-                label=option['text']+(' — Your answer' if answer and answer.get('answer_id')==option['id'] else '')
-                if option['id']==card['correct_answer_id']:st.success(label+' — Correct answer')
-                else:st.write(label)
-            with st.popover('Report this question',key=f'battle_report_question_{session_id}_{number}'):
-                battle_question_report_form(client,session_id,number-1)
+    st.html('<style>'+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
+    answers={item['index']:item for item in result['answers'] if isinstance(item.get('index'),int)}
+    total=len(result['cards'])
+    st.html('<div class="round-overview-head"><h3>Your round</h3><span class="round-acc">'+str(result['score'])+'<small>/ '+str(total)+'</small></span></div>')
+    st.caption('Click a question to review it.')
+    if st.session_state.get('battle_review_session')!=session_id:
+        st.session_state.battle_review_session=session_id
+        st.session_state.battle_review_selected=next((i for i in range(total) if not (answers.get(i) or {}).get('correct')),0)
+    selected=st.session_state.get('battle_review_selected',0)
+    columns=st.columns(5)
+    for index in range(total):
+        answer=answers.get(index)
+        state='correct' if answer and answer.get('correct') else 'incorrect'
+        label='✓' if state=='correct' else '✗'
+        if columns[index%5].button(label,key=f'review_tile_{state}_{session_id}_{index}',type='primary' if selected==index else 'secondary',use_container_width=True,help=f'Question {index+1}'):
+            st.session_state.battle_review_selected=index;st.rerun(scope='fragment')
+    if 0<=selected<total:
+        card=result['cards'][selected];answer=answers.get(selected)
+        status='Not answered' if answer is None else 'Time expired' if answer.get('timed_out') else 'Correct' if answer.get('correct') else 'Incorrect'
+        rows=''
+        for option in card['answers']:
+            own=answer is not None and answer.get('answer_id')==option['id']
+            if option['id']==card['correct_answer_id']:
+                rows+='<span class="round-review-a ok">'+escape(option['text'])+(' — Your answer' if own else '')+'</span>'
+            elif own:
+                rows+='<span class="round-review-a bad">Your answer: '+escape(option['text'])+'</span>'
+            else:
+                rows+='<span class="round-review-a">'+escape(option['text'])+'</span>'
+        st.html('<div class="round-review-q"><b>Q'+str(selected+1)+' · '+escape(card['question'])+'</b><span class="round-review-a">'+status+'</span>'+rows+'</div>')
+        with st.popover('Report this question',key=f'battle_report_question_{session_id}_{selected+1}'):
+            battle_question_report_form(client,session_id,selected)
 
 
 def battle_question_report_form(client,session_id,card_index):
@@ -2305,13 +2435,24 @@ def battle_question_report_form(client,session_id,card_index):
 
 
 def battle_round_screen(client,session_id):
-    st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+'</style>')
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     progress=battle_progress(client,session_id)
     if progress is None:return
     answers=progress.get('answers',[])
     feedback=st.session_state.get('battle_feedback')
+    # The animated start countdown runs before the first question is requested,
+    # so the server question timer only starts afterwards. Resumed rounds skip it.
+    countdown_key=f'battle_countdown_{session_id}'
+    if not st.session_state.get(countdown_key):
+        st.session_state[countdown_key]=True
+        if not answers and not (feedback and feedback.get('id')==session_id):
+            st.html(countdown_overlay('battle'))
+            # The emblem beat runs from second 3 to 4; fetch the first question only after it.
+            time.sleep(4.5)
+            st.rerun()
     if feedback and feedback.get('id')==session_id:
         card=feedback['card'];response=feedback['feedback']
+        streak=streak_length(answers)
         question,overview=st.columns([3,1],gap='large')
         with question:
             st.caption(f"Question {response['index']+1} of 15")
@@ -2319,13 +2460,26 @@ def battle_round_screen(client,session_id):
             if response['correct']:st.success('Correct!')
             elif response.get('timed_out'):st.error('Time expired.')
             else:st.error('That answer was incorrect.')
-            answer_markup=''.join('<div class="battle-answer-card '+('is-correct is-correct-animated' if answer['id']==card['correct_answer_id'] and response['correct'] else 'is-correct' if answer['id']==card['correct_answer_id'] else 'is-incorrect' if answer['id']==response.get('answer_id') else 'is-neutral')+'">'+escape(answer['text'])+'</div>' for answer in display_options(card['answers'],session_id,response['index']))
-            st.html('<div class="battle-answer-grid">'+answer_markup+'</div>')
+            burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9))
+            parts=[]
+            for answer in display_options(card['answers'],session_id,response['index']):
+                text=escape(answer['text'])
+                if answer['id']==card['correct_answer_id'] and response['correct']:
+                    parts.append('<div class="battle-answer-card round-burst is-correct is-correct-animated">'+text+burst+'<span class="round-xp">+XP</span></div>')
+                elif answer['id']==card['correct_answer_id']:
+                    parts.append('<div class="battle-answer-card is-correct is-correct-reveal">'+text+'</div>')
+                elif answer['id']==response.get('answer_id'):
+                    parts.append('<div class="battle-answer-card is-incorrect">'+text+'</div>')
+                else:
+                    parts.append('<div class="battle-answer-card is-neutral">'+text+'</div>')
+            st.html('<div class="battle-answer-grid">'+''.join(parts)+'</div>')
+            if not response['correct']:st.html('<div class="round-vignette"></div>')
+            elif streak_milestone(streak):st.html('<div class="round-streak-banner">'+streak_milestone(streak)+'</div>')
             if st.button('Continue',type='primary'):
                 st.session_state.pop('battle_feedback',None);st.rerun()
         with overview:
             battle_leave_control(client,session_id)
-            battle_overview(answers,response['index']+1)
+            battle_overview(answers,response['index']+1,flash_index=response['index'],streak=streak)
         if response.get('timed_out') and st.session_state.pop(f'battle_timeout_notice_{session_id}',False):
             st.toast('Time has passed',icon='⏱️')
         return
@@ -2338,6 +2492,7 @@ def battle_round_screen(client,session_id):
         question,overview=st.columns([3,1],gap='large')
         with question:
             st.caption(f"Question {result['index']+1} of 15")
+            streak=streak_length(answers)
             st.html('<div class="battle-question-card">'+escape(result['question'])+'</div>')
             question_tools(f'battle_{session_id}_{result["index"]}',result.get('allow_calculator') is True)
             columns=st.columns(2)
@@ -2349,7 +2504,7 @@ def battle_round_screen(client,session_id):
             battle_timer(client,session_id,result['index'],result['seconds'])
         with overview:
             battle_leave_control(client,session_id)
-            battle_overview(answers,result['index'])
+            battle_overview(answers,result['index'],streak=streak)
         return
     if state=='finish':
         if battle_request(client,'finish',{'id':session_id}) is not None:
@@ -2380,7 +2535,8 @@ def battle_rating_dialog(client,session_id):
     if result.get('state')!='rating':
         return_to_battle_menu()
         return
-    st.metric('Correct answers',f"{result['score']} / 15")
+    burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9)) if result['score']>=8 else ''
+    st.html('<style>'+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style><div class="round-score" role="status" aria-label="Correct answers: '+str(result['score'])+' of 15">'+burst+'<span class="round-score-value">'+str(result['score'])+'</span><span class="round-score-total">/ 15 correct</span></div>')
     if not result.get('can_rate'):
         st.info('You played your own Battle Deck. It does not receive a rating from you.')
         if st.button('Back to Battle Mode',type='primary'):return_to_battle_menu()
@@ -2418,21 +2574,28 @@ def battle_pending_search(client,search):
                 st.rerun()
 
 
-def battle_session_overview(client,sessions,search=None,invites=()):
-    """Compact three-column Battle dashboard using only persisted session state."""
+def battle_session_overview(client,sessions,search=None,invites=(),username=None):
+    """Battle dashboard: Ongoing and Pending side by side, Recently completed below."""
     from logic import recent_completed_battles
-    groups=(('Ongoing','ongoing'),('Pending','pending'),('Recently completed','completed'))
+    me=escape(str(username or 'You')[:1].upper())
+    def versus_markup(opponent):
+        return ('<div class="bo-vs"><span class="bo-av bo-av-me">'+me+'</span><i>VS</i>'
+                '<span class="bo-av bo-av-op">'+escape(str(opponent)[:1].upper())+'</span><b>'+escape(str(opponent))+'</b></div>')
+    def deck_markup(name):
+        safe=escape(str(name),quote=True)
+        return '<p class="bo-deck" title="'+safe+'">'+safe+'</p>'
     with st.container(border=True,key='battle_game_overview'):
         st.subheader('Game Overview')
-        for column,(label,status) in zip(st.columns(3,gap='medium'),groups):
-            rows=recent_completed_battles(sessions) if status=='completed' else [session for session in sessions if session['status']==status]
+        for column,(label,icon,status) in zip(st.columns(2,gap='medium'),(('Ongoing','⚔️','ongoing'),('Pending','⏳','pending'))):
+            rows=[session for session in sessions if session['status']==status]
             pending_invites=list(invites) if status=='pending' else []
             count=len(rows)+(1 if status=='pending' and search else 0)+len(pending_invites)
             with column:
                 with st.container(key=f'battle_overview_group_{status}'):
-                    st.html(f'<p class="battle-overview-column-heading"><span></span>{label}<b>{count}</b></p>')
+                    st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{icon}</span>{label}<b>{count}</b></p>')
                     if not rows and not (status=='pending' and (search or pending_invites)):
-                        st.caption('No '+label.lower()+' Battles.')
+                        if status=='ongoing':st.html('<div class="bo-empty"><span>🛡️</span>No ongoing Battles.<br>Ready for another one?</div>')
+                        else:st.html('<div class="bo-empty"><span>⏳</span>No pending Battles.</div>')
                     if status=='pending' and search:battle_pending_search(client,search)
                     for invite in pending_invites:
                         with st.container(border=True,key='battle_overview_invite_'+invite['id']):
@@ -2453,24 +2616,32 @@ def battle_session_overview(client,sessions,search=None,invites=()):
                         opponent=session.get('opponent_username','Unknown opponent')
                         with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
                             if status=='ongoing':
-                                st.markdown('**'+session['deck_name']+'**')
-                                st.caption('vs. '+opponent)
+                                st.html(versus_markup(opponent)+deck_markup(session['deck_name']))
                                 st.markdown(':violet-badge[:material/schedule: Your turn]')
-                                if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary'):
+                                if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary',use_container_width=True):
                                     st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
-                            elif status=='pending':
-                                st.markdown('**'+session['deck_name']+'**')
-                                st.caption('vs. '+opponent)
-                                st.caption(f"Your result: {session['score']} / 15")
-                                st.caption('Waiting for '+opponent+'.')
                             else:
-                                opponent_score=session.get('opponent_score')
-                                score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
-                                result=str(session.get('result') or 'completed').title()
-                                deck_name=str(session['deck_name'])
-                                safe_deck=escape(deck_name,quote=True)
-                                st.html(f'<div class="battle-overview-card-copy"><strong title="{safe_deck}">{safe_deck}</strong><p>vs. {escape(str(opponent))}</p><p class="battle-overview-result">{score} <span class="battle-overview-result-{result.lower()}">{result}</span><em>{session.get("game_xp_delta",0):+d} Battle XP</em></p></div>')
-                                if st.button('Review',key='overview_battle_review_'+session['id']):battle_review_dialog(client,session['id'])
+                                st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
+                                 +f'<div class="bo-score"><b>{session["score"]}</b><i>/ 15</i><span class="bo-pill bo-xp-plus">your result</span></div>'
+                                 +'<div class="bo-wait"><span></span>Waiting for '+escape(str(opponent))+'…</div>')
+        completed=recent_completed_battles(sessions)
+        with st.container(key='battle_overview_group_completed'):
+            st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">🏁</span>Recently completed<b>{len(completed)}</b></p>')
+            if not completed:st.html('<div class="bo-empty"><span>🏁</span>No completed Battles yet.</div>')
+            columns=st.columns(3,gap='medium')
+            for index,session in enumerate(completed):
+                opponent=session.get('opponent_username','Unknown opponent')
+                with columns[index%3]:
+                    with st.container(border=True,key=f'battle_overview_card_completed_{session["id"]}'):
+                        opponent_score=session.get('opponent_score')
+                        score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
+                        result=str(session.get('result') or 'completed').title()
+                        xp=session.get('game_xp_delta',0)
+                        xp_class='bo-xp-plus' if xp>0 else 'bo-xp-minus'
+                        trophy='🏆 ' if result=='Win' else ''
+                        st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
+                         +f'<div class="bo-score"><b>{score}</b><span class="bo-pill bo-{result.lower()}">{trophy}{result}</span><span class="bo-pill {xp_class}">{xp:+d} XP</span></div>')
+                        if st.button('Review questions',key='overview_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
 
 
 def battle_session_history(client,sessions):
@@ -2594,11 +2765,11 @@ def battle_screen(client,profile):
     st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
     battle_dashboard_hero(client,profile,state.get('sessions',[]))
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
-    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]))
+    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile.get('username'))
     battle_session_history(client,state.get('sessions',[]))
 
 
-LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-name{flex:1}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
+LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-identity{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.sd-lb-name{font-weight:600}.sd-lb-university{color:var(--sd-muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
 
 def leaderboard_rows(rows,repo):
     lines='';cache=st.session_state.setdefault('leaderboard_pictures',{})
@@ -2609,12 +2780,14 @@ def leaderboard_rows(rows,repo):
                 data=repo.image(path);cache[path]=data if isinstance(data,(bytes,bytearray)) else None
             except Exception:cache[path]=None
         image=base64.b64encode(cache[path] or render_avatar(row.get('avatar') or DEFAULT_AVATAR)).decode()
-        lines+=f'<div class="sd-lb-row{" sd-lb-me" if row.get("me") else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{image}" alt=""><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if row.get("me") else ""}</span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
+        university=escape(str(row.get('university') or 'University not set'))
+        lines+=f'<div class="sd-lb-row{" sd-lb-me" if row.get("me") else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{image}" alt=""><span class="sd-lb-identity"><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if row.get("me") else ""}</span><span class="sd-lb-university">{university}</span></span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
     st.html(LEADERBOARD_STYLE+'<div>'+lines+'</div>')
 
 def leaderboard_demo(profile):
     names=['nora_k','tiago','lena_m','felix','ines','jonas','sofia_r','matteo','clara','diogo','emma_w','lukas','beatriz','hugo','anna_s'];points=[1840,1675,1520,1520,1390,1210,1085,960,870,790,640,455,320,180,60]
-    rows=[{'username':n,'xp':x,'image_path':None,'me':False} for n,x in zip(names,points)]+[{'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'me':True}]
+    universities=['Nova SBE','University of Lisbon','University of Porto','Nova SBE','University of Coimbra']
+    rows=[{'username':n,'xp':x,'image_path':None,'university':universities[i%len(universities)],'me':False} for i,(n,x) in enumerate(zip(names,points))]+[{'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'university':profile.get('university'),'me':True}]
     def ranked(items):return [{**item,'rank':1+sum(other['xp']>item['xp'] for other in items)} for item in sorted(items,key=lambda item:(-item['xp'],item['username']))]
     world=ranked(rows);return {'top':world[:10],'me':next(item for item in world if item['me']),'friends':ranked([item for item in rows if item['me'] or item['username'] in ('tiago','ines','emma_w','hugo')])}
 
