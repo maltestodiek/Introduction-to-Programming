@@ -18,6 +18,10 @@ Battle and Study rounds presented questions like a form. A game-like round — a
 
 **Leaving a Battle.** The Leave control is a red gradient pill. It opens a centred confirmation card over a dimmed round — not a dropdown — with Keep fighting and Leave Battle; leaving still uses the server-authoritative abandonment action, and the timer keeps running while the card is open.
 
+**Overview panel.** The Overview heading carries a live accuracy chip (percent correct of answered questions) from the first answer on. Below the tile grid sit the streak badge and a five-segment combo meter that fills with the current streak, empties on a wrong answer and, in Battle only, glows while full. All of it is derived from the round's loaded answers.
+
+**Battle review.** The review dialog shows the result as one clickable tile grid: each tile opens that question below, with the student's answer and the correct answer marked, replacing the fifteen expanders. Reporting a question stays available on the opened question.
+
 **Atmosphere.** Each question card slides in briefly. The Battle timer bar turns orange at 15 seconds and red with a pulse at 5. The Battle rating screen pops the final score in and shows confetti for a strong round (8+ correct).
 
 All motion is decorative, times out on its own and is disabled under reduced-motion preferences.
@@ -31,6 +35,7 @@ Sound. Changing question order, timing rules, scoring, XP, levels, persistence o
 1. Allowed: answering, continuing, leaving, rating and resuming a round work exactly as before; a resumed Battle round starts without a countdown and with the server's remaining time.
 2. Rejected: the countdown cannot be clicked through to answer early, and no animation element intercepts clicks on answers or controls.
 3. Restart: after a new sign-in a running round resumes directly at its current question; streak and tiles rebuild from the saved answers.
-4. The countdown, feedback effects, streak badge and equal 110px/96px card heights appear in both Battle and Study rounds, and all effects are off under `prefers-reduced-motion`.
+4. The countdown, feedback effects, accuracy chip, streak badge, combo meter and equal 110px/96px card heights appear in both Battle and Study rounds, and all effects are off under `prefers-reduced-motion`.
+5. In the Battle review, every question remains reachable (one click per tile), its report action still works, and the shown score equals the stored answers.
 
 Checks: `tests/test_round_effects.py`, `tests/test_battle_ui.py`, `tests/test_study_round_ui.py`, plus a manual look at a Battle and a Study round.
