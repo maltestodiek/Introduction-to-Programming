@@ -1,0 +1,75 @@
+/* Shared Battle/Study round effects: start countdown, feedback bursts, streaks.
+   Everything is decorative, times out on its own and never captures clicks. */
+
+/* --- Start countdown overlay --- */
+.round-countdown{position:fixed;inset:0;z-index:2000;display:grid;place-content:center;gap:10px;text-align:center;background:radial-gradient(circle at 50% 40%,rgba(79,70,229,.88),rgba(15,14,40,.94));pointer-events:none}
+.round-countdown-digits{position:relative;height:150px;width:220px;margin:0 auto}
+.round-digit{position:absolute;inset:0;display:grid;place-items:center;font-size:96px;font-weight:800;color:#fff;opacity:0;text-shadow:0 10px 36px rgba(0,0,0,.35)}
+.round-digit.go{color:#6EE7B7;font-size:72px;letter-spacing:2px}
+.round-digit.n3{animation:round-digit 1s ease-out 0s both}
+.round-digit.n2{animation:round-digit 1s ease-out 1s both}
+.round-digit.n1{animation:round-digit 1s ease-out 2s both}
+.round-digit.go{animation:round-go .9s ease-out 3s both}
+.round-countdown-note{margin:0;color:#e0e7ff;font-size:1.1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.round-countdown-still{display:none;margin:0;color:#e0e7ff;font-size:1.3rem;font-weight:700}
+.round-countdown.is-decorative{animation:round-overlay-out .35s ease-in 3.6s forwards}
+@keyframes round-digit{0%{opacity:0;transform:scale(2.4)}18%{opacity:1;transform:scale(1)}80%{opacity:1;transform:scale(.92)}100%{opacity:0;transform:scale(.7)}}
+@keyframes round-go{0%{opacity:0;transform:scale(.4)}35%{opacity:1;transform:scale(1.25)}70%{transform:scale(1)}100%{opacity:0;transform:scale(1.05)}}
+@keyframes round-overlay-out{to{opacity:0;visibility:hidden}}
+
+/* --- Answer fields match the question card height while answering --- */
+:is([class*="st-key-battle_answer_"],[class*="st-key-study_answer_"]) button{min-height:150px;border-radius:12px;font-size:1rem;padding:16px}
+:is([class*="st-key-battle_answer_"],[class*="st-key-study_answer_"]) button p{white-space:normal;line-height:1.35}
+
+/* --- Feedback: correct pop, confetti and rising XP chip --- */
+.round-burst{position:relative}
+.round-burst.is-correct{animation:round-correct-pop .55s ease-out both;box-shadow:0 0 0 0 rgba(22,163,74,.45)}
+.round-confetti{position:absolute;top:50%;left:50%;width:9px;height:9px;border-radius:2px;opacity:0;pointer-events:none;animation:round-confetti .9s ease-out .12s both}
+.round-confetti:nth-child(odd){border-radius:50%}
+.round-confetti.c1{background:#6EE7B7;--tx:-96px;--ty:-74px}.round-confetti.c2{background:#818cf8;--tx:88px;--ty:-88px}
+.round-confetti.c3{background:#f59e0b;--tx:-120px;--ty:12px}.round-confetti.c4{background:#ec4899;--tx:118px;--ty:4px}
+.round-confetti.c5{background:#4f46e5;--tx:-66px;--ty:-110px;animation-delay:.2s}.round-confetti.c6{background:#16a34a;--tx:60px;--ty:-116px;animation-delay:.2s}
+.round-confetti.c7{background:#fbbf24;--tx:-28px;--ty:-128px;animation-delay:.26s}.round-confetti.c8{background:#a5b4fc;--tx:30px;--ty:-124px;animation-delay:.26s}
+.round-xp{position:absolute;top:-12px;right:14px;padding:3px 12px;border-radius:999px;background:#16a34a;color:#fff;font-weight:800;font-size:.95rem;pointer-events:none;animation:round-xp-rise 1.1s ease-out .15s both}
+@keyframes round-correct-pop{0%{transform:scale(1)}35%{transform:scale(1.06);box-shadow:0 0 0 12px rgba(22,163,74,0)}100%{transform:scale(1)}}
+@keyframes round-confetti{0%{opacity:0;transform:translate(-50%,-50%)}12%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) rotate(260deg)}}
+@keyframes round-xp-rise{0%{opacity:0;transform:translateY(8px)}25%{opacity:1}100%{opacity:0;transform:translateY(-44px)}}
+
+/* --- Feedback: wrong answer vignette and correct-answer reveal --- */
+.round-vignette{position:fixed;inset:0;z-index:1500;pointer-events:none;box-shadow:inset 0 0 120px 24px rgba(220,38,38,.55);animation:round-vignette .7s ease-out both}
+@keyframes round-vignette{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+.is-correct-reveal{animation:round-reveal .8s ease-out .25s both}
+@keyframes round-reveal{0%,100%{transform:scale(1)}40%{transform:scale(1.045);box-shadow:0 0 0 6px rgba(22,163,74,.25)}}
+
+/* --- Streak badge and milestone banner --- */
+.round-streak{display:inline-flex;align-items:center;gap:7px;margin-left:10px;padding:3px 12px;border-radius:999px;border:1.5px solid #f59e0b;background:#fff7ed;color:#b45309;font-weight:800;font-size:.92rem;vertical-align:middle;animation:round-streak-pop .5s ease-out both}
+.round-streak .flame{font-size:1.05rem}
+@keyframes round-streak-pop{0%{transform:scale(.5)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+.round-streak-banner{position:fixed;top:34%;left:50%;z-index:1600;transform:translate(-50%,-50%);padding:16px 36px;border-radius:999px;background:linear-gradient(90deg,#f59e0b,#ec4899);color:#fff;font-size:2rem;font-weight:800;letter-spacing:.03em;white-space:nowrap;box-shadow:0 18px 50px rgba(0,0,0,.3);pointer-events:none;animation:round-banner 1.7s ease-out both}
+@keyframes round-banner{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}14%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}24%{transform:translate(-50%,-50%) scale(1)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-62%) scale(1)}}
+
+/* --- Overview tile flash for the just-answered question --- */
+.round-tile-flash{animation:round-tile-flash .7s ease-out both}
+@keyframes round-tile-flash{0%{transform:scale(1)}35%{transform:scale(1.22)}100%{transform:scale(1)}}
+
+/* --- Question slide-in and end-of-round score --- */
+@keyframes round-slide-in{0%{opacity:0;transform:translateX(44px)}100%{opacity:1;transform:translateX(0)}}
+.round-score{position:relative;display:flex;align-items:baseline;gap:10px;margin:6px 0 14px;animation:round-score-pop .6s ease-out both}
+.round-score-value{font-size:3rem;font-weight:800;color:var(--sd-accent)}
+.round-score-total{font-size:1.3rem;font-weight:700;color:var(--sd-muted)}
+@keyframes round-score-pop{0%{opacity:0;transform:scale(.4)}55%{opacity:1;transform:scale(1.12)}100%{transform:scale(1)}}
+
+@media(max-width:760px){
+ :is([class*="st-key-battle_answer_"],[class*="st-key-study_answer_"]) button{min-height:120px;padding:12px;font-size:.94rem}
+ .round-streak-banner{font-size:1.4rem;padding:12px 24px}
+ .round-digit{font-size:72px}
+}
+
+@media(prefers-reduced-motion:reduce){
+ .round-countdown.is-decorative{display:none}
+ .round-countdown .round-digit,.round-countdown-note{display:none}
+ .round-countdown-still{display:block}
+ .round-countdown{animation:none}
+ .round-confetti,.round-xp,.round-vignette,.round-streak-banner{display:none}
+ .round-burst.is-correct,.is-correct-reveal,.round-streak,.round-tile-flash,.round-score{animation:none}
+}
