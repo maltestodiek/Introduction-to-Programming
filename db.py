@@ -161,6 +161,34 @@ class AnkiImportRepository:
             raise ValueError('Question generation returned an unexpected result. No source cards were changed.')
         return data
 
+    def read_image_text(self, images):
+        """Read the text on the images of one Anki card through the extract-image-text Edge Function.
+
+        Returns {image id: text}. Nothing is stored; the student reviews the text before importing.
+        """
+        import base64
+        body={'images':[{'id':image['id'],'mime':image['mime'],'data':base64.b64encode(image['data']).decode()} for image in images]}
+        unreadable='The text on this image could not be read. Try again or type it yourself.'
+        try:
+            result=self.client.functions.invoke('extract-image-text',invoke_options={'body':body})
+            data=getattr(result,'data',result)
+        except Exception as exc:
+            detail=unreadable
+            for response in (getattr(exc,'context',None),getattr(exc,'response',None)):
+                try:
+                    payload=response if isinstance(response,dict) else response.json()
+                    if isinstance(payload,dict) and isinstance(payload.get('error'),str):
+                        detail=payload['error'];break
+                except Exception:pass
+            raise ValueError(detail) from exc
+        if isinstance(data,(bytes,bytearray,str)):
+            try:data=json.loads(data)
+            except ValueError:data=None
+        texts=data.get('texts') if isinstance(data,dict) else None
+        if not isinstance(texts,list) or not all(isinstance(item,dict) and isinstance(item.get('id'),str) and isinstance(item.get('text'),str) for item in texts):
+            raise ValueError(unreadable)
+        return {item['id']:item['text'] for item in texts}
+
     def update_draft(self, draft_id, question, options, correct_option_index):
         try:
             return self.client.rpc('update_ai_question_draft',{'p_draft_id':draft_id,'p_question':question,'p_options':options,'p_correct_option_index':correct_option_index}).execute().data

@@ -9,6 +9,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Battle Mode](battle-mode.md): future competitive rules and the boundary around existing classic duels.
 - [Appearance and navigation](appearance-and-navigation.md): branding, dark/light themes, backgrounds, icons, animations, page layout and history navigation.
 - [Basic Anki text-card import](tasks/basic-anki-import.md): private import of up to 100 text-only Basic Anki notes.
+- [Text from images on Anki cards](tasks/anki-image-text.md): read the text on Anki card images with AI, review it and import it as text cards.
 - [AI question generation](tasks/ai-question-generation.md): private, server-side Requesty generation of reviewed MC drafts from imported source cards.
 - [Question notepad](tasks/question-notepad.md): unsaved 500-character scratch notepad beside the calculator during questions.
 - [Leaderboard](tasks/leaderboard.md): global top ten with own place and a friends ranking, by Battle XP, read-only.

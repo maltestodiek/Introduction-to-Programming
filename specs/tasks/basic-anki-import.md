@@ -6,7 +6,7 @@ Students should be able to preserve the text content of an Anki deck in UniArena
 
 ## What
 
-An authenticated student can upload one `.apkg` file from Decks. The importer accepts only two-field Basic text notes, stores at most 100 source cards in a private Supabase import, and reports skipped notes. Cloze notes and notes containing images/media are not stored and receive specific errors. Imported source cards are not playable questions and never appear in Study Mode until a later reviewed publication flow creates questions from them.
+An authenticated student can upload one `.apkg` file from Decks. The importer accepts only two-field Basic text notes, stores at most 100 source cards in a private Supabase import, and reports skipped notes. Cloze notes and notes with audio or video are not stored and receive specific errors. Notes with images are handled by [Text from images on Anki cards](anki-image-text.md). Imported source cards are not playable questions and never appear in Study Mode until a later reviewed publication flow creates questions from them.
 
 ## Out of scope
 

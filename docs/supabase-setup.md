@@ -26,6 +26,8 @@ The login screen now sends Supabase reset emails. The default Supabase recovery 
 Apply `supabase/university-courses.sql` in the Supabase SQL Editor after the profile migrations. It adds the read-only `university_courses(p_university)` function, which returns the course names saved by students at one university and nothing else. It creates no table and changes no data. Verify with `tests/university_courses_database.mjs`.
 
 ## AI question generation
+The Edge Function `supabase/functions/extract-image-text` reads the text on Anki card images. It uses the existing secret `REQUESTY_API_KEY` and the optional secret `REQUESTY_VISION_MODEL` (default `openai/gpt-4o-mini`); it stores nothing. Verify with `deno test` in its folder.
+
 Apply `supabase/deck-studio.sql` after `battle-deck-catalog.sql`. It adds `study_decks.created_at` (backfilled from each deck's first review, otherwise left empty) and the read-only `deck_studio()` function that returns the caller's own Study and Battle decks with their times and no questions. Verify with `tests/deck_studio_database.mjs`.
 
 Apply `supabase/ai-question-generation-schema.sql` in the Supabase SQL Editor after `anki-import-schema.sql`. The SQL creates private AI drafts, validates every save atomically, and adds a per-user generation lock.
