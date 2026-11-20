@@ -1,7 +1,7 @@
 /* Decorative SVGs stay in the Streamlit page; all controls remain native buttons. */
 :is(.st-key-battle_mode_card,.st-key-study_mode_card){
  border:1px solid var(--sd-battle-border)!important;border-radius:24px!important;
- padding:24px!important;min-height:390px;overflow:hidden;position:relative;
+ padding:24px!important;min-height:320px;overflow:hidden;position:relative;
  box-shadow:0 5px 18px var(--sd-shadow);
  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
 }

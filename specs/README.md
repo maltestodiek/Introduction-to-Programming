@@ -20,6 +20,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Friends header button](tasks/friends-header-button.md): Friends moves from the large tabs into the header between Profile and Chats.
 - [Play landing page and logo button](tasks/play-landing-and-logo.md): sign-in lands on Play, and the header logo opens Play.
 - [Start a chat from the friend list](tasks/friend-list-chat.md): clicking a friend on the Friends page opens the private conversation.
+- [Friends dashboard layout](tasks/friends-dashboard-layout.md): a scannable Friends and invitation layout without changing social rules.
 - [Calculator result rounding](tasks/calculator-rounding.md): the question calculator shows results rounded to four decimal places, with a note saying so.
 - [Arena logo](tasks/arena-logo.md): the two flashcards stand in an arena.
 - [University, field-of-study and course selectors](tasks/study-fields-and-shared-courses.md): type-ahead university search, field of study from a list of common degree subjects, and a course selector that lists courses already saved at the student's university.
@@ -29,7 +30,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Deck studio](tasks/deck-studio.md): own Study and Battle decks with status, creation/edit/publication times and edit or publish actions.
 - [Study plan with Google Calendar](tasks/study-plan.md): plans per course with daily workload, progress, today's sessions and calendar sync.
 - [Study Plan desktop layout](tasks/study-plan-desktop-layout.md): wide overview and editor layout without changing Study Plan behaviour.
-- [Course list on Decks](tasks/course-list-layout.md): desktop course overview with Study and Battle entry points plus filtered deck cards.
+- [Course list on Decks](tasks/course-list-layout.md): desktop course overview with Study access plus a searchable, filtered deck catalogue.
 
 A feature can require several small implementation branches. Add a task spec under `specs/tasks/` when a change needs its own acceptance scenarios; link it to its parent topic. Do not duplicate a rule across multiple feature specs. Before implementation, list state, persistence, an allowed action, a rejected action and restart verification; review expected outcomes with the group.
 

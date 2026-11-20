@@ -36,7 +36,7 @@ def keys(at):
 def test_clicking_a_friend_opens_the_conversation_with_that_friend(monkeypatch):
     at,chat_calls,_=friends_page(monkeypatch)
     friend=next(b for b in at.button if b.key=='friend_chat_edge1')
-    assert friend.label=='student_b'
+    assert friend.label=='Chat'
     friend.click().run()
     assert ('open',{'user_id':'b'}) in chat_calls
     assert at.session_state['chat_open']=='thread1'
@@ -60,7 +60,7 @@ def test_failed_open_shows_an_error_and_opens_nothing(monkeypatch):
 def test_friend_actions_are_visible_and_removal_keeps_a_confirmation(monkeypatch):
     at,_,friend_calls=friends_page(monkeypatch)
     labels={button.label for button in at.button}
-    assert {'Challenge to a Battle','Study together','Remove friend'} <= labels
+    assert {'Battle','Study','Chat','Remove'} <= labels
     assert not any(expander.label=='Remove friend' for expander in at.expander)
     next(b for b in at.button if b.key=='remove_friend_edge1').click().run()
     next(b for b in at.button if b.key=='remove_edge1').click().run()
@@ -91,18 +91,35 @@ def test_empty_friend_sections_use_clear_copy_without_counts(monkeypatch):
     monkeypatch.setattr('db.FriendsRepository.university_profiles',lambda self:{'university':'Nova SBE','profiles':[]})
     monkeypatch.setattr('db.ChatRepository.action',lambda self,kind,data=None:{'threads':[]})
     at=deck_app(monkeypatch);at.session_state['main_page']='Friends';at.run()
-    assert {'Incoming requests','Sent requests','Your friends'} <= {item.value for item in at.subheader}
-    assert any(':material/inbox: No Incoming request' == item.value for item in at.caption)
-    assert any('Connect with your friends and Battle them' == item.value for item in at.caption)
+    assert any(item.value=='Expires 01 Dec 2026' for item in at.caption)
+    assert any('No pending requests.' == item.value for item in at.caption)
     assert not any('Your current link expires' in item.value for item in at.caption)
+    assert not at.exception
+
+
+def test_friends_page_uses_the_compact_social_dashboard_layout(monkeypatch):
+    at,_,_=friends_page(monkeypatch)
+    headings={item.value for item in at.subheader}
+    assert 'Find students at your university' in headings
+    assert any(field.label=='Search friends' for field in at.text_input)
+    assert any(button.label=='+ Add' for button in at.button)
+    assert {'Battle','Study'} <= {button.label for button in at.button}
+    assert any(code.value=='#AB23CD45' for code in at.code)
+    assert not at.exception
+
+
+def test_friend_code_lookup_is_in_the_invite_card_while_search_stays_with_friends(monkeypatch):
+    at,_,_=friends_page(monkeypatch)
+    assert any(field.key=='friends_code_entry' for field in at.text_input)
+    assert any(button.key=='friends_find_code' for button in at.button)
+    assert any(field.key=='friends_local_search' for field in at.text_input)
     assert not at.exception
 
 
 def test_university_directory_uses_a_compact_add_friend_row(monkeypatch):
     at,_,_=friends_page(monkeypatch,students=[{'id':'nova-1','username':'student_nova','image_path':None}])
     button=next(button for button in at.button if button.key=='university_friend_nova-1')
-    assert button.label=='Add as friend'
-    assert button.use_container_width
+    assert button.label=='Add'
     assert any(caption.value=='Nova SBE' for caption in at.caption)
     assert not at.exception
 
@@ -123,8 +140,7 @@ def test_new_invitation_link_remains_visible_after_creation(monkeypatch):
     at=deck_app(monkeypatch)
     at.session_state['main_page']='Friends';at.run()
     assert not any(expander.label in {'Add a friend by code','Invite a friend with a link'} for expander in at.expander)
-    assert {'Add a friend by code','Invite a friend with a link'} <= {item.value for item in at.subheader}
     next(button for button in at.button if button.label=='Create new invitation link').click().run()
     assert any('https://studyduel-nova.streamlit.app/?invite=' in code.value for code in at.code)
-    assert any(item.value=='Your invitation link' for item in at.subheader)
+    assert any(item.value=='INVITATION LINK' for item in at.caption)
     assert not at.exception

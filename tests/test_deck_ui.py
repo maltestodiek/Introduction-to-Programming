@@ -21,7 +21,7 @@ def button(at,label):return next(b for b in at.button if b.label==label)
 
 def test_placeholders_disabled_and_incomplete_card_rejected(monkeypatch):
     at=deck_app(monkeypatch)
-    assert not button(at,'Import from Anki').disabled
+    assert not button(at,'Import Anki deck').disabled
     assert not button(at,'Generate with AI').disabled
     assert not any(exp.label=='Battle Mode Decks' for exp in at.expander)
     assert 'Create Battle Mode Deck' in [widget.label for widget in at.button]
@@ -52,13 +52,13 @@ def test_decks_show_a_vertical_course_list_and_filtered_deck_section(monkeypatch
     at=AppTest.from_file(str(Path(__file__).parents[1]/'app.py'),default_timeout=20)
     at.session_state['auth']=auth;at.session_state['main_page']='Decks';at.run()
     headings=[item.value for item in at.subheader]
-    assert headings.count('Your courses')==1 and 'Your decks' in headings
+    assert headings.count('Your courses')==1 and 'Browse decks' in headings
     labels=[item.value for item in at.markdown]
     assert any('Corporate Finance' in label for label in labels)
     assert any('Statistics' in label for label in labels)
     assert not any(field.label=='Browse course' for field in at.selectbox)
     assert len([item for item in at.button if item.label=='Study'])==2
-    assert len([item for item in at.button if item.label=='Battle'])==2
+    assert not any(item.label in ('Battle','Start Battle') for item in at.button)
     assert button(at,'Daily review')
     assert not at.exception
 

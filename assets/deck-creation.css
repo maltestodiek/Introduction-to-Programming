@@ -32,4 +32,5 @@
 /* The pencil sits on the heading line, like the icons of the creation cards. */
 .st-key-deck_studio_entry h4::before{content:"✎";display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:var(--sd-study-end);color:var(--sd-accent);font-size:1.35rem;letter-spacing:0}
 .st-key-deck_studio_entry button{min-height:52px;border-radius:12px;font-weight:700}
+[class*="st-key-studio_deck_"] button{min-height:44px;padding:.35rem .65rem;white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.st-key-deck_studio_entry{transition:none!important}}

@@ -92,15 +92,16 @@ def session_partner_chat(client,kind,session_id,location='round'):
 
 
 @st.fragment(run_every='15s')
-def chat_dropdown(client):
+def chat_dropdown(client,compact=False):
     # Unmount the inbox popover so its portal cannot cover the conversation.
     if st.session_state.get('chat_open'):
-        st.button('Chats',icon=':material/chat:',disabled=True,use_container_width=True)
+        st.button('\u200b' if compact else 'Chats',key='open_chats',icon=':material/chat:',disabled=True,use_container_width=True)
         return
     data=chat_call(client,'list',quiet=True)
     threads=data['threads'] if data else []
     unread=sum(t['unread'] for t in threads)
-    with st.popover('Chats'+(f' ({unread})' if unread else ''),icon=':material/chat:',use_container_width=True):
+    label='\u200b' if compact else 'Chats'+(f' ({unread})' if unread else '')
+    with st.popover(label,key='open_chats',icon=':material/chat:',use_container_width=True):
         if data is None:st.caption('Chats are temporarily unavailable. Please try again.')
         elif not threads:st.caption('No conversations yet. Click a Battle or Study partner’s name to send a message.')
         for thread in threads:
@@ -223,25 +224,30 @@ def open_friend_match(person,mode):
 
 
 def friend_match_row(item,repo,friends):
-    # Keep every frequent friend action visible instead of hiding it in a menu.
+    """Render an accepted friend with the social actions that are already authorized."""
     person=item["person"]
-    avatar,profile,battle,study,remove=st.columns([0.7,1.55,2.25,1.65,1.45],vertical_alignment="center")
+    avatar,profile,actions=st.columns([.65,2.15,3.35],vertical_alignment="center")
     with avatar:
         try: data=repo.image(person.get("image_path"))
         except Exception:data=None
         portrait(data or render_avatar(DEFAULT_AVATAR),48)
     with profile:
-        if st.button(person["username"],key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"]):
-            open_private_chat(friends.client,person["id"])
-    with battle:
-        if st.button('Challenge to a Battle',key='friend_battle_'+item['id'],use_container_width=True):
-            open_friend_match(person,'battle')
-    with study:
-        if st.button('Study together',key='friend_study_'+item['id'],use_container_width=True):
-            open_friend_match(person,'study')
-    with remove:
-        if st.button('Remove friend',key='remove_friend_'+item['id'],use_container_width=True):
-            st.session_state.friend_remove_confirm=item['id'];st.rerun()
+        st.markdown("**"+person["username"]+"**")
+        st.caption("Friend")
+    with actions:
+        battle,study,chat,remove=st.columns([1.35,1.2,.48,.48],gap='small',vertical_alignment='center')
+        with battle:
+            if st.button('Battle',key='friend_battle_'+item['id'],icon=':material/swords:',use_container_width=True,type='primary'):
+                open_friend_match(person,'battle')
+        with study:
+            if st.button('Study',key='friend_study_'+item['id'],icon=':material/menu_book:',use_container_width=True):
+                open_friend_match(person,'study')
+        with chat:
+            if st.button('Chat',key="friend_chat_"+item["id"],icon=":material/chat:",help="Open chat with "+person["username"]):
+                open_private_chat(friends.client,person["id"])
+        with remove:
+            if st.button('Remove',key='remove_friend_'+item['id'],use_container_width=True,icon=':material/person_remove:',help='Remove '+person['username']+' as a friend'):
+                st.session_state.friend_remove_confirm=item['id'];st.rerun()
     if st.session_state.get('friend_remove_confirm')==item['id']:
         st.warning(f"Remove {person['username']} as a friend? This removes the friendship for both of you.")
         confirm,cancel=st.columns(2)
@@ -252,101 +258,155 @@ def friend_match_row(item,repo,friends):
             st.session_state.pop('friend_remove_confirm',None);st.rerun()
 
 def friends_screen(friends,repo,state):
+    st.html('<style>'+ (Path(__file__).parent/'assets'/'friends.css').read_text()+'</style>')
     if st.session_state.get('study_return_after_friends'):
         if st.button('Back to Study Together',icon=':material/arrow_back:'):
             st.session_state.pop('study_return_after_friends',None)
             st.session_state.main_page='Play';st.session_state.study_active=True;st.session_state.study_choice='Study together';st.rerun()
-    st.caption("Your friend code")
-    st.code("#"+state["code"],language=None)
-    st.caption("Share this code so another student can send you a request. It is not a login code.")
-    if st.button("Refresh friends"):st.rerun()
+
+    friend_count=len(state['friends'])
+    st.title('Friends')
+
     token=st.session_state.get("pending_invite")
     if token:
-        st.subheader("Friend invitation")
-        try:
-            invitation_token(token)
-            preview=friends.action("preview_invite",token)
-            public_person(preview["person"],repo)
-            st.write("Accept this invitation to add each other as friends.")
-            if st.button("Accept invitation",type="primary"):
-                if friend_action(friends,"accept_invite",token):
-                    st.session_state.pop("pending_invite",None)
-                    if "invite" in st.query_params:del st.query_params["invite"]
-                    st.rerun()
-        except ValueError as exc:st.warning(str(exc))
-        if st.button("Dismiss invitation"):
-            st.session_state.pop("pending_invite",None)
-            if "invite" in st.query_params:del st.query_params["invite"]
-            st.rerun()
-    st.subheader("Add a friend by code")
-    with st.form("find_friend"):
-        code=st.text_input("Friend code",placeholder="#AB23CD45",max_chars=12)
-        find=st.form_submit_button("Find friend")
-    if find:
-        st.session_state.pop("friend_preview",None)
-        try:
-            normalized=normalize_friend_code(code)
-            result=friends.lookup(normalized)
-            st.session_state.friend_preview={"code":normalized,"person":result["person"]}
-        except ValueError as exc:st.error(str(exc))
-    preview=st.session_state.get("friend_preview")
-    if preview:
-        public_person(preview["person"],repo)
-        if st.button("Send friend request"):
-            if friend_action(friends,"request",preview["code"]):
+        with st.container(border=True,key='friends_link_invitation'):
+            st.subheader('Friend invitation')
+            try:
+                invitation_token(token)
+                preview=friends.action('preview_invite',token)
+                public_person(preview['person'],repo)
+                st.write('Accept this invitation to add each other as friends.')
+                if st.button('Accept invitation',type='primary'):
+                    if friend_action(friends,'accept_invite',token):
+                        st.session_state.pop('pending_invite',None)
+                        if 'invite' in st.query_params:del st.query_params['invite']
+                        st.rerun()
+            except ValueError as exc:st.warning(str(exc))
+            if st.button('Dismiss invitation'):
                 st.session_state.pop("friend_preview",None)
+                st.session_state.pop('pending_invite',None)
+                if 'invite' in st.query_params:del st.query_params['invite']
                 st.rerun()
-    st.subheader("Find students at your university")
-    try:university_directory=friends.university_profiles()
-    except ValueError as exc:st.error(str(exc));university_directory={'profiles':[]}
-    students=university_directory['profiles']
-    if students:
-        st.caption(f"Students with a profile at {university_directory['university']}.")
-        for student in students:
-            with st.container(border=True):
-                avatar,name,university,action=st.columns([0.6,2.4,4.2,1.8],vertical_alignment="center")
-                with avatar:
-                    try:data=repo.image(student.get("image_path"))
-                    except Exception:data=None
-                    portrait(data or render_avatar(DEFAULT_AVATAR),48)
-                with name:st.write("**"+student['username']+"**")
-                with university:st.caption(university_directory['university'])
-                with action:
-                    if st.button("Add as friend",key="university_friend_"+student['id'],use_container_width=True):
-                        try:
-                            result=friends.request_university_friend(student['id'])
-                            st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
-                        except ValueError as exc:st.error(str(exc))
-    else:st.caption("No other students from your university are available to add right now.")
-    st.subheader("Invite a friend with a link")
-    if st.button("Create new invitation link"):
-        result=friend_action(friends,"create_invite")
-        if result:
-            st.session_state.share_invite_token=result["token"]
-            st.rerun()
-    if state.get("invite_expires"):
-        if not st.session_state.get("share_invite_token"):
-            st.caption("Your existing link still works. Create a new link if you need another copy; this replaces the old one.")
-        if st.button("Revoke invitation link"):
-            if friend_action(friends,"revoke_invite"):
-                st.session_state.pop("share_invite_token",None)
-                st.rerun()
-    st.caption("Links expire after seven days. Creating a new link replaces the previous one.")
-    if token:=st.session_state.get("share_invite_token"):
-        st.subheader("Your invitation link")
-        try:share_invitation(invitation_url(config("PUBLIC_APP_URL") or config("APP_URL") or "http://localhost:8501",token))
-        except ValueError as exc:st.info(str(exc))
-    empty_messages={"Incoming requests":":material/inbox: No Incoming request","Sent requests":"Connect with your friends and Battle them","Your friends":"Nothing here yet."}
-    for title,items,actions in [("Incoming requests",state["incoming"],[("Accept","accept"),("Decline","decline")]),("Sent requests",state["sent"],[("Cancel request","cancel")]),("Your friends",state["friends"],[])]:
-        st.subheader(title)
-        if not items:st.caption(empty_messages[title])
-        for item in items:
-            with st.container(border=True):
-                if title=="Your friends":friend_match_row(item,repo,friends)
-                else:public_person(item["person"],repo)
-                for label,action in actions:
-                    if st.button(label,key=action+"_"+item["id"]):
-                        if friend_action(friends,action,item["id"]):st.rerun()
+
+    main,invite=st.columns([2.05,1],gap='large')
+    with main:
+        if state['incoming']:
+            for item in state['incoming']:
+                with st.container(border=True,key='friends_incoming_'+item['id']):
+                    person=item['person']
+                    avatar,identity,accept,decline=st.columns([.65,2.5,.9,.95],vertical_alignment='center')
+                    with avatar:
+                        try:data=repo.image(person.get('image_path'))
+                        except Exception:data=None
+                        portrait(data or render_avatar(DEFAULT_AVATAR),48)
+                    with identity:
+                        st.markdown('**'+person['username']+' wants to be your friend**')
+                    with accept:
+                        if st.button('Accept',key='accept_'+item['id'],type='primary',use_container_width=True):
+                            if friend_action(friends,'accept',item['id']):st.rerun()
+                    with decline:
+                        if st.button('Decline',key='decline_'+item['id'],use_container_width=True):
+                            if friend_action(friends,'decline',item['id']):st.rerun()
+
+        friends_heading,friends_search=st.columns([1.2,1],vertical_alignment='center')
+        with friends_heading:
+            st.html(f'<div class="friends-heading-inline" aria-label="{friend_count} friends"><span>Your friends</span><strong>{friend_count}</strong></div>')
+        with friends_search:
+            query=st.text_input('Search friends',placeholder='Search friends',key='friends_local_search',label_visibility='collapsed')
+        visible_friends=[item for item in state['friends'] if not query or query.casefold() in item['person']['username'].casefold()]
+        if not visible_friends:
+            st.caption('No friends match your search.' if query else 'Nothing here yet.')
+        else:
+            with st.container(border=True,key='friends_list'):
+                for item in visible_friends:
+                    friend_match_row(item,repo,friends)
+
+        st.subheader('Find students at your university')
+        try:university_directory=friends.university_profiles()
+        except ValueError as exc:st.error(str(exc));university_directory={'profiles':[]}
+        students=university_directory['profiles']
+        if students:
+            st.caption(f"Students with a profile at {university_directory['university']}.")
+            with st.container(border=True,key='friends_university_directory'):
+                for student in students:
+                    avatar,name,university,action=st.columns([.6,2.4,2.8,1.2],vertical_alignment='center')
+                    with avatar:
+                        try:data=repo.image(student.get('image_path'))
+                        except Exception:data=None
+                        portrait(data or render_avatar(DEFAULT_AVATAR),44)
+                    with name:st.markdown('**'+student['username']+'**')
+                    with university:st.caption(university_directory['university'])
+                    with action:
+                        if st.button('Add',key='university_friend_'+student['id'],icon=':material/person_add:',use_container_width=True):
+                            try:
+                                result=friends.request_university_friend(student['id'])
+                                st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
+                            except ValueError as exc:st.error(str(exc))
+        else:st.caption('No other students from your university are available to add right now.')
+
+    with invite:
+        with st.container(border=True,key='friends_invite_card'):
+            st.html('<h2 class="friends-card-title">Invite friends</h2>')
+            st.caption('YOUR FRIEND CODE')
+            st.code('#'+state['code'],language=None)
+            code_entry,find_action=st.columns([3.2,1],vertical_alignment='center')
+            with code_entry:
+                friend_code=st.text_input('Friend code',placeholder='#AB23CD45',max_chars=12,key='friends_code_entry',label_visibility='collapsed')
+            with find_action:
+                find=st.button('+ Add',key='friends_find_code',use_container_width=True,type='primary')
+            if find:
+                st.session_state.pop('friend_preview',None)
+                try:
+                    normalized=normalize_friend_code(friend_code)
+                    result=friends.lookup(normalized)
+                    st.session_state.friend_preview={'code':normalized,'person':result['person']}
+                except ValueError as exc:st.error(str(exc))
+            if preview:=st.session_state.get('friend_preview'):
+                with st.container(border=True,key='friends_code_preview'):
+                    person=preview['person']
+                    avatar,identity=st.columns([.55,2.4],vertical_alignment='center')
+                    with avatar:
+                        try:data=repo.image(person.get('image_path'))
+                        except Exception:data=None
+                        portrait(data or render_avatar(DEFAULT_AVATAR),44)
+                    with identity:st.markdown('**'+person['username']+'**')
+                    profile_action,add_action=st.columns(2)
+                    with profile_action:
+                        with st.popover('View profile',icon=':material/person:',use_container_width=True):
+                            public_person(person,repo)
+                    with add_action:
+                        if st.button('Add',key='send_friend_request',type='primary',use_container_width=True):
+                            if friend_action(friends,'request',preview['code']):
+                                st.session_state.pop('friend_preview',None);st.rerun()
+            st.divider()
+            st.caption('INVITATION LINK')
+            if st.button('Create new invitation link',key='create_friend_invite',use_container_width=True,icon=':material/link:',type='primary'):
+                result=friend_action(friends,'create_invite')
+                if result:
+                    st.session_state.share_invite_token=result['token'];st.rerun()
+            if state.get('invite_expires'):
+                if st.button('Revoke invitation link',key='revoke_friend_invite',use_container_width=True):
+                    if friend_action(friends,'revoke_invite'):
+                        st.session_state.pop('share_invite_token',None);st.rerun()
+                from datetime import datetime
+                try:
+                    expires=datetime.fromisoformat(state['invite_expires'].replace('Z','+00:00'))
+                    st.caption('Expires '+expires.strftime('%d %b %Y'))
+                except (TypeError,ValueError):
+                    st.caption('Invitation link active.')
+            if link_token:=st.session_state.get('share_invite_token'):
+                try:share_invitation(invitation_url(config('PUBLIC_APP_URL') or config('APP_URL') or 'http://localhost:8501',link_token))
+                except ValueError as exc:st.info(str(exc))
+            st.divider()
+            st.html('<h2 class="friends-card-title">Open invitations</h2>')
+            if not state['sent']:st.caption('No pending requests.')
+            for item in state['sent']:
+                person=item['person']
+                sent_name,cancel=st.columns([2,1],vertical_alignment='center')
+                with sent_name:st.write(person['username'])
+                with cancel:
+                    if st.button('Cancel',key='cancel_'+item['id'],use_container_width=True):
+                        if friend_action(friends,'cancel',item['id']):st.rerun()
 
 def calculator_input_changed(key):
     st.session_state.pop(key+'_result',None)
@@ -677,7 +737,6 @@ def decks_screen(client,profile):
     course_heading,review_action=st.columns([5,1],vertical_alignment='center')
     with course_heading:
         st.subheader('Your courses')
-        st.caption('Choose a course to study at your pace or start a Battle.')
     with review_action:
         if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
             st.session_state.study_library=True;st.rerun()
@@ -694,13 +753,8 @@ def decks_screen(client,profile):
             with availability:
                 st.markdown(f'<div class="course-list-count"><strong>{study_count}</strong><span>Study decks</span><strong>{battle_count}</strong><span>Battle decks</span></div>',unsafe_allow_html=True)
             with actions:
-                study_action,battle_action=st.columns(2)
-                if study_action.button('Study',key='course_study_'+str(index),icon=':material/menu_book:',use_container_width=True):
+                if st.button('Study',key='course_study_'+str(index),icon=':material/menu_book:',use_container_width=True):
                     st.session_state.study_library=True;st.rerun()
-                if battle_action.button('Battle',key='course_battle_'+str(index),icon=':material/swords:',use_container_width=True):
-                    st.session_state.main_page='Play';st.session_state.play_mode_preview='Battle';st.session_state.battle_new_setup=True
-                    st.session_state.battle_course=course;st.session_state.battle_language=profile['languages'][0]
-                    st.rerun()
             course_decks=[('study',deck) for deck in study_by_course.get(course_key,[])]+[('battle',deck) for deck in battle_by_course.get(course_key,[])]
             with st.expander(f'Decks in this course ({len(course_decks)})'):
                 if not course_decks:st.caption(f'No decks in {course} yet. Create the first one above.')
@@ -710,16 +764,26 @@ def decks_screen(client,profile):
                     info.caption(course_deck_meta(kind,deck))
                     with action:course_deck_action(client,kind,deck,f'course_menu_{index}_{kind}_{deck["id"]}',compact=True)
 
-    st.subheader('Your decks')
-    filter_choice=st.segmented_control('Deck filter',['All','Study','Battle','Mine'],default='All',key='course_list_filter',label_visibility='collapsed')
-    if filter_choice=='Mine':
+    st.subheader('Browse decks')
+    search,course_choice=st.columns([3,2])
+    with search:
+        query=st.text_input('Search decks',placeholder='Search by deck name',key='deck_library_search')
+    with course_choice:
+        selected_course=st.selectbox('Course',['All courses',*course_names],key='deck_library_course')
+    filter_choice=st.segmented_control('Deck filter',['All','Study','Battle','Created by me'],default='All',key='deck_library_filter',label_visibility='collapsed')
+    if filter_choice=='Created by me':
         deck_rows=[('battle',deck) for deck in battle_decks if deck.get('owned')]+[('study',deck) for deck in study_decks if deck.get('owned')]
     else:
         deck_rows=[]
         if filter_choice in ('All','Battle'):deck_rows += [('battle',deck) for deck in battle_decks]
         if filter_choice in ('All','Study'):deck_rows += [('study',deck) for deck in study_decks]
+    if selected_course!='All courses':
+        deck_rows=[row for row in deck_rows if row[1].get('course')==selected_course]
+    query=query.strip().casefold()
+    if query:
+        deck_rows=[row for row in deck_rows if query in row[1].get('name','').casefold()]
     if not deck_rows:
-        st.info('No matching decks yet. Create the first one above.')
+        st.info('No decks match these filters.')
         return
     for row in range(0,len(deck_rows),2):
         for column,(kind,deck) in zip(st.columns(2),deck_rows[row:row+2]):
@@ -763,13 +827,13 @@ def deck_studio_screen(client,profile):
     try:decks=StudyRepository(client).studio()
     except ValueError as exc:st.error(str(exc));return
     zone=deck_studio_timezone();groups=deck_studio_groups(decks)
-    choice=st.segmented_control('Deck studio filter',list(groups),format_func=lambda key:f'{key} {len(groups[key])}',default='All',key='deck_studio_filter',label_visibility='collapsed') or 'All'
+    choice=st.segmented_control('Deck studio filter',list(groups),default='All',key='deck_studio_filter',label_visibility='collapsed') or 'All'
     if not groups[choice]:
         st.info('You have not created any decks yet. Create one on the Decks page.' if choice=='All' else 'No decks match this filter.')
     for deck in groups[choice]:
         did=deck['id'];study=deck['kind']=='study'
         with st.container(border=True,key=f"studio_deck_{deck['kind']}_{did}"):
-            info,status,times,actions=st.columns([2.4,1.2,1.6,2.4],vertical_alignment='center')
+            info,status,times,actions=st.columns([2,1.1,1.9,2.5],vertical_alignment='center')
             info.markdown((':material/menu_book:' if study else ':material/swords:')+' **'+deck['name']+'**')
             info.caption(f"{deck['course']} · {deck['language']} · {deck['count']} questions")
             created=deck_studio_created_text(deck,zone)
@@ -783,7 +847,7 @@ def deck_studio_screen(client,profile):
                 status.markdown(':green-badge[Published]');status.caption('Published since '+format_deck_time(deck['published_at'],zone))
             else:
                 status.markdown(':orange-badge[Private]');status.caption('Only you can see it')
-            edit,publish,battle=actions.columns(3)
+            edit,publish,battle=actions.columns([.8,1.3,1.35])
             if edit.button('Edit',key='studio_edit_'+did,use_container_width=True):deck_studio_edit(client,did)
             if deck.get('published_at'):
                 if publish.button('Unpublish',key='studio_unpublish_'+did,use_container_width=True):
@@ -802,12 +866,9 @@ def course_deck_meta(kind,deck):
 
 
 def course_deck_action(client,kind,deck,key,compact=False):
-    """Open an owned Study deck, copy someone else's Study deck, or open a Battle deck."""
+    """Open or copy Study decks; Battle matchmaking begins only from Play."""
     if kind=='battle':
-        # Battle Decks are played, not edited: start a Battle in the deck's course and language.
-        if st.button('Start Battle',key=key,icon=':material/swords:',use_container_width=True):
-            st.session_state.main_page='Play';st.session_state.play_mode_preview='Battle';st.session_state.battle_new_setup=True
-            st.session_state.battle_course=deck['course'];st.session_state.battle_language=deck['language'];st.rerun()
+        return
     elif deck.get('owned'):
         if st.button('Open' if compact else 'Open Study deck',key=key,use_container_width=True):
             st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
@@ -2318,7 +2379,7 @@ def battle_round_screen(client,session_id):
     return_to_battle_menu()
 
 
-@st.dialog('Battle Mode',width='large')
+@st.dialog('Battle Mode',width='large',dismissible=False)
 def battle_game_dialog(client,session_id):
     battle_round_screen(client,session_id)
 
@@ -2801,31 +2862,35 @@ if profile:
                 photos.clear();photos[path]=repo.image(path)
             picture=photos[path]
     except Exception:pass
-brand,profile_slot,friends_slot,chats_slot=st.columns([3.35,1.2,1.2,1.2],vertical_alignment="center")
-with brand:
+page=st.session_state.get('main_page','Play')
+if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
+with st.container(key='top_brand'):
     # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
     st.html('<style>.st-key-open_home button::before{background-image:url("data:image/png;base64,'+logo_small+'")}</style>')
     if st.button('Uni**Arena**',key='open_home') and profile:
         navigate('Play')
-with profile_slot:
-    st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
-    if st.button('Profile',use_container_width=True,key='open_profile'):
-        navigate('Profile')
-with friends_slot:
-    if profile and st.button('Friends',use_container_width=True,key='open_friends'):
-        navigate('Friends')
-with chats_slot:
-    if profile:chat_dropdown(auth.client)
+if profile:
+    main_navigation,account_navigation=st.columns([4,1.2],gap='medium',vertical_alignment='center')
+    with main_navigation:
+        with st.container(key='top_navigation_tabs'):
+            for col,label in zip(st.columns(4,gap='small'),['Decks','Play','Leaderboard','Study Plan']):
+                if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
+                    navigate(label)
+    with account_navigation:
+        with st.container(key='top_account_actions'):
+            friends_slot,chats_slot,profile_slot=st.columns(3,gap='small',vertical_alignment='center')
+            with friends_slot:
+                if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',help='Friends',use_container_width=True):
+                    navigate('Friends')
+            with chats_slot:
+                chat_dropdown(auth.client,compact=True)
+            with profile_slot:
+                st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
+                if st.button('Profile',key='open_profile',help='Profile',use_container_width=True):
+                    navigate('Profile')
 if profile and st.session_state.get('chat_open'):
     private_chat_dialog(auth.client,st.session_state.chat_open,picture)
 if profile:
-    tabs=['Decks','Play','Leaderboard','Study Plan']
-    columns=st.columns(len(tabs))
-    page=st.session_state.get('main_page','Play')
-    if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
-    for col,label in zip(columns,tabs):
-        if col.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
-            navigate(label)
     if st.session_state.get('play_exit_to'):
         st.warning('Leave this round? This counts as a loss and your opponent wins. Your question timer continues while you decide.')
         yes,no=st.columns(2)
@@ -2844,7 +2909,6 @@ if profile:
     if page=='Decks':
         decks_screen(auth.client,profile);st.stop()
     if page=='Friends':
-        st.title('Friends')
         friends=FriendsRepository(auth.client)
         try:friend_state=friends.action('list')
         except ValueError as exc:
