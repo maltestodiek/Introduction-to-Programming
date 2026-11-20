@@ -87,10 +87,30 @@ def test_only_battle_shows_an_xp_chip():
 
 def test_answer_fields_match_the_question_card_height_in_both_modes():
     for css,key in ((BATTLE_CSS,'battle'),(STUDY_CSS,'study')):
-        assert f'.{key}-answer-card'+'{display:grid;place-items:center;box-sizing:border-box;min-height:150px' in css.replace('\n','')
+        flat=css.replace('\n','')
+        assert f'.{key}-answer-card'+'{display:grid;place-items:center;box-sizing:border-box;min-height:110px' in flat
+        assert f'.{key}-question-card'+'{border:1px solid var(--sd-border);border-radius:18px;padding:16px 20px;min-height:110px' in flat
         assert f'st-key-{key}_answer_' in EFFECTS_CSS
-    assert 'button{min-height:150px' in EFFECTS_CSS
-    assert 'button{min-height:120px' in EFFECTS_CSS
+    assert 'button{min-height:110px' in EFFECTS_CSS
+    assert 'button{min-height:96px' in EFFECTS_CSS
+
+
+def test_the_round_fits_on_screen_without_scrolling_to_timer_or_continue():
+    # Compact spacing keeps the timer and the Continue button visible below two 110px answer rows.
+    assert 'margin:12px 0 8px' in BATTLE_CSS and 'margin:12px 0 8px' in STUDY_CSS
+    assert '.battle-timer-track{height:14px;border-radius:999px;background:var(--sd-border);overflow:hidden;margin-top:14px}' in BATTLE_CSS
+
+
+def test_leaving_a_battle_asks_in_a_centred_modal_not_a_dropdown():
+    section=APP[APP.index('def battle_leave_control'):APP.index('@st.dialog(\'Battle review\'')]
+    assert 'st.popover' not in section
+    assert "st.container(key=f'round_leave_modal_{session_id}')" in section
+    assert 'round-modal-backdrop' in section
+    assert "battle_request(client,'abandon',{'id':session_id,'confirmed':True})" in section
+    assert 'Keep fighting' in section and 'Leave Battle' in section
+    assert '[class*="st-key-round_leave_modal_"]{position:fixed;z-index:2200;top:50%;left:50%;transform:translate(-50%,-50%)' in EFFECTS_CSS
+    assert '.round-modal-backdrop{position:fixed;inset:0' in EFFECTS_CSS
+    assert '[class*="st-key-battle_exit_"] button{background:linear-gradient(135deg,#f43f5e,#dc2626)' in BATTLE_CSS
 
 
 def test_battle_timer_turns_orange_then_red_near_the_end():

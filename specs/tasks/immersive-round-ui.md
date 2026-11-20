@@ -14,7 +14,9 @@ Battle and Study rounds presented questions like a form. A game-like round — a
 
 **Streak.** From two correct answers in a row, a flame badge with the current run appears beside the Overview heading in the side panel. Reaching 3, 5 or 10 in a row shows a short banner (On fire! / Unstoppable! / Legendary!). The streak is computed from the round's already-loaded answers, adds no state or persistence and never changes XP or scoring.
 
-**Equal card heights.** Answer fields match the question card's height (150px desktop, 120px narrow screens) both while answering and in feedback, so the layout does not jump between states.
+**Equal card heights.** Answer fields match the question card's height (110px desktop, 96px narrow screens) both while answering and in feedback, so the layout does not jump between states and the timer and Continue control stay visible without scrolling on a laptop screen.
+
+**Leaving a Battle.** The Leave control is a red gradient pill. It opens a centred confirmation card over a dimmed round — not a dropdown — with Keep fighting and Leave Battle; leaving still uses the server-authoritative abandonment action, and the timer keeps running while the card is open.
 
 **Atmosphere.** Each question card slides in briefly. The Battle timer bar turns orange at 15 seconds and red with a pulse at 5. The Battle rating screen pops the final score in and shows confetti for a strong round (8+ correct).
 
@@ -29,6 +31,6 @@ Sound. Changing question order, timing rules, scoring, XP, levels, persistence o
 1. Allowed: answering, continuing, leaving, rating and resuming a round work exactly as before; a resumed Battle round starts without a countdown and with the server's remaining time.
 2. Rejected: the countdown cannot be clicked through to answer early, and no animation element intercepts clicks on answers or controls.
 3. Restart: after a new sign-in a running round resumes directly at its current question; streak and tiles rebuild from the saved answers.
-4. The countdown, feedback effects, streak badge and equal 150px/120px card heights appear in both Battle and Study rounds, and all effects are off under `prefers-reduced-motion`.
+4. The countdown, feedback effects, streak badge and equal 110px/96px card heights appear in both Battle and Study rounds, and all effects are off under `prefers-reduced-motion`.
 
 Checks: `tests/test_round_effects.py`, `tests/test_battle_ui.py`, `tests/test_study_round_ui.py`, plus a manual look at a Battle and a Study round.

@@ -2309,14 +2309,24 @@ def return_to_battle_menu(message=None):
 
 
 def battle_leave_control(client,session_id):
-    """An explicit abandon action; the server records the resulting loss."""
-    with st.popover('Leave',icon=':material/close:',use_container_width=True,key=f'battle_leave_{session_id}'):
-        st.warning('Do you really want to leave? The game will count as a loss.')
-        if st.button('Leave Battle',type='primary',key=f'battle_leave_confirm_{session_id}',use_container_width=True):
-            if battle_request(client,'abandon',{'id':session_id,'confirmed':True}) is not None:
-                st.session_state.pop(f'battle_timer_{session_id}',None)
-                st.session_state.pop(f'battle_timeout_notice_{session_id}',None)
-                return_to_battle_menu('You left the Battle. It was recorded as a loss.')
+    """An explicit abandon action; the server records the resulting loss.
+
+    The confirmation is a centred modal over a dimmed round, not a dropdown."""
+    if st.button('Leave',icon=':material/swords:',key=f'battle_exit_{session_id}',use_container_width=True):
+        st.session_state.round_leave_prompt=session_id;st.rerun()
+    if st.session_state.get('round_leave_prompt')==session_id:
+        st.html('<div class="round-modal-backdrop"></div>')
+        with st.container(key=f'round_leave_modal_{session_id}'):
+            st.html('<p class="round-modal-title">Leave the Battle?</p><p class="round-modal-text">Leaving counts as a loss and your opponent wins. Your question timer keeps running while you decide.</p>')
+            stay,leave=st.columns(2)
+            if stay.button('Keep fighting',key=f'round_leave_stay_{session_id}',use_container_width=True):
+                st.session_state.pop('round_leave_prompt',None);st.rerun()
+            if leave.button('Leave Battle',key=f'round_leave_confirm_{session_id}',use_container_width=True):
+                if battle_request(client,'abandon',{'id':session_id,'confirmed':True}) is not None:
+                    st.session_state.pop('round_leave_prompt',None)
+                    st.session_state.pop(f'battle_timer_{session_id}',None)
+                    st.session_state.pop(f'battle_timeout_notice_{session_id}',None)
+                    return_to_battle_menu('You left the Battle. It was recorded as a loss.')
 
 
 @st.dialog('Battle review',width='large')
