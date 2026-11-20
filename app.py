@@ -40,7 +40,7 @@ h1{letter-spacing:-.04em}div[data-testid="stForm"]{border-radius:18px;padding:24
 .stButton>button{border-radius:10px}div[data-testid="stMetric"]{background:var(--sd-surface);color:var(--sd-text);border:1px solid var(--sd-border);border-radius:16px;padding:20px;border-top:4px solid #6EE7B7}
 .sd-xp-summary{background:var(--sd-surface);border:1px solid var(--sd-border);border-radius:16px;border-top:4px solid #6EE7B7;padding:20px;min-height:126px}.sd-xp-summary__label{font-size:1rem;font-weight:500}.sd-xp-summary__total{font-size:2.6rem;font-weight:600;line-height:1.15;margin:14px 0}.sd-xp-summary__breakdown{font-size:.92rem;line-height:1.35}.sd-xp-summary__game{color:#7C3AED}.sd-xp-summary__creator{color:#047857}
 </style>""",unsafe_allow_html=True)
-st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+'</style>')
+st.html('<style>'+(Path(__file__).parent/'assets'/'navigation.css').read_text()+(Path(__file__).parent/'assets'/'confirm-modal.css').read_text()+'</style>')
 import time
 page_speed=fresh_module("page_speed")
 logo_copies=page_speed.logo_variants(str(LOGO_PATH),LOGO_PATH.stat().st_mtime)
@@ -897,6 +897,22 @@ def anki_read_image_cards(repository,image_cards):
     bar.empty();st.session_state.anki_image_text=results
 
 
+def leave_creation_control(label,key,has_unsaved,message,leave):
+    """A Back control that warns in a centred modal before unsaved creation content is dropped."""
+    if st.button(label,key=key):
+        if has_unsaved:st.session_state.leave_creation_prompt=key;st.rerun()
+        else:leave()
+    if st.session_state.get('leave_creation_prompt')==key:
+        st.html('<div class="round-modal-backdrop"></div>')
+        with st.container(key=f'round_leave_modal_{key}'):
+            st.html('<p class="round-modal-title">Leave without saving?</p><p class="round-modal-text">'+message+'</p>')
+            stay,leave_column=st.columns(2)
+            if stay.button('Keep working',key=f'round_leave_stay_{key}',use_container_width=True):
+                st.session_state.pop('leave_creation_prompt',None);st.rerun()
+            if leave_column.button('Leave and discard',key=f'round_leave_confirm_{key}',use_container_width=True):
+                st.session_state.pop('leave_creation_prompt',None);leave()
+
+
 def anki_import_screen(client,profile):
     from anki_import import AnkiImportError,parse_basic_apkg
     from db import AnkiImportRepository
@@ -904,8 +920,9 @@ def anki_import_screen(client,profile):
     st.caption('Decks › Import from Anki')
     st.header('Import Basic Anki cards')
     st.info('Two-field Basic cards are accepted, also with images: the text on the images is read with AI and you review it before importing. Cloze, audio and video cards stay in your Anki file.')
-    if st.button('Back to Decks'):
+    def leave_anki_import():
         anki_import_reset();st.session_state.pop('anki_import_open',None);st.session_state.pop('anki_import_saved',None);st.rerun()
+    leave_creation_control('Back to Decks','anki_import_back',bool(st.session_state.get('anki_import_result')) and not st.session_state.get('anki_import_saved'),'Your checked Anki package, including any text read from images, is not saved yet and will be discarded.',leave_anki_import)
     if saved:=st.session_state.get('anki_import_saved'):
         st.success(f"Saved {saved['count']} private source cards.")
         if st.button('Continue to question generation',type='primary'):
@@ -966,8 +983,9 @@ def pdf_import_screen(client,profile):
     st.caption('Decks › AI from lecture slides')
     st.header('Import PDF lecture slides')
     st.info('PDF slides stay private. Only selectable text is supported; scanned PDFs need OCR before import.')
-    if st.button('Back to Decks'):
+    def leave_pdf_import():
         st.session_state.pop('pdf_import_open',None);st.session_state.pop('pdf_import_result',None);st.session_state.pop('pdf_import_saved',None);st.rerun()
+    leave_creation_control('Back to Decks','pdf_import_back',bool(st.session_state.get('pdf_import_result')) and not st.session_state.get('pdf_import_saved'),'Your extracted slide texts are not saved yet and will be discarded.',leave_pdf_import)
     if saved:=st.session_state.get('pdf_import_saved'):
         st.success(f"Saved {saved['count']} private PDF sources.")
         if st.button('Continue to question generation',type='primary'):
@@ -1381,9 +1399,9 @@ def study_editor(client,profile):
         else:
             r=study_request(client,'review_deck',{'draft':clean,'revision':revision})
             if r is not None:st.session_state.study_review=r;st.rerun()
-    with st.expander('Discard unsaved Study changes'):
-        if st.button('Confirm discard Study changes'):
-            st.session_state.pop('study_draft');st.session_state.pop('study_review',None);st.rerun()
+    def leave_study_editor():
+        st.session_state.pop('study_draft');st.session_state.pop('study_review',None);st.rerun()
+    leave_creation_control('Leave Study editor','study_editor_leave',True,'Changes that were not saved through a Study review will be discarded. A saved deck keeps its last saved version.',leave_study_editor)
 
 
 def study_library(client,profile):
