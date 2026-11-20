@@ -163,7 +163,7 @@ def test_pending_random_battle_search_can_be_cancelled(monkeypatch):
     at=deck_app(monkeypatch)
     button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'Cancel search').click().run()
     assert any('Battle search cancelled.' in message.value for message in at.success)
-    assert any('No pending Battles.' in message.value for message in at.caption)
+    assert any('No pending Battles.' in str(item.value) for item in at.get('html'))
     assert not at.exception
 
 
@@ -186,7 +186,7 @@ def test_completed_battle_review_offers_a_report_for_each_question(monkeypatch):
     at=deck_app(monkeypatch)
     button(at,'Play').click().run()
     button(at,'Battle Mode').click().run()
-    button(at,'Review').click().run()
+    button(at,'Review questions').click().run()
     assert any(item.proto.popover.label=='Report this question' for item in at.get('popover'))
     assert not at.exception
 

@@ -107,14 +107,30 @@ def test_battle_dashboard_shows_the_persisted_win_streak_next_to_the_rank():
 
 def test_battle_history_and_overview_cards_use_the_requested_compact_layout():
     assert "st.subheader('Battle history')" in APP
-    assert 'battle-overview-result-{result.lower()}\">{result}</span><em>' in APP
-    assert 'min-height:7.75rem' in BATTLE_OVERVIEW_CSS
-    assert 'height:13rem!important;min-height:13rem!important' in BATTLE_OVERVIEW_CSS
     assert '.st-key-battle_session_history h3{font-size:1.65rem!important' in BATTLE_OVERVIEW_CSS
     assert 'card_completed_"] button,[class*="st-key-battle_overview_invite_"] button{font-size:1rem!important}' in BATTLE_OVERVIEW_CSS
     assert 'button p{font-family:inherit!important;font-size:1rem!important' in BATTLE_OVERVIEW_CSS
     assert 'grid-template-rows:4rem 2rem 2rem' in BATTLE_OVERVIEW_CSS
     assert '-webkit-line-clamp:2' in BATTLE_OVERVIEW_CSS
+
+
+def test_overview_lanes_put_ongoing_beside_pending_and_completed_below():
+    section=APP[APP.index('def battle_session_overview'):APP.index('def battle_session_history')]
+    assert "st.columns(2,gap='medium')" in section
+    assert section.index("st.columns(2,gap='medium')")<section.index("battle_overview_group_completed")
+    assert "columns=st.columns(3,gap='medium')" in section
+    assert '.st-key-battle_overview_group_completed{margin-top:1.1rem' in BATTLE_OVERVIEW_CSS
+
+
+def test_overview_cards_present_battles_as_versus_duels():
+    section=APP[APP.index('def battle_session_overview'):APP.index('def battle_session_history')]
+    assert 'bo-av bo-av-me' in section and 'bo-av bo-av-op' in section
+    assert 'Waiting for ' in section and 'bo-wait' in section
+    assert '{trophy}{result}' in section and '{xp:+d} XP' in section
+    assert '[class*="st-key-battle_overview_card_completed_"]:has(.bo-win){border-left:5px solid #16a34a!important}' in BATTLE_OVERVIEW_CSS
+    assert '[class*="st-key-battle_overview_card_completed_"]:has(.bo-loss){border-left:5px solid #dc2626!important}' in BATTLE_OVERVIEW_CSS
+    assert '[class*="st-key-battle_overview_card_ongoing_"]{border:2px solid var(--sd-accent)!important;animation:bo-live' in BATTLE_OVERVIEW_CSS
+    assert '.bo-empty' in BATTLE_OVERVIEW_CSS
 
 
 def test_pending_invitation_card_lists_the_deck_before_status_opponent_and_course():

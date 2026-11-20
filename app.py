@@ -2564,21 +2564,28 @@ def battle_pending_search(client,search):
                 st.rerun()
 
 
-def battle_session_overview(client,sessions,search=None,invites=()):
-    """Compact three-column Battle dashboard using only persisted session state."""
+def battle_session_overview(client,sessions,search=None,invites=(),username=None):
+    """Battle dashboard: Ongoing and Pending side by side, Recently completed below."""
     from logic import recent_completed_battles
-    groups=(('Ongoing','ongoing'),('Pending','pending'),('Recently completed','completed'))
+    me=escape(str(username or 'You')[:1].upper())
+    def versus_markup(opponent):
+        return ('<div class="bo-vs"><span class="bo-av bo-av-me">'+me+'</span><i>VS</i>'
+                '<span class="bo-av bo-av-op">'+escape(str(opponent)[:1].upper())+'</span><b>'+escape(str(opponent))+'</b></div>')
+    def deck_markup(name):
+        safe=escape(str(name),quote=True)
+        return '<p class="bo-deck" title="'+safe+'">'+safe+'</p>'
     with st.container(border=True,key='battle_game_overview'):
         st.subheader('Game Overview')
-        for column,(label,status) in zip(st.columns(3,gap='medium'),groups):
-            rows=recent_completed_battles(sessions) if status=='completed' else [session for session in sessions if session['status']==status]
+        for column,(label,icon,status) in zip(st.columns(2,gap='medium'),(('Ongoing','⚔️','ongoing'),('Pending','⏳','pending'))):
+            rows=[session for session in sessions if session['status']==status]
             pending_invites=list(invites) if status=='pending' else []
             count=len(rows)+(1 if status=='pending' and search else 0)+len(pending_invites)
             with column:
                 with st.container(key=f'battle_overview_group_{status}'):
-                    st.html(f'<p class="battle-overview-column-heading"><span></span>{label}<b>{count}</b></p>')
+                    st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{icon}</span>{label}<b>{count}</b></p>')
                     if not rows and not (status=='pending' and (search or pending_invites)):
-                        st.caption('No '+label.lower()+' Battles.')
+                        if status=='ongoing':st.html('<div class="bo-empty"><span>🛡️</span>No ongoing Battles.<br>Ready for another one?</div>')
+                        else:st.html('<div class="bo-empty"><span>⏳</span>No pending Battles.</div>')
                     if status=='pending' and search:battle_pending_search(client,search)
                     for invite in pending_invites:
                         with st.container(border=True,key='battle_overview_invite_'+invite['id']):
@@ -2599,24 +2606,32 @@ def battle_session_overview(client,sessions,search=None,invites=()):
                         opponent=session.get('opponent_username','Unknown opponent')
                         with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
                             if status=='ongoing':
-                                st.markdown('**'+session['deck_name']+'**')
-                                st.caption('vs. '+opponent)
+                                st.html(versus_markup(opponent)+deck_markup(session['deck_name']))
                                 st.markdown(':violet-badge[:material/schedule: Your turn]')
-                                if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary'):
+                                if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary',use_container_width=True):
                                     st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
-                            elif status=='pending':
-                                st.markdown('**'+session['deck_name']+'**')
-                                st.caption('vs. '+opponent)
-                                st.caption(f"Your result: {session['score']} / 15")
-                                st.caption('Waiting for '+opponent+'.')
                             else:
-                                opponent_score=session.get('opponent_score')
-                                score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
-                                result=str(session.get('result') or 'completed').title()
-                                deck_name=str(session['deck_name'])
-                                safe_deck=escape(deck_name,quote=True)
-                                st.html(f'<div class="battle-overview-card-copy"><strong title="{safe_deck}">{safe_deck}</strong><p>vs. {escape(str(opponent))}</p><p class="battle-overview-result">{score} <span class="battle-overview-result-{result.lower()}">{result}</span><em>{session.get("game_xp_delta",0):+d} Battle XP</em></p></div>')
-                                if st.button('Review',key='overview_battle_review_'+session['id']):battle_review_dialog(client,session['id'])
+                                st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
+                                 +f'<div class="bo-score"><b>{session["score"]}</b><i>/ 15</i><span class="bo-pill bo-xp-plus">your result</span></div>'
+                                 +'<div class="bo-wait"><span></span>Waiting for '+escape(str(opponent))+'…</div>')
+        completed=recent_completed_battles(sessions)
+        with st.container(key='battle_overview_group_completed'):
+            st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">🏁</span>Recently completed<b>{len(completed)}</b></p>')
+            if not completed:st.html('<div class="bo-empty"><span>🏁</span>No completed Battles yet.</div>')
+            columns=st.columns(3,gap='medium')
+            for index,session in enumerate(completed):
+                opponent=session.get('opponent_username','Unknown opponent')
+                with columns[index%3]:
+                    with st.container(border=True,key=f'battle_overview_card_completed_{session["id"]}'):
+                        opponent_score=session.get('opponent_score')
+                        score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
+                        result=str(session.get('result') or 'completed').title()
+                        xp=session.get('game_xp_delta',0)
+                        xp_class='bo-xp-plus' if xp>0 else 'bo-xp-minus'
+                        trophy='🏆 ' if result=='Win' else ''
+                        st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
+                         +f'<div class="bo-score"><b>{score}</b><span class="bo-pill bo-{result.lower()}">{trophy}{result}</span><span class="bo-pill {xp_class}">{xp:+d} XP</span></div>')
+                        if st.button('Review questions',key='overview_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
 
 
 def battle_session_history(client,sessions):
@@ -2740,7 +2755,7 @@ def battle_screen(client,profile):
     st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
     battle_dashboard_hero(client,profile,state.get('sessions',[]))
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
-    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]))
+    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile.get('username'))
     battle_session_history(client,state.get('sessions',[]))
 
 
