@@ -53,6 +53,7 @@ try{
   await db.exec(await fs.readFile(new URL('../supabase/battle-question-reports.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-deck-availability.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-search-controls.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/battle-top-decks-immediate.sql',import.meta.url),'utf8'));
   const source=sourceDeck();const sourceId=randomUUID();
   await db.query('insert into public.study_decks(id,creator_id,snapshot) values($1,$2,$3::jsonb)',[sourceId,A,JSON.stringify(source)]);
 
@@ -91,6 +92,9 @@ try{
   source.cards[0].question='Changed source';
   await db.query('update public.study_decks set snapshot=$2::jsonb where id=$1',[sourceId,JSON.stringify(source)]);
   assert.notEqual((await db.query('select cards from public.battle_decks where id=$1',[created.id])).rows[0].cards[0].question,'Changed source');
+  const immediateTop=await ok(B,'top',{course:'Finance',language:'English'});
+  assert.deepEqual(immediateTop.decks[0].id,created.id);
+  assert.deepEqual([immediateTop.decks[0].score,immediateTop.decks[0].rating_count],[0,0]);
   await db.query("insert into public.battle_daily_ratings values((now() at time zone 'Europe/Berlin')::date,$1,2,3,2,1,0,0)",[created.id]);
   const top=await ok(B,'top',{course:'Finance',language:'English'});assert.equal(top.decks[0].id,created.id);
   await db.exec('reset role');

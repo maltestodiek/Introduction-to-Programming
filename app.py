@@ -347,13 +347,16 @@ def friends_screen(friends,repo,state):
     with invite:
         with st.container(border=True,key='friends_invite_card'):
             st.html('<h2 class="friends-card-title">Invite friends</h2>')
-            st.caption('YOUR FRIEND CODE')
+            st.html('<p class="friends-invite-intro">Share your code or a link — you decide who to invite.</p>')
+            st.html('<p class="friends-invite-label">YOUR FRIEND CODE</p>')
             st.code('#'+state['code'],language=None)
+            st.divider()
+            st.html('<p class="friends-invite-label">ADD FRIEND BY CODE</p>')
             code_entry,find_action=st.columns([3.2,1],vertical_alignment='center')
             with code_entry:
                 friend_code=st.text_input('Friend code',placeholder='#AB23CD45',max_chars=12,key='friends_code_entry',label_visibility='collapsed')
             with find_action:
-                find=st.button('+ Add',key='friends_find_code',use_container_width=True,type='primary')
+                find=st.button('Add',key='friends_find_code',use_container_width=True,type='primary',icon=':material/person_add:')
             if find:
                 st.session_state.pop('friend_preview',None)
                 try:
@@ -379,24 +382,31 @@ def friends_screen(friends,repo,state):
                             if friend_action(friends,'request',preview['code']):
                                 st.session_state.pop('friend_preview',None);st.rerun()
             st.divider()
-            st.caption('INVITATION LINK')
-            if st.button('Create new invitation link',key='create_friend_invite',use_container_width=True,icon=':material/link:',type='primary'):
-                result=friend_action(friends,'create_invite')
-                if result:
-                    st.session_state.share_invite_token=result['token'];st.rerun()
+            active_until=None
             if state.get('invite_expires'):
-                if st.button('Revoke invitation link',key='revoke_friend_invite',use_container_width=True):
-                    if friend_action(friends,'revoke_invite'):
-                        st.session_state.pop('share_invite_token',None);st.rerun()
                 from datetime import datetime
                 try:
                     expires=datetime.fromisoformat(state['invite_expires'].replace('Z','+00:00'))
-                    st.caption('Expires '+expires.strftime('%d %b %Y'))
+                    active_until='Active until '+expires.strftime('%d %b')
                 except (TypeError,ValueError):
-                    st.caption('Invitation link active.')
+                    active_until='Invitation link active'
             if link_token:=st.session_state.get('share_invite_token'):
-                try:share_invitation(invitation_url(config('PUBLIC_APP_URL') or config('APP_URL') or 'http://localhost:8501',link_token))
+                try:share_invitation(invitation_url(config('PUBLIC_APP_URL') or config('APP_URL') or 'http://localhost:8501',link_token),active_until or 'Invitation link active')
                 except ValueError as exc:st.info(str(exc))
+            else:
+                st.html('<p class="friends-invite-label">INVITATION LINK</p>')
+                if active_until:
+                    st.html(f'<p class="friends-invite-active"><span></span>{active_until}</p>')
+            new_link,revoke_link=st.columns(2)
+            with new_link:
+                if st.button('New link',key='create_friend_invite',use_container_width=True,icon=':material/refresh:'):
+                    result=friend_action(friends,'create_invite')
+                    if result:
+                        st.session_state.share_invite_token=result['token'];st.rerun()
+            with revoke_link:
+                if state.get('invite_expires') and st.button('Revoke',key='revoke_friend_invite',use_container_width=True):
+                    if friend_action(friends,'revoke_invite'):
+                        st.session_state.pop('share_invite_token',None);st.rerun()
             st.divider()
             st.html('<h2 class="friends-card-title">Open invitations</h2>')
             if not state['sent']:st.caption('No pending requests.')
@@ -2532,7 +2542,7 @@ def battle_new_setup_screen(client,profile):
         if ranked:
             labels={item['id']:f"{item['name']} · {item['score']:+d} today · {item['rating_count']} ratings" for item in ranked}
             selected=st.selectbox('Top Deck',list(labels),format_func=labels.get)
-        else:st.info('No Top Deck qualifies today yet.')
+        else:st.info('No eligible Battle Deck is available for the selected course and language.')
         for position in range(len(ranked)+1,11):st.button(f'{position}. Outstanding',disabled=True,key='battle_outstanding_'+str(position),use_container_width=True)
     else:
         availability=battle_deck_availability(client,course,language)

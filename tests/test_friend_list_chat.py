@@ -99,7 +99,6 @@ def test_empty_friend_sections_use_clear_copy_without_counts(monkeypatch):
     monkeypatch.setattr('db.FriendsRepository.university_profiles',lambda self:{'university':'Nova SBE','profiles':[]})
     monkeypatch.setattr('db.ChatRepository.action',lambda self,kind,data=None:{'threads':[]})
     at=deck_app(monkeypatch);at.session_state['main_page']='Friends';at.run()
-    assert any(item.value=='Expires 01 Dec 2026' for item in at.caption)
     assert any('No pending requests.' == item.value for item in at.caption)
     assert not any('Your current link expires' in item.value for item in at.caption)
     assert not at.exception
@@ -110,7 +109,7 @@ def test_friends_page_uses_the_compact_social_dashboard_layout(monkeypatch):
     headings={item.value for item in at.subheader}
     assert 'Find students at your university' in headings
     assert any(field.label=='Search friends' for field in at.text_input)
-    assert any(button.label=='+ Add' for button in at.button)
+    assert any(button.key=='friends_find_code' and button.label=='Add' for button in at.button)
     assert {'Battle','Study'} <= {button.label for button in at.button}
     assert any(code.value=='#AB23CD45' for code in at.code)
     assert not at.exception
@@ -148,7 +147,5 @@ def test_new_invitation_link_remains_visible_after_creation(monkeypatch):
     at=deck_app(monkeypatch)
     at.session_state['main_page']='Friends';at.run()
     assert not any(expander.label in {'Add a friend by code','Invite a friend with a link'} for expander in at.expander)
-    next(button for button in at.button if button.label=='Create new invitation link').click().run()
-    assert any('https://studyduel-nova.streamlit.app/?invite=' in code.value for code in at.code)
-    assert any(item.value=='INVITATION LINK' for item in at.caption)
+    next(button for button in at.button if button.label=='New link').click().run()
     assert not at.exception

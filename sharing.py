@@ -1,20 +1,37 @@
-"""User-initiated sharing; no messages are sent by UniArena."""
-import streamlit as st
+"""User-initiated sharing controls; UniArena never sends a message itself."""
+import json
+from html import escape
 from urllib.parse import quote
 
-_share=st.components.v2.component('uniarena_share',html='''<div class="share"><button class="copy">Copy link</button><button class="native">Share…</button><span role="status" aria-live="polite"></span></div>''',css='''.share{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:system-ui;color:var(--st-text-color,#17223B)}button{background:var(--st-secondary-background-color,#fff);color:var(--st-text-color,#273D9C);border:1px solid var(--st-border-color,#9CAACB);border-radius:9px;padding:10px 16px;cursor:pointer;font:inherit}button:focus-visible{outline:3px solid #4F46E5}span{font-size:14px}''',js='''export default function({data,parentElement}) {
- const root=parentElement.querySelector('.share'),status=root.querySelector('[role=status]');
- root.querySelector('.copy').onclick=async()=>{try{await navigator.clipboard.writeText(data.url);status.textContent='Link copied.';}catch(_){status.textContent='Select and copy the link shown below.';}};
- root.querySelector('.native').onclick=async()=>{if(!navigator.share){status.textContent='Use WhatsApp, Email, or Copy link on this browser.';return;}
- try{await navigator.share({title:'Join me on UniArena',text:'Accept my friend invitation on UniArena.',url:data.url});status.textContent='Share menu closed.';}
- catch(e){status.textContent=e.name==='AbortError'?'Sharing cancelled. Your link still works.':'Use WhatsApp, Email, or Copy link instead.';}};
-}''')
+import streamlit as st
 
-def share_invitation(url):
-    _share(data={'url':url},key='share_friend_invitation')
+
+def share_invitation(url, active_until='Invitation link active'):
+    """Render a compact, user-controlled invitation sharing panel."""
     message='Join me on UniArena! Sign in and accept my friend invitation: '+url
-    a,b=st.columns(2)
-    a.link_button('WhatsApp','https://wa.me/?text='+quote(message,safe=''),use_container_width=True)
-    b.link_button('Email','mailto:?subject='+quote('Join me on UniArena')+'&body='+quote(message,safe=''),use_container_width=True)
-    st.code(url,language=None)
-    st.caption('Anyone with this link can accept your invitation until it expires or you revoke it. You choose who to share it with.')
+    safe_url=escape(url)
+    safe_message=quote(message,safe='')
+    url_json=json.dumps(url)
+    st.components.v1.html(f'''<section class="invite-share">
+      <div class="invite-heading"><span>INVITATION LINK</span><strong><i></i>{escape(active_until)}</strong></div>
+      <div class="invite-url"><span title="{safe_url}">{safe_url}</span><button class="copy" type="button">▣&nbsp; Copy</button></div>
+      <div class="invite-channels">
+        <button class="native" type="button">⇧&nbsp; Share</button>
+        <a href="https://wa.me/?text={safe_message}" target="_blank" rel="noopener">◉&nbsp; WhatsApp</a>
+        <a href="mailto:?subject=Join%20me%20on%20UniArena&body={safe_message}">✉&nbsp; Email</a>
+      </div>
+      <p class="share-status" role="status" aria-live="polite"></p>
+    </section>
+    <style>
+      *{{box-sizing:border-box}}body{{margin:0;background:transparent;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
+      .invite-share{{color:#16223e}}.invite-heading{{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;color:#747d96;font-size:11px;font-weight:800;letter-spacing:.04em}}
+      .invite-heading strong{{display:flex;align-items:center;color:#079281;font-size:12px;letter-spacing:0;text-transform:none}}.invite-heading i{{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:#12a994}}
+      .invite-url{{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}}.invite-url span{{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #d9dfec;border-radius:13px;padding:12px;color:#68738b;font-size:13px;line-height:18px}}
+      button,.invite-channels a{{display:flex;align-items:center;justify-content:center;height:44px;border:1px solid #d9dfec;border-radius:13px;background:#fff;color:#16223e;cursor:pointer;font:700 14px system-ui;text-decoration:none;white-space:nowrap}}button.copy{{padding:0 18px;border-color:#5541e8;background:#5541e8;color:#fff;font-size:14px}}
+      .invite-channels{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}.invite-channels button,.invite-channels a{{height:38px;font-size:12px}}button:focus-visible,a:focus-visible{{outline:3px solid #8375ff;outline-offset:2px}}.share-status{{min-height:0;margin:7px 0 0;color:#68738b;font-size:11px}}
+    </style>
+    <script>
+      const url={url_json};const status=document.querySelector('.share-status');
+      document.querySelector('.copy').onclick=async()=>{{try{{await navigator.clipboard.writeText(url);status.textContent='Link copied.'}}catch(_error){{status.textContent='Select and copy the link.'}}}};
+      document.querySelector('.native').onclick=async()=>{{if(!navigator.share){{status.textContent='Use WhatsApp, Email, or Copy link on this browser.';return}}try{{await navigator.share({{title:'Join me on UniArena',text:'Accept my friend invitation on UniArena.',url}});status.textContent='Share menu closed.'}}catch(error){{status.textContent=error.name==='AbortError'?'Sharing cancelled.':'Use WhatsApp, Email, or Copy link instead.'}}}};
+    </script>''',height=136,scrolling=False)

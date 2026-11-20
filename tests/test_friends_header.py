@@ -75,3 +75,11 @@ def test_friends_styles_do_not_change_the_shared_page_container_or_header():
 
 def test_invite_card_headings_match_the_friends_section_heading_scale():
     assert 'font-size:1.5rem!important' in FRIENDS_CSS
+
+
+def test_invite_card_uses_labeled_code_and_link_sections():
+    assert 'Share your code or a link' in APP
+    assert 'YOUR FRIEND CODE' in APP
+    assert 'ADD FRIEND BY CODE' in APP
+    assert 'INVITATION LINK' in APP
+    assert 'Active until' in APP
