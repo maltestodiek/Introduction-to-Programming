@@ -39,9 +39,9 @@ Before a Battle, the initiator chooses one source:
 A Battle Deck already contains its frozen 15-card snapshot. Both participants receive those same 15 questions. Existing 30-second per-question timing remains in force. Later source-deck edits, ratings or ranking changes cannot alter an active or completed Battle.
 
 ### Daily Top Deck ranking
-Each completed Battle participant may rate its selected Battle Deck once, anonymously, using **good**, **neutral** or **bad**. Good contributes `+1`, neutral `0`, and bad `-1` to that Battle Deck's score for the current calendar day in the `Europe/Berlin` time zone (including the MEZ/MESZ changeover). A deck needs at least three ratings on that day to rank. Ties are resolved by the larger number of ratings, then a stable server-side tie-breaker.
+Each completed Battle participant may rate its selected Battle Deck once, anonymously, using **good**, **neutral** or **bad**. Good contributes `+1`, neutral `0`, and bad `-1` to that Battle Deck's score for the current calendar day in the `Europe/Berlin` time zone (including the MEZ/MESZ changeover). Every eligible Battle Deck ranks immediately; a deck without a rating today has a score and rating count of zero. Ties are resolved by the larger number of ratings, then a stable server-side tie-breaker.
 
-Show up to ten ranked decks. If fewer than ten qualify, render the remaining positions as disabled **Outstanding** placeholders. Ratings are visible only as aggregates: the deck creator and other users cannot see which participant supplied a rating.
+Show up to ten ranked decks. If fewer than ten eligible decks exist, render the remaining positions as disabled **Outstanding** placeholders. Ratings are visible only as aggregates: the deck creator and other users cannot see which participant supplied a rating.
 
 A participant may submit at most one lifetime rating for a given Battle Deck. A participant who completes their Battle chooses the rating. If they abandon, time out, or otherwise fail to finish, the server automatically records that participant's one neutral rating. It changes neither the daily score nor XP and cannot later be replaced. A creator playing their own Battle Deck receives no rating control; the resulting non-scoring receipt affects neither ratings nor XP.
 
