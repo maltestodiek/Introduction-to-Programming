@@ -52,3 +52,16 @@ def test_failed_generation_shows_the_error_and_allows_a_new_attempt(monkeypatch)
     assert any('took too long' in item.value for item in at.error)
     assert not button(at,'Generate 1 question drafts').disabled
     assert 'ai_generation_request' not in at.session_state
+
+
+def test_publishing_drafts_creates_the_study_deck_without_the_editor_detour():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    assert 'Create editable Study deck' not in app
+    assert 'ai_draft_ids' not in app
+    section=app[app.index("st.subheader('3. Publish Study deck')"):app.index('def play_request')]
+    order=[section.index("study_request(client,'review_deck',{'draft':clean,'revision':0})"),
+           section.index("study_request(client,'save_deck',{'draft':clean,'revision':0,'review_id':review['id']})"),
+           section.index('repository.publish_drafts(')]
+    assert order==sorted(order)
+    assert 'validate_study_deck' in section
