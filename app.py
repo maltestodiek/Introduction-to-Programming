@@ -2744,7 +2744,7 @@ def battle_screen(client,profile):
     battle_session_history(client,state.get('sessions',[]))
 
 
-LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-name{flex:1}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
+LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-identity{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.sd-lb-name{font-weight:600}.sd-lb-university{color:var(--sd-muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
 
 def leaderboard_rows(rows,repo):
     lines='';cache=st.session_state.setdefault('leaderboard_pictures',{})
@@ -2755,12 +2755,14 @@ def leaderboard_rows(rows,repo):
                 data=repo.image(path);cache[path]=data if isinstance(data,(bytes,bytearray)) else None
             except Exception:cache[path]=None
         image=base64.b64encode(cache[path] or render_avatar(row.get('avatar') or DEFAULT_AVATAR)).decode()
-        lines+=f'<div class="sd-lb-row{" sd-lb-me" if row.get("me") else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{image}" alt=""><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if row.get("me") else ""}</span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
+        university=escape(str(row.get('university') or 'University not set'))
+        lines+=f'<div class="sd-lb-row{" sd-lb-me" if row.get("me") else ""}"><span class="sd-lb-place">#{int(row["rank"])}</span><img src="data:image/png;base64,{image}" alt=""><span class="sd-lb-identity"><span class="sd-lb-name">{escape(str(row["username"]))}{" (you)" if row.get("me") else ""}</span><span class="sd-lb-university">{university}</span></span><span class="sd-lb-xp">{int(row["xp"])} XP</span></div>'
     st.html(LEADERBOARD_STYLE+'<div>'+lines+'</div>')
 
 def leaderboard_demo(profile):
     names=['nora_k','tiago','lena_m','felix','ines','jonas','sofia_r','matteo','clara','diogo','emma_w','lukas','beatriz','hugo','anna_s'];points=[1840,1675,1520,1520,1390,1210,1085,960,870,790,640,455,320,180,60]
-    rows=[{'username':n,'xp':x,'image_path':None,'me':False} for n,x in zip(names,points)]+[{'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'me':True}]
+    universities=['Nova SBE','University of Lisbon','University of Porto','Nova SBE','University of Coimbra']
+    rows=[{'username':n,'xp':x,'image_path':None,'university':universities[i%len(universities)],'me':False} for i,(n,x) in enumerate(zip(names,points))]+[{'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'university':profile.get('university'),'me':True}]
     def ranked(items):return [{**item,'rank':1+sum(other['xp']>item['xp'] for other in items)} for item in sorted(items,key=lambda item:(-item['xp'],item['username']))]
     world=ranked(rows);return {'top':world[:10],'me':next(item for item in world if item['me']),'friends':ranked([item for item in rows if item['me'] or item['username'] in ('tiago','ines','emma_w','hugo')])}
 
