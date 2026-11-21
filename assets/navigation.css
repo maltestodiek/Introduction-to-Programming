@@ -52,11 +52,13 @@
  position: relative;
  padding-inline-start: calc(.7rem + 30px);
 }
-.st-key-sidebar_navigation .st-key-open_chats button [data-testid="stIconMaterial"] {
+.st-key-sidebar_navigation .st-key-open_chats button span:has(> [data-testid="stIconMaterial"]) {
  position: absolute;
  inset-inline-start: .7rem;
  top: 50%;
  transform: translateY(-50%);
+}
+.st-key-sidebar_navigation .st-key-open_chats button [data-testid="stIconMaterial"] {
  font-size: 1.2rem;
 }
 .st-key-sidebar_navigation .st-key-open_chats button:focus-visible {

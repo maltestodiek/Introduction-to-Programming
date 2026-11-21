@@ -365,9 +365,12 @@
     height: 16px;
   }
 
-  .stMain:has(.st-key-chat_workspace) .st-key-open_chats button [data-testid="stIconMaterial"] {
+  .stMain:has(.st-key-chat_workspace) .st-key-open_chats button span:has(> [data-testid="stIconMaterial"]) {
     position: static;
     transform: none;
+  }
+
+  .stMain:has(.st-key-chat_workspace) .st-key-open_chats button [data-testid="stIconMaterial"] {
     font-size: 1rem;
   }
 
