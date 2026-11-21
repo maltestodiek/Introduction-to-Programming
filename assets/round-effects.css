@@ -1,27 +1,5 @@
-/* Shared Battle/Study round effects: start countdown, feedback bursts, streaks.
+/* Shared Battle/Study round effects: feedback bursts, streaks.
    Everything is decorative, times out on its own and never captures clicks. */
-
-/* --- Start countdown overlay --- */
-.round-countdown{position:fixed;inset:0;z-index:2000;display:grid;place-content:center;gap:10px;text-align:center;background:radial-gradient(circle at 50% 40%,rgba(79,70,229,.88),rgba(15,14,40,.94));pointer-events:none}
-.round-countdown-digits{position:relative;height:150px;width:220px;margin:0 auto}
-.round-digit{position:absolute;inset:0;display:grid;place-items:center;font-size:96px;font-weight:800;color:#fff;opacity:0;text-shadow:0 10px 36px rgba(0,0,0,.35)}
-.round-digit.n3{animation:round-digit 1s ease-out 0s both}
-.round-digit.n2{animation:round-digit 1s ease-out 1s both}
-.round-digit.n1{animation:round-digit 1s ease-out 2s both}
-.round-mode-icon{animation:round-go 1s ease-out 3s both}
-.round-mode-icon svg{width:160px;height:160px;overflow:visible;filter:drop-shadow(0 14px 34px rgba(0,0,0,.35))}
-/* The emblem's crossed swords are positioned by the Play page styles; the round loads these rules itself. */
-.round-mode-icon .sword{transform-origin:64px 64px}
-.round-mode-icon .sword-left{transform:rotate(-38deg);animation:round-sword-left .55s ease-out 3.05s both}
-.round-mode-icon .sword-right{transform:rotate(38deg);animation:round-sword-right .55s ease-out 3.05s both}
-@keyframes round-sword-left{0%{transform:rotate(-62deg)}60%{transform:rotate(-30deg)}100%{transform:rotate(-38deg)}}
-@keyframes round-sword-right{0%{transform:rotate(62deg)}60%{transform:rotate(30deg)}100%{transform:rotate(38deg)}}
-.round-countdown-note{margin:0;color:#e0e7ff;font-size:1.1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.round-countdown-still{display:none;margin:0;color:#e0e7ff;font-size:1.3rem;font-weight:700}
-.round-countdown.is-decorative{animation:round-overlay-out .35s ease-in 4.4s forwards}
-@keyframes round-digit{0%{opacity:0;transform:scale(2.4)}18%{opacity:1;transform:scale(1)}80%{opacity:1;transform:scale(.92)}100%{opacity:0;transform:scale(.7)}}
-@keyframes round-go{0%{opacity:0;transform:scale(.4)}40%{opacity:1;transform:scale(1.25)}70%{transform:scale(1)}100%{opacity:1;transform:scale(1)}}
-@keyframes round-overlay-out{to{opacity:0;visibility:hidden}}
 
 /* --- Answer fields match the question card height while answering --- */
 :is([class*="st-key-battle_answer_"],[class*="st-key-study_answer_"]) button{min-height:110px;border-radius:12px;font-size:1rem;padding:12px}
@@ -96,16 +74,11 @@
 @media(max-width:760px){
  :is([class*="st-key-battle_answer_"],[class*="st-key-study_answer_"]) button{min-height:96px;padding:10px;font-size:.94rem}
  .round-streak-banner{font-size:1.4rem;padding:12px 24px}
- .round-digit{font-size:72px}
 }
 
 @media(prefers-reduced-motion:reduce){
- .round-countdown.is-decorative{display:none}
- .round-countdown .round-digit,.round-countdown-note{display:none}
- .round-countdown-still{display:block}
- .round-countdown{animation:none}
  .round-confetti,.round-xp,.round-vignette,.round-streak-banner{display:none}
- .round-burst.is-correct,.is-correct-reveal,.round-streak,.round-tile-flash,.round-score,.round-mode-icon .sword-left,.round-mode-icon .sword-right{animation:none}
+ .round-burst.is-correct,.is-correct-reveal,.round-streak,.round-tile-flash,.round-score{animation:none}
  .round-acc,.round-combo-seg.on,.round-combo-full .round-combo-seg.on{animation:none}
  [class*="st-key-review_tile_"] button:hover{transform:none}
 }

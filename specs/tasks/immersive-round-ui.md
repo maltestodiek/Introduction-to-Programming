@@ -8,7 +8,7 @@ Battle and Study rounds presented questions like a form. A game-like round — a
 
 ## What
 
-**Start countdown.** Before the first question of a fresh Battle or Study round, an overlay counts 3 — 2 — 1 with animated digits, finishes on the animated mode emblem (crossed swords in Battle, the open book in Study), then disappears. In Battle the first question (and its server timer) is only requested after the countdown, so no answer time is lost. A resumed round shows no countdown.
+**Start countdown.** Starting a new Battle or Study session shows 3, 2, 1, Best of Luck!, then Go! in the main panel using the active theme. Keep the sidebar visible. Fetch the first question after the intro so Battle keeps its full answer time. All resume paths skip the intro, even with zero answers. Existing question screens and feedback keep their layout.
 
 **Answer feedback.** A correct chosen answer pops with a green glow, a small confetti burst and, in Battle only, a rising "+XP" chip. A wrong answer keeps its shake and adds a brief red edge vignette, while the correct answer pulses once so the eye finds it. The overview tile of the just-answered question flashes as it takes its colour.
 

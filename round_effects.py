@@ -56,14 +56,29 @@ def combo_markup(streak,pulse=True):
             '<div class="round-combo-track">'+segments+'</div></div>')
 
 
-def countdown_overlay(mode,decorative=False):
-    """The 3-2-1 start overlay ending on the mode's emblem; decorative overlays hide themselves via CSS."""
-    note='Battle starting…' if mode=='battle' else 'Study starting…'
-    icon=(ASSETS/('battle-mode.svg' if mode=='battle' else 'study-mode.svg')).read_text()
-    classes='round-countdown round-countdown-'+mode+(' is-decorative' if decorative else '')
-    return ('<div class="'+classes+'" role="status" aria-label="Round starting">'
-            '<div class="round-countdown-digits">'
-            '<span class="round-digit n3">3</span><span class="round-digit n2">2</span>'
-            '<span class="round-digit n1">1</span><span class="round-digit round-mode-icon">'+icon+'</span>'
-            '</div><p class="round-countdown-note">'+note+'</p>'
-            '<p class="round-countdown-still">Get ready…</p></div>')
+# Durations in milliseconds keep the animation and first question in sync.
+INTRO_BEATS = (('3', 1000), ('2', 1000), ('1', 1000), ('Best of Luck!', 1430), ('Go!', 770))
+INTRO_SECONDS = sum(duration for _, duration in INTRO_BEATS) / 1000
+
+
+def countdown_overlay(mode):
+    """Main-panel intro. Only the decorative spans animate under the status label."""
+    words, marks = [], []
+    delay = 0
+    for word, duration in INTRO_BEATS:
+        style = {'Go!': 'go', 'Best of Luck!': 'wish'}.get(word, '')
+        words.append(f'<span class="beat {style}" style="--delay:{delay}ms;--duration:{duration}ms">{word}</span>')
+        marks.append(f'<i style="--delay:{delay}ms"></i>')
+        delay += duration
+    rays = ''.join(
+        f'<i class="streak" style="--ray:{i * 360 / 26:.2f}deg;--delay:-{(i * 19) % 100 / 70:.2f}s"></i>'
+        for i in range(26)
+    )
+    css = (ASSETS/'session-intro.css').read_text()
+    return (
+        f'<style>{css}</style><div class="ua-intro {mode}" role="status" aria-label="{mode.title()} session starting">'
+        f'<div class="orb" aria-hidden="true"><i class="wave"></i></div>{rays}'
+        f'<span class="mode">{mode.title()} Mode</span>'
+        f'<div aria-hidden="true" style="display:contents">{"".join(words)}</div>'
+        f'<div class="dots" aria-hidden="true">{"".join(marks)}</div></div>'
+    )
