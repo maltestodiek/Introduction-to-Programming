@@ -62,5 +62,5 @@ def test_saved_pdf_import_continues_to_question_generation(monkeypatch):
     button(at,'Continue to question generation').click().run()
     assert at.session_state.get('pdf_import_open') is None
     assert at.session_state['anki_generation_open'] is True
-    assert any(item.value=='Generate reviewed questions' for item in at.heading)
+    assert any(item.value=='Generate reviewed questions' for item in at.header)
     assert not at.exception

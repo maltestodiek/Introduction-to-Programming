@@ -45,12 +45,19 @@ def test_profile_save_valid_input():
     assert len(saves)==1
     assert saves[0].args[1]["p_courses"]==["Corporate Finance"]
 
-def test_signout_clears_session():
-    at,p=signed_in()
-    next(b for b in at.button if b.label=="Sign out").click().run()
+def test_signout_clears_session(monkeypatch):
+    from test_play_landing import PROFILE
+
+    monkeypatch.setattr('db.ProfileRepository.load', lambda self: PROFILE.copy())
+    at, client = signed_in()
+    next(b for b in at.button if b.label == 'Profile').click().run()
+    at.button(key='profile_sign_out').click().run()
+
+    client.auth.sign_out.assert_called_once()
+    assert at.session_state['auth'].user is None
+    assert any(b.label == 'Sign in' for b in at.button)
+    assert 'Your next study win' in at.title[0].value
     assert not at.exception
-    assert "Your next study win" in at.title[0].value
-    assert at.session_state["auth"].user is None
 
 
 def profile_form_with_picker(pick,known=()):

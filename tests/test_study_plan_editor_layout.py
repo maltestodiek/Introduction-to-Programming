@@ -28,7 +28,14 @@ def test_new_plan_preview_guides_until_the_plan_can_be_saved(monkeypatch):
     widget(at.date_input,'Finish by (exam or target date)').set_value(date.today()+timedelta(days=9)).run()
     assert 'To save this plan' not in ' '.join(item.value for item in at.markdown)
     assert any('Per study day' in item.value for item in at.get('html'))
-    assert any('Google Calendar' in item.value for item in at.caption)
+    assert any(
+        'after saving' in item.value.lower()
+        and 'download a calendar file' in item.value.lower()
+        and 'Google Calendar' in item.value
+        and 'registered Google test accounts' in item.value
+        for item in at.caption
+    )
+    assert not any(action in ('save', 'events') for action, _ in calls)
     assert not button(at,'Save study plan').disabled
     assert not at.exception
 

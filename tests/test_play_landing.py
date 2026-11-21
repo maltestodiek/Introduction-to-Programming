@@ -47,8 +47,12 @@ def test_header_logo_opens_play_from_another_page(monkeypatch):
 def test_user_without_a_profile_still_sees_profile_setup(monkeypatch):
     at=signed_in_app(monkeypatch,None)
     assert any(b.label=='Save profile' for b in at.button)
-    keyed(at,'open_home').click().run()
-    assert any(b.label=='Save profile' for b in at.button)
+    assert not any(b.key == 'open_home' for b in at.button)
+    at.text_input(key='profile_username').set_value('student_new').run()
+    next(b for b in at.button if b.label == 'Save profile').click().run()
+    assert at.error
+    assert any(b.label == 'Save profile' for b in at.button)
+    assert not any(title.value == 'Play' for title in at.title)
     assert not at.exception
 
 
