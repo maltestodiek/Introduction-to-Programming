@@ -174,7 +174,8 @@ def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeyp
 
 def test_main_creation_supports_more_than_fifteen_and_reuses_subsections(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Decks').click().run();button(at,'+ Create New Deck').click().run()
+    button(at,'Decks').click().run()
+    button(at,'Create Study Deck').click().run()
     assert 'study_draft' in at.session_state
     draft=complete_deck()
     for card in draft['cards']:card['chapter']='Lecture 1'
@@ -206,11 +207,10 @@ def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
     button(at,'Play').click().run()
     headings=[w.value for w in at.subheader]
     assert 'Create new session' not in headings
-    assert any(w.value=='Your sessions' for w in at.subheader)
-    assert 'Ongoing sessions' in headings
+    assert headings.index('Your study sessions') < headings.index('Ongoing study sessions')
     assert any('Saved finance' in w.value for w in at.markdown)
     assert any('Finished finance' in w.value for w in at.markdown)
-    assert 'Session history' in headings
+    assert headings.index('Ongoing study sessions') < headings.index('Study history')
     assert button(at,'View Study session')
     button(at,'Resume Study').click().run()
     assert ('round',{'id':'active'}) in calls
