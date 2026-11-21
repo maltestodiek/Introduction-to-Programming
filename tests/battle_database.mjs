@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const directory=await fs.mkdtemp(path.join(os.tmpdir(),'uniarena-battle-'));
-const db=new PGlite(path.join(directory,'db'));
+let db=new PGlite(path.join(directory,'db'));
 const A=randomUUID(),B=randomUUID(),C=randomUUID();
 
 async function asUser(id){
@@ -142,5 +142,86 @@ try{
   assert.equal(secondParticipant.reported,true);
   await asUser(C);await assert.rejects(()=>db.query('select battle_round_progress($1)',[sessionId]));
   await assert.rejects(()=>db.query("select report_battle_question($1,0,'other','Not a participant')",[sessionId]));
+  await db.exec('reset role');
+  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261121220000_async_battles.sql',import.meta.url),'utf8'));
+  const settings={course:'Finance',language:'English',source_kind:'random'};
+  const begin=(user,token=randomUUID())=>ok(user,'start_random',{...settings,request_id:token});
+  const xp=async user=>(await fixtureQuery('select game_xp from profiles where id=$1',[user])).rows[0].game_xp;
+  const sessionsFor=async user=>{await asUser(user);return (await db.query('select battle_sessions_list() s')).rows[0].s;};
+  const complete=async(user,id,right)=>{
+    for(let index=0;index<15;index++){
+      const q=await ok(user,'round',{id});
+      assert.equal(q.index,index);
+      await ok(user,'answer',{id,index,answer_id:q.options[right?0:1].id});
+    }
+  };
+  const token=randomUUID();
+  const first=(await begin(A,token)).session_id;
+  assert.ok(first);
+  assert.equal((await begin(A,token)).session_id,first);
+  const initialOverview=await ok(A,'list');
+  assert.equal(initialOverview.search,null);
+  assert.equal(initialOverview.sessions.find(s=>s.id===first).waiting_for_match,true);
+  const firstCard=await ok(A,'round',{id:first});
+  assert.equal(firstCard.state,'question');
+  assert.ok(firstCard.finish_by);
+  await db.close();db=new PGlite(path.join(directory,'db'));
+  const resumed=await ok(A,'round',{id:first});
+  assert.deepEqual([resumed.index,resumed.finish_by],[0,firstCard.finish_by]);
+  await fail(C,'round',{id:first});
+  await fail(C,'start_random',{...settings,request_id:randomUUID()});
+  await complete(A,first,true);
+  const waiting=(await sessionsFor(A)).find(s=>s.id===first);
+  assert.equal(waiting.waiting_for_match,true);
+  assert.equal(waiting.status,'pending');
+  assert.equal(waiting.game_xp_delta,null);
+  assert.ok(Math.abs(Date.parse(waiting.search_until)-Date.now()-48*3600000)<60000);
+  await fixtureQuery("update battle_rounds set finish_by=now()-interval '2 hours' where session_id=$1",[first]);
+  const beforeWin=await xp(A);
+  const secondToken=randomUUID();
+  assert.equal((await begin(B,secondToken)).session_id,first);
+  assert.equal((await begin(B,secondToken)).session_id,first);
+  assert.equal((await ok(A,'cancel_unmatched',{id:first})).cancelled,false);
+  const opponentCard=await ok(B,'round',{id:first});
+  assert.equal(opponentCard.question,firstCard.question);
+  assert.ok(Math.abs(Date.parse(opponentCard.finish_by)-Date.now()-3600000)<60000);
+  assert.equal((await ok(B,'round',{id:first})).finish_by,opponentCard.finish_by);
+  await complete(B,first,false);
+  const final=(await sessionsFor(A)).find(s=>s.id===first);
+  assert.deepEqual([final.status,final.score,final.opponent_score,final.result],['completed',15,0,'win']);
+  await ok(A,'list');assert.equal(await xp(A),beforeWin+final.game_xp_delta);
+  const scoreBeforeExpiry=await xp(A);
+  const solo=(await begin(A)).session_id;
+  await ok(A,'round',{id:solo});
+  await fixtureQuery("update battle_rounds set finish_by=now()-interval '1 second' where session_id=$1",[solo]);
+  const next=(await begin(B)).session_id;
+  assert.notEqual(next,solo);
+  assert.equal((await sessionsFor(A)).some(s=>s.id===solo),false);
+  assert.equal(await xp(A),scoreBeforeExpiry);
+  assert.equal((await begin(A)).session_id,next);
+  await ok(B,'round',{id:next});
+  await fixtureQuery("update battle_rounds set finish_by=now()-interval '1 second' where session_id=$1 and user_id=$2",[next,B]);
+  await ok(A,'list');
+  assert.equal((await sessionsFor(B)).find(s=>s.id===next).result,'loss');
+  const expired=(await begin(A)).session_id;
+  await complete(A,expired,true);
+  await fixtureQuery("update battle_searches set expires_at=now()-interval '1 second' where user_id=$1",[A]);
+  const beforeNoMatch=await xp(A);
+  await ok(A,'list');
+  assert.equal((await sessionsFor(A)).some(s=>s.id===expired),false);
+  assert.equal(await xp(A),beforeNoMatch);
+  // Friend invites stay invitations until accepted; each round then has its own clock.
+  await fixtureQuery("create table public.friend_edges(low_id uuid,high_id uuid,state text)");
+  await fixtureQuery("insert into public.friend_edges values($1,$2,'accepted')",[A,B]);
+  await ok(A,'invite',{...settings,friend_id:B});
+  const incoming=(await ok(B,'list')).invites;
+  assert.equal(incoming.length,1);assert.equal(incoming[0].incoming,true);
+  const friend=(await ok(B,'accept_invite',{invite_id:incoming[0].id})).session_id;
+  const opened=await ok(B,'round',{id:friend});
+  assert.ok(Math.abs(Date.parse(opened.finish_by)-Date.now()-3600000)<60000);
+  assert.equal((await ok(B,'clock',{id:friend})).finish_by,opened.finish_by);
+  assert.equal((await ok(A,'list')).invites.length,0);
+  await fail(C,'clock',{id:friend});
+  console.log('PASS immediate play, same deck, independent deadlines, match expiry and exactly-once XP');
   console.log('PASS Battle Deck creation, immutable snapshots, eligibility and rating without extra XP');
 }catch(error){console.error(error.stack||error);process.exitCode=1;}finally{await db.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}
