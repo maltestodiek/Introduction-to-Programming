@@ -1414,6 +1414,8 @@ def study_public_request(client,action,data=None):
     except ValueError as exc:st.error(str(exc));return None
 
 
+OTHER_UNIVERSITY_HINT = "Switch back to a course’s university in your profile to find players for that course."
+
 STUDY_LEVEL_COLORS={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
 STUDY_LEVELS={'new':'New','0':'Needs practice','1':'Building confidence','2':'Getting stronger','3':'Well practised'}
 STUDY_LEVEL_TITLES={'new':'New','0':'Needs practice','1':'Level 1 · Building confidence','2':'Level 2 · Getting stronger','3':'Level 3 · Well practised'}
@@ -1421,26 +1423,20 @@ STUDY_LEVEL_MEANINGS={'new':'Not answered yet.','0':'Answered, but no correct an
 
 
 def study_level_selector(label,key):
-    selected=[]
-    with st.popover(label,icon=':material/filter_alt:',use_container_width=True):
-        st.caption('Select one or more learning levels.')
-        for level,name in STUDY_LEVEL_TITLES.items():
-            swatch,option=st.columns([1,10],vertical_alignment='center')
-            with swatch:st.html(f'<span aria-hidden="true" style="display:block;width:16px;height:16px;border-radius:5px;background:{STUDY_LEVEL_COLORS[level]}"></span>')
-            if option.checkbox(name,value=True,key=key+'_'+level,help=STUDY_LEVEL_MEANINGS[level]):selected.append(level)
-        st.caption('Each correct answer moves a question up one level; each wrong answer moves it down one.')
-    chips=''.join(f'<span style="display:inline-flex;align-items:center;gap:7px;border:1px solid #80808055;border-radius:8px;padding:5px 8px"><span aria-hidden="true" style="width:12px;height:12px;border-radius:4px;background:{STUDY_LEVEL_COLORS[level]}"></span>{escape(STUDY_LEVEL_TITLES[level])}</span>' for level in selected)
-    if selected:st.html('<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:14px;margin-bottom:10px">'+chips+'</div>')
-    else:st.caption('No learning levels selected.')
+    heading, info = st.columns([8, 1], vertical_alignment='center')
+    heading.markdown(f'**{label}**')
+    with info:
+        study_level_legend(key+'_legend')
+    selected = []
+    with st.container(horizontal=True, key=key+'_cards'):
+        for level, title in STUDY_LEVEL_TITLES.items():
+            if st.checkbox(title, value=True, key=f'{key}_{level}', width='stretch'):
+                selected.append(level)
     return selected
 
 
-def study_progress_summary(cards):
-    counts={k:0 for k in STUDY_LEVELS}
-    for c in cards:counts['new' if c.get('level') is None else str(c['level'])]+=1
-    colors={'new':'#CBD5E1','0':'#FECACA','1':'#FDBA74','2':'#FDE047','3':'#86EFAC'}
-    st.html('<style>'+ (Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style><div class="study-legend">'+''.join(f'<div class="study-level"><span class="study-swatch" style="background:{colors[k]}"></span><span><strong>{STUDY_LEVEL_TITLES[k]}</strong><small>{STUDY_LEVEL_MEANINGS[k]}</small></span><b>{v}</b></div>' for k,v in counts.items())+'</div>')
-    with st.popover(' ',icon=':material/info:',help='Learning progress legend'):
+def study_level_legend(key):
+    with st.popover(' ',icon=':material/info:',help='Learning progress legend',key=key):
         explanations=[
             ('new','New','You have not answered this question yet.'),
             ('0','Needs practice','You answered incorrectly and have no earned steps remaining. One correct answer moves you to level 1.'),
@@ -1449,8 +1445,27 @@ def study_progress_summary(cards):
             ('3','Level 3 · Well practised','You have earned three steps—the highest level. Correct answers keep you here; an incorrect answer moves you back to level 2.')]
         st.write('**How your learning progress works**')
         for level,title,explanation in explanations:
-            st.html(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:inherit"><span style="flex:0 0 16px;height:16px;margin-top:3px;border-radius:5px;background:{colors[level]}"></span><div><strong>{title}</strong><div style="font-size:14px;line-height:1.5;margin-top:3px">{explanation}</div></div></div>')
+            st.html(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:inherit"><span style="flex:0 0 16px;height:16px;margin-top:3px;border-radius:5px;background:{STUDY_LEVEL_COLORS[level]}"></span><div><strong>{title}</strong><div style="font-size:14px;line-height:1.5;margin-top:3px">{explanation}</div></div></div>')
         st.caption('Each correct answer earns one step; each incorrect answer removes one. These levels describe your current progress, not your lifetime number of correct answers. Your first incorrect answer turns a new question red. Your progress stays private.')
+
+
+def study_progress_summary(cards):
+    counts={k:0 for k in STUDY_LEVELS}
+    for c in cards:counts['new' if c.get('level') is None else str(c['level'])]+=1
+    with st.container(horizontal=True, vertical_alignment='center'):
+        st.markdown('**Questions by learning level**')
+        study_level_legend('study_progress_counts_legend')
+    metrics = []
+    for level, count in counts.items():
+        label = STUDY_LEVEL_TITLES[level]
+        metrics.append(
+            f'<div class="study-level" title="{STUDY_LEVEL_MEANINGS[level]}"><dt>{label}</dt><dd>'
+            f'<span class="study-swatch" aria-hidden="true" style="background:{STUDY_LEVEL_COLORS[level]}"></span>'
+            f'{count}</dd></div>'
+        )
+    css = (Path(__file__).parent / 'assets' / 'study-design.css').read_text()
+    st.html(f'<style>{css}</style><dl class="study-legend" aria-label="Questions by learning level">'
+            + ''.join(metrics) + '</dl>')
     st.progress(sum((c.get('level') or 0) for c in cards)/(3*len(cards)) if cards else 0,text='Your learning progress')
 
 
@@ -1747,14 +1762,19 @@ def study_plan_clock():
     except Exception:return datetime.now().time()
 
 
-def study_plan_today(client,plan,levels,by_deck,decks,today,prefix):
-    """Today's sessions of one plan with a start button for everything still open. The day's amount is fixed once per day."""
+def study_plan_day_sessions(client,plan,levels,today):
+    """Fix today's workload once and read the remaining sessions for both plan views."""
     import study_plan as rules
-    now=study_plan_clock()
     if (plan.get('day') or {}).get('date')!=today.isoformat():
         plan['day']=rules.day_snapshot(plan,levels,today)
         if plan['day']['planned']:study_plan_quiet(client,'save',{'id':plan['id'],'plan':{k:v for k,v in plan.items() if k not in ('id','calendar_events')}})
-    sessions=rules.today_sessions(plan,levels,today)
+    return rules.today_sessions(plan,levels,today)
+
+
+def study_plan_today(client,plan,levels,by_deck,decks,today,prefix):
+    import study_plan as rules
+    now=study_plan_clock()
+    sessions=study_plan_day_sessions(client,plan,levels,today)
     if not sessions:
         st.caption('No session planned for today.');return
     st.write("**Today's sessions**")
@@ -1768,17 +1788,50 @@ def study_plan_today(client,plan,levels,by_deck,decks,today,prefix):
 
 
 def study_plan_play_todos(client,study_data,prefix='todo'):
-    """Open study plan sessions of today, listed with the ongoing Study sessions on Play."""
+    """Show today's planned solo practice on the Study Mode and Study alone screens."""
     from datetime import date
-    data=study_plan_quiet(client,'list')
-    if not data or not data.get('plans') or not study_data:return
-    decks=study_plan_decks(client,study_data);today=date.today()
-    st.markdown('**:material/event_available: Study plan to-dos**')
-    for stored in data['plans']:
-        plan={**stored['plan'],'id':stored['id']};by_deck={};levels=study_plan_levels(client,plan,decks,by_deck)
-        if levels is None:continue
-        with st.container(border=True):
-            st.write('**'+plan['name']+'**');study_plan_today(client,plan,levels,by_deck,decks,today,prefix)
+    from study_plan import session_overdue
+
+    data = study_plan_quiet(client, 'list')
+    if not data or not study_data:
+        return
+    today = date.today()
+    now = study_plan_clock()
+    decks = study_plan_decks(client, study_data)
+    with st.container(key=f'study_agenda_{prefix}', border=True):
+        st.subheader("Today's study plan")
+        st.caption(f":material/calendar_today: {today:%A, %d %B}")
+        if not data.get('plans'):
+            st.write('Create a study plan to see your scheduled practice here.')
+            st.button('Open Study Plan', key=f'{prefix}_open_plan', on_click=navigate, args=('Study Plan',))
+            return
+        for stored in data['plans']:
+            plan = {**stored['plan'], 'id': stored['id']}
+            by_deck = {}
+            levels = study_plan_levels(client, plan, decks, by_deck)
+            if levels is None:
+                continue
+            sessions = study_plan_day_sessions(client, plan, levels, today)
+            with st.container(key=f"agenda_plan_{prefix}_{plan['id']}"):
+                st.html(f"<h4 class='agenda-plan-title'>{escape(plan['name'])}</h4>")
+                if not sessions:
+                    st.caption('No session scheduled for today.')
+                for index, session in enumerate(sessions):
+                    name, time = session['name'], session['time']
+                    if not session['open']:
+                        st.caption(f":material/check_circle: {name} · {time} · Completed")
+                        continue
+                    for course, steps in session['courses'].items():
+                        details, action = st.columns([3, 1], vertical_alignment='center')
+                        details.html(f"<strong class='agenda-course'>{escape(course)}</strong>")
+                        unit = 'question' if steps == 1 else 'questions'
+                        details.caption(f"{name} · {time} · {steps} {unit} left")
+                        overdue = session_overdue(time, now)
+                        if action.button('Catch up' if overdue else 'Start session',
+                                         key=f"{prefix}_start_{plan['id']}_{index}_{course}",
+                                         icon=':material/play_arrow:', use_container_width=True,
+                                         help=f"Start {course} practice scheduled for {time}."):
+                            study_plan_start(client, plan, course, steps, by_deck, decks)
 
 
 def study_plan_workload_text(rules,plan,item,levels,today,schedule):
@@ -2154,7 +2207,12 @@ def study_plan_screen(client,profile,user_id=''):
 
 
 def study_design():
-    st.html('<style>'+(Path(__file__).parent/'assets'/'study-design.css').read_text()+'</style>')
+    css=(Path(__file__).parent/'assets'/'study-design.css').read_text()
+    colors=''.join(
+        f'.st-key-study_solo_levels_{level},.st-key-study_together_levels_{level}{{--level-color:{color}}}'
+        for level,color in STUDY_LEVEL_COLORS.items()
+    )
+    st.html(f'<style>{css}{colors}</style>')
 
 
 def study_avatar(kind):
@@ -2178,6 +2236,34 @@ def study_choice_cards(key,choices,locked=False):
     return selected
 
 
+def study_continue_sessions(client, sessions, together):
+    from logic import STUDY_ONGOING_STATES
+    active = [s for s in sessions if s['state'] in STUDY_ONGOING_STATES
+              and (s['mode'] != 'solo') == together]
+    st.subheader('Continue session')
+    if not active:
+        st.caption('No ongoing sessions in this mode.')
+        return
+    for session in active:
+        sid = session['id']
+        waiting = session['state'] == 'waiting'
+        with st.container(border=True, key='study_continue_'+sid):
+            details, action = st.columns([3, 1], vertical_alignment='center')
+            details.text(session['name'])
+            details.caption(f"{study_mode_label(session['mode'])} · {session['cursor']} / {session['count']} answered")
+            if waiting:
+                details.caption('Waiting for a study partner')
+            if action.button('Open session' if waiting else 'Continue', key='study_resume_'+sid, use_container_width=True):
+                resume_study_session(session)
+            if together:
+                session_partner_chat(client,'study',sid,'saved')
+                if session['state'] in ('own','waiting') and st.button('Cancel search / invitation',key='study_cancel_'+sid):
+                    if study_request(client,'cancel',{'id':sid}) is not None:
+                        st.rerun()
+    if st.button('Refresh study sessions'):
+        st.rerun()
+
+
 def study_screen(client,profile):
     from uuid import uuid4
     from logic import filter_study_cards
@@ -2192,7 +2278,10 @@ def study_screen(client,profile):
     if st.session_state.get('study_session'):
         study_round_screen(client,st.session_state.study_session);return
     if st.button('Change study mode',icon=':material/arrow_back:'):
-        st.session_state.pop('study_active',None);st.session_state.pop('study_choose',None);st.session_state.pop('study_invite_friend',None);st.session_state.pop('play_mode_preview',None);st.rerun()
+        st.session_state.pop('study_active', None)
+        st.session_state.pop('study_invite_friend', None)
+        st.session_state.play_mode_preview = 'Study'
+        st.rerun()
     data=study_request(client,'list')
     if data is None:return
     # Incoming invitations stay above all setup, regardless of selected course.
@@ -2209,20 +2298,11 @@ def study_screen(client,profile):
                 if decline.button('Decline',key='study_decline_'+invite['id']):
                     if study_request(client,'decline',{'id':invite['id']}) is not None:
                         st.session_state.pop('study_join',None);st.rerun()
-    with st.expander('Your saved study sessions',expanded=False):
-        if st.button('Refresh study sessions'):st.rerun()
-        for s in data['sessions']:
-            status = s['state'].capitalize()
-            if s.get('result'):
-                status += f" · {s['result']}"
-            cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {status} · {s['count']} questions")
-            if s['mode']!='solo':session_partner_chat(client,'study',s['id'],'saved')
-            if cols[1].button('Open',key='study_resume_'+s['id']):open_round('study', s['id'], fresh=False)
-            if s['state'] in ('own','waiting') and s['mode']!='solo':
-                if st.button('Cancel search / invitation',key='study_cancel_'+s['id']):
-                    if study_request(client,'cancel',{'id':s['id']}) is not None:st.rerun()
     choice=st.session_state.get('study_choice','Study alone')
     together=choice=='Study together'
+    if not together:
+        study_plan_play_todos(client,data,'solo')
+    study_continue_sessions(client, data['sessions'], together)
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
     if together:
         st.caption('Before matching, your unfinished session expires after 48 hours of inactivity. Once you finish your half, the search stays open for 48 hours. Your practice progress is saved.')
@@ -2246,7 +2326,6 @@ def study_screen(client,profile):
         decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
-    if not together:study_plan_play_todos(client,data,'solo')
     st.subheader('Your session settings' if offer else 'Create a new study session')
     courses=sorted({d['course'] for d in decks});course=st.selectbox('Study course',courses)
     choices=[d for d in decks if d['course']==course]
@@ -2369,6 +2448,16 @@ def show_more_history():
     st.session_state.sessions_history_limit=st.session_state.get('sessions_history_limit',5)+10
 
 
+def study_mode_label(mode):
+    return {'solo':'Study alone','friend':'Study together · Friend','random':'Study together · Random player'}[mode]
+
+
+def study_mode_badge(mode):
+    if mode=='solo':
+        return f':blue-badge[:material/person: {study_mode_label(mode)}]'
+    return f':violet-badge[:material/group: {study_mode_label(mode)}]'
+
+
 def session_card(client,kind,session):
     """One ongoing Battle or Study session with its progress, turn and resume action."""
     with st.container(border=True,key=f"session_card_{kind}_{session['id']}"):
@@ -2382,9 +2471,10 @@ def session_card(client,kind,session):
             if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id'],use_container_width=True):
                 open_round('battle', session['id'], fresh=not session.get('started'))
             return
+        st.markdown(study_mode_badge(session['mode']))
         st.markdown(':material/menu_book: **'+session['name']+'**')
         if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'home')
-        st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
+        st.caption(f"{session['cursor']} / {session['count']} answered")
         st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
         if session['state']=='waiting':st.markdown(':gray-badge[Waiting for a study partner]')
         else:st.markdown(':green-badge[Your turn]')
@@ -2397,34 +2487,23 @@ def session_card(client,kind,session):
 
 def ongoing_sessions(client):
     """Study Mode dashboard: continuation, session history and Study Plan to-dos."""
-    from logic import STUDY_ONGOING_STATES,session_continue_pick,session_history_rows,time_left_text
+    from logic import STUDY_ONGOING_STATES,session_continue_pick,session_history_rows
     study_data=study_request(client,'list')
     st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
     study_sessions=(study_data or {}).get('sessions',[])
     study_ongoing=[s for s in study_sessions if s['state'] in STUDY_ONGOING_STATES]
     study_finished=[s for s in study_sessions if s['state'] not in STUDY_ONGOING_STATES]
-    st.subheader('Your study sessions')
-    main,side=st.columns([2.3,1],gap='large')
+    study_plan_play_todos(client,study_data)
+    st.subheader('Ongoing study sessions')
+    main,side=st.columns([2.3,1],gap='large',vertical_alignment='top')
     with main:
+        if not study_ongoing:st.caption('No ongoing sessions. Start a new one above.')
         pick=session_continue_pick([],study_ongoing)
         if pick:
-            session=pick['session']
-            with st.container(border=True,key='sessions_continue'):
-                text,action=st.columns([3,1.2],vertical_alignment='center')
-                with text:
-                    left=time_left_text(session.get('deadline'))
-                    st.caption('Continue where you left off'+(' · '+left if left else ''))
-                    st.markdown('**'+session['name']+'**')
-                    st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
-                    st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
-                if action.button('Resume',key='continue_session',icon=':material/play_arrow:',type='primary',use_container_width=True):resume_study_session(session)
-        st.subheader('Ongoing study sessions')
-        cards=[('study',session) for session in study_ongoing]
-        if not cards:st.caption('No ongoing sessions. Start a new one above.')
-        else:st.caption(f"{len(cards)} active")
-        for row in range(0,len(cards),2):
-            for column,(kind,session) in zip(st.columns(2),cards[row:row+2]):
-                with column:session_card(client,kind,session)
+            study_ongoing.sort(key=lambda session:session['id']!=pick['session']['id'])
+        for row in range(0,len(study_ongoing),2):
+            for column,session in zip(st.columns(2),study_ongoing[row:row+2]):
+                with column:session_card(client,'study',session)
         st.subheader('Study history')
         rows=session_history_rows([],study_finished)
         if not rows:st.caption('No finished sessions yet. Your results will appear here.')
@@ -2438,18 +2517,17 @@ def ongoing_sessions(client):
                     result.markdown(f":{item['tone']}-badge[{item['result']}]")
                     deck.markdown(item['deck'])
                     with mode:
-                        if item['kind']=='study' and item['session']['mode']!='solo':session_partner_chat(client,'study',item['id'],'history')
-                        else:st.markdown(item['mode'])
+                        st.markdown(study_mode_badge(item['session']['mode']))
+                        if item['session']['mode']!='solo':session_partner_chat(client,'study',item['id'],'history')
                     score.markdown(item['score']);xp.markdown(item['xp'])
                     if action.button('View Study session',key='history_study_'+item['id'],use_container_width=True):
-                        st.session_state.study_active=True;open_round('study', item['id'], fresh=False)
+                        resume_study_session(item['session'])
             if len(rows)>limit:st.button('Show more',key='sessions_history_more',on_click=show_more_history,use_container_width=True)
     with side:
         with st.container(key='sessions_stat_study'):
             st.caption('Study sessions finished')
             st.markdown(f"### {sum(1 for s in study_finished if s['state']=='completed')}")
             st.caption(f"{sum(s.get('cursor',0) for s in study_sessions)} questions answered in Study sessions")
-        study_plan_play_todos(client,study_data)
 
 
 def battle_request(client,action,data=None):
@@ -3477,10 +3555,12 @@ if not editing:
     st.caption("Only you can see your course selections.")
     for course in profile["courses"]:
         st.write(f":material/school: {course} ({profile['university']})")
-    for campus, saved_courses in other_university_courses(profile, profile["university"]).items():
+    other_courses = other_university_courses(profile, profile["university"])
+    for campus, saved_courses in other_courses.items():
         for course in saved_courses:
             st.write(f":material/school: {course} ({campus})")
-            st.caption("Switch back to this university to find players for this course.")
+    if other_courses:
+        st.caption(OTHER_UNIVERSITY_HINT)
     if st.session_state.get("pending_invite"):
         st.info("You have a friend invitation. Open Friends to review and accept it.")
     if st.session_state.get("adding_courses"):
@@ -3570,8 +3650,11 @@ courses=match_courses(courses,listed_courses)
 st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too. Course selections are saved separately for each university.")
 if profile and university != profile["university"]:
     st.caption("Switching universities closes pending match searches and invitations. You can still finish matches that already have a partner.")
-    for campus, saved_courses in other_university_courses(profile, university).items():
-        st.caption(f"{campus} · {', '.join(saved_courses)} · Switch back to find players for these courses.")
+    other_courses = other_university_courses(profile, university)
+    for campus, saved_courses in other_courses.items():
+        st.caption(f"{campus} · {', '.join(saved_courses)}")
+    if other_courses:
+        st.caption(OTHER_UNIVERSITY_HINT)
 languages=st.multiselect("Languages",LANGUAGES,default=profile.get("languages",[]))
 st.caption("University and languages are visible to signed-in students. Which courses you take stays private; only the course names in use at a university are shared.")
 st.subheader("Your look")

@@ -7,13 +7,54 @@
 [class*="st-key-study_choice_"][class*="selected"],[class*="st-key-study_partner_"][class*="selected"]{border-color:var(--sd-accent)!important;background:linear-gradient(135deg,var(--sd-surface),var(--sd-study-end))}
 [class*="st-key-study_choice_"]:hover .study-icon,[class*="st-key-study_partner_"]:hover .study-icon{animation:study-float .6s ease}
 [class*="st-key-study_invitation_"]{border-radius:18px!important;border-left:4px solid var(--sd-accent)!important;background:var(--sd-surface)}
-.study-legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin:14px 0 20px}
-.study-level{display:flex;gap:10px;align-items:center;padding:10px 0;color:var(--sd-text)}
-.study-swatch{flex:0 0 16px;width:16px;height:16px;border-radius:5px;box-shadow:inset 0 0 0 1px #00000015}
-.study-level strong{display:block;font-size:13px;font-weight:650;line-height:1.5}.study-level small{display:block;font-size:11px;color:var(--sd-muted);line-height:1.5}.study-level b{margin-left:auto;font-size:16px;font-variant-numeric:tabular-nums}
+.study-legend {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: .85rem 0;
+    margin: .4rem 0;
+    border: 1px solid var(--sd-border);
+    border-radius: 14px;
+    background: var(--sd-surface);
+}
+.study-level {
+    min-width: 0;
+    padding: 0 clamp(.15rem, 1vw, .75rem);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    justify-items: center;
+    gap: .35rem;
+    text-align: center;
+    color: var(--sd-text);
+}
+.study-level + .study-level { border-inline-start: 1px solid var(--sd-border); }
+.study-level dt {
+    grid-row: 2;
+    font-size: .8rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--sd-muted);
+    overflow-wrap: anywhere;
+}
+.study-level dd {
+    grid-row: 1;
+    margin: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .4rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.study-swatch {
+    width: 88%;
+    height: .35rem;
+    border-radius: 1rem;
+}
 @keyframes study-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px) rotate(-4deg)}}
 @media(prefers-reduced-motion:reduce){[class*="st-key-study_choice_"],[class*="st-key-study_partner_"],.study-icon{animation:none!important;transition:none!important;transform:none!important}}
-@media(max-width:500px){.study-legend{grid-template-columns:1fr 1fr;gap:4px 18px}.study-icon{width:48px;height:48px}}
+@media(max-width:500px){.study-icon{width:48px;height:48px}}
 
 .study-avatar{width:80px;height:80px;position:relative;margin-bottom:12px;transition:transform .2s}
 .study-avatar img{width:80px;height:80px;object-fit:cover;border-radius:50%;background:var(--sd-avatar)}
@@ -22,3 +63,106 @@
 @media(prefers-reduced-motion:reduce){.study-avatar{transition:none!important;transform:none!important}}
 
 .study-avatar-question{position:absolute;top:19px;left:0;width:80px;text-align:center;font:bold 32px/36px Arial,sans-serif;color:white;pointer-events:none}
+
+/* Today's agenda in Study Mode and solo setup. */
+[class*="st-key-study_agenda_"] {
+    padding: clamp(1rem, 2.5vw, 1.6rem);
+    border-radius: 16px;
+    border-inline-start: 4px solid var(--sd-accent);
+    background: var(--sd-surface);
+    gap: .45rem;
+}
+[class*="st-key-study_agenda_"] h3 { padding: 0 0 .7rem; }
+[class*="st-key-agenda_plan_"] {
+    margin-top: .45rem;
+    padding-top: .8rem;
+    border-top: 1px solid var(--sd-border);
+    gap: .65rem;
+}
+[class*="st-key-agenda_plan_"] .agenda-plan-title {
+    margin: 0;
+    padding: 0;
+    color: var(--sd-accent);
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+.agenda-course { color: var(--sd-text); overflow-wrap: anywhere; }
+[class*="st-key-agenda_plan_"] [data-testid="stColumn"] [data-testid="stVerticalBlock"] { gap: .15rem; }
+
+/* Keep the five filters aligned; compact screens get full-width tap targets. */
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    container: study-filters / inline-size;
+    gap: .65rem;
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label {
+    display: flex;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 5.75rem;
+    padding: 1.75rem .75rem .65rem;
+    border: 1px solid var(--sd-border);
+    border-radius: 14px;
+    background: var(--sd-surface);
+    cursor: pointer;
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label::before {
+    content: '';
+    position: absolute;
+    inset: .8rem 2.45rem auto .75rem;
+    height: .35rem;
+    border-radius: 1rem;
+    background: var(--level-color);
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label:has(input:checked) {
+    border-color: var(--sd-accent);
+    background: color-mix(in srgb, var(--level-color) 12%, var(--sd-surface));
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label:has(input:focus-visible) {
+    outline: 2px solid var(--sd-accent);
+    outline-offset: 2px;
+}
+
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) [data-testid="stCheckbox"] {
+    height: 100%;
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label > div:first-of-type {
+    position: absolute;
+    inset: .5rem .75rem auto auto;
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) [data-testid="stWidgetLabel"] {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) [data-testid="stMarkdownContainer"],
+:is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) [data-testid="stMarkdownContainer"] p {
+    display: block;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    line-height: 1.35;
+}
+@container study-filters (max-width: 36rem) {
+    :is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) > * {
+        grid-column: 1 / -1;
+    }
+    :is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label {
+        min-height: 2.85rem;
+        padding: .6rem 2.5rem .6rem 1.45rem;
+    }
+    :is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label::before {
+        inset: .6rem auto .6rem .6rem;
+        width: .3rem;
+        height: auto;
+    }
+    :is(.st-key-study_solo_levels_cards, .st-key-study_together_levels_cards) label > div:first-of-type {
+        top: 50%;
+        transform: translateY(-50%);
+    }
+}

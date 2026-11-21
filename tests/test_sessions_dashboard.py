@@ -61,3 +61,32 @@ def test_timed_out_study_match_shows_a_loss_in_completed_history():
                    result='Loss', cursor=10, count=20)
     row, = session_history_rows([], [session])
     assert (row['result'], row['tone']) == ('Loss', 'red')
+
+
+def test_study_dashboard_shows_each_active_session_once_and_labels_history(monkeypatch):
+    at=deck_app(monkeypatch)
+    waiting=dict(STUDY[0], id='s-wait', mode='random', state='waiting', deadline=None)
+    finished=dict(STUDY[0], id='s-finished', state='completed', result='Win')
+    monkeypatch.setattr('db.StudyRepository.action', Mock(return_value={
+        'invites': [], 'sessions': [*STUDY, waiting, finished], 'decks': [], 'shared': [],
+    }))
+    button(at,'Play').click().run()
+    button(at,'Study Mode').click().run()
+    assert not at.exception
+    assert [h.value for h in at.subheader] == ['Ongoing study sessions', 'Study history']
+    assert [b.key for b in at.button if b.label in ('Resume Study', 'Open Study', 'Resume')] == [
+        'home_study_s-together', 'home_study_s-solo', 'home_study_s-wait']
+    badges=[m.value for m in at.markdown if '-badge[' in m.value]
+    assert sum('Study alone' in badge for badge in badges)==2
+    assert sum('Study together' in badge for badge in badges)==3
+
+    for mode, expected in [
+        ('Study alone', {'s-solo'}),
+        ('Study together', {'s-together', 's-wait'}),
+    ]:
+        button(at,mode).click().run()
+        assert not at.exception
+        assert {b.key.removeprefix('study_resume_') for b in at.button
+                if (b.key or '').startswith('study_resume_')} == expected
+        button(at,'Play').click().run()
+        button(at,'Study Mode').click().run()

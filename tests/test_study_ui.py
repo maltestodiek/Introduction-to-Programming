@@ -44,9 +44,15 @@ def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypa
 
 def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run();button(at,'Study Mode').click().run();button(at,'Study together').click().run()
+    button(at,'Change study mode').click().run();button(at,'Study together').click().run()
     assert button(at,'Start studying').disabled
     assert any('20 questions = 10 from your deck + 10' in w.value for w in at.info)
+    assert any(p.proto.popover.help=='Learning progress legend' for p in at.get('popover'))
+    for level in ('new', '0', '1', '2', '3'):
+        at.checkbox(key='study_together_levels_'+level).uncheck()
+    at.run()
+    assert any('Choose at least one preferred learning level' in w.value for w in at.warning)
+    at.checkbox(key='study_together_levels_new').check().run()
     next(w for w in at.checkbox if w.label.startswith('I agree')).check().run()
     assert not button(at,'Start studying').disabled
     next(w for w in at.selectbox if w.label=='Total questions').set_value(100).run()
@@ -101,7 +107,7 @@ def test_decks_navigation_returns_from_study_library_to_course_decks(monkeypatch
 
 def test_friend_settings_only_request_eligible_friends(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run();button(at,'Study Mode').click().run();button(at,'Study together').click().run();button(at,'Friend').click().run()
+    button(at,'Change study mode').click().run();button(at,'Study together').click().run();button(at,'Friend').click().run()
     assert ('friend_options',{'deck_id':d['id']}) in calls
     assert not any('Invite even' in w.label for w in at.checkbox)
     assert any('don’t have any friends yet' in w.value for w in at.info)
@@ -129,11 +135,13 @@ def test_incoming_invites_visible_before_course_setup(monkeypatch):
 
 def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run()
-    assert button(at,'Study Mode')
-    assert not any(b.label in ('Study alone','Study together') for b in at.button)
-    button(at,'Study Mode').click().run()
-    assert button(at,'Study alone') and button(at,'Study together')
+    for current in ('Study alone', 'Study together'):
+        assert at.session_state['study_choice'] == current
+        button(at,'Change study mode').click().run()
+        assert button(at,'Study alone') and button(at,'Study together')
+        assert not any(b.label=='Battle Mode' for b in at.button)
+        if current=='Study alone':
+            button(at,'Study together').click().run()
     assert not any(b.label=='Change play mode' for b in at.button)
     button(at,'Play').click().run()
     assert button(at,'Study Mode')
@@ -143,7 +151,7 @@ def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
 
 def test_selected_battle_mode_hides_mode_picker_without_a_redundant_change_button(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run()
+    button(at,'Play').click().run()
     button(at,'Battle Mode').click().run()
     assert not any(w.value=='Create new session' for w in at.subheader)
     assert not any(b.label=='Study Mode' for b in at.button)
@@ -217,7 +225,7 @@ def test_play_landing_shows_only_the_two_mode_cards(monkeypatch):
     assert not at.exception
 
 
-def test_colour_dropdown_keeps_combined_learning_levels(monkeypatch):
+def test_level_cards_keep_combined_learning_levels(monkeypatch):
     at,calls,d=setup(monkeypatch)
     for label in ['Level 1 · Building confidence','Level 2 · Getting stronger','Level 3 · Well practised']:
         next(w for w in at.checkbox if w.label==label).uncheck()

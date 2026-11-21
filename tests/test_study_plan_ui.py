@@ -206,12 +206,19 @@ def test_finished_sessions_are_marked_done_and_plan_is_deleted_only_after_confir
 def test_plan_to_dos_appear_above_new_solo_session_in_study_mode(monkeypatch):
     plan=google_plan();plan['calendar_events']=[];plan['plan'].update(sessions=2,times=['09:00','19:00'])
     at,calls=setup(monkeypatch,[plan],levels=(None,)*150)
-    button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
+    button(at,'Play').click().run();button(at,'Study Mode').click().run()
+    assert any(h.value=="Today's study plan" for h in at.subheader)
+    assert at.button(key='todo_start_plan-1_0_Finance').label=='Start session'
+    button(at,'Study alone').click().run()
     labels=[b.label for b in at.button]
-    assert 'Start morning session · Finance · 15 questions' in labels and 'Start studying' in labels
-    assert labels.index('Start morning session · Finance · 15 questions')<labels.index('Start studying')
+    headings=[h.value for h in at.subheader]
+    assert headings.index("Today's study plan") < headings.index('Continue session') < headings.index('Create a new study session')
+    assert labels.index('Start session')<labels.index('Start studying')
     assert any(s.value=='Create a new study session' for s in at.subheader)
-    button(at,'Start morning session · Finance · 15 questions').click().run()
+    morning=at.button(key='solo_start_plan-1_0_Finance')
+    assert 'Finance' in morning.help and '09:00' in morning.help
+    assert any('15 questions left' in c.value and '09:00' in c.value for c in at.caption)
+    morning.click().run()
     assert any(a=='study:start' for a,_ in calls) and at.session_state['study_session']=='session-1'
     assert not at.exception
 
