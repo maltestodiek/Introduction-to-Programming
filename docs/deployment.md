@@ -1,7 +1,7 @@
 # Hosting, durable storage and releases
 
 ## Current deployment
-The app is https://studyduel-nova-main.streamlit.app/. Streamlit Community Cloud runs `app.py` from `maltestodiek/Introduction-to-Programming`, branch `main`, with Python 3.13 and dependencies from pyproject.toml/uv.lock.
+Open [uniarena.net](https://uniarena.net) to reach [the hosted UniArena app](https://uniarena.streamlit.app/). Streamlit Community Cloud runs `app.py` from `maltestodiek/Introduction-to-Programming`, branch `main`, with Python 3.13 and dependencies from pyproject.toml/uv.lock.
 
 Merge reviewed and verified task branches into main to deploy. The previous first-feature branch is no longer a hosting dependency. Do not push releases there.
 
@@ -21,7 +21,7 @@ The SQL files in supabase/ are versioned setup and incremental update scripts. M
 ## Public URL repair — 13 November 2026
 The transferred studyduel-nova.streamlit.app address stayed on the outer loading spinner. Rebooting reached the manager startup stage without exposing a Python exception. The same main deployment loaded normally at a temporary alternate address, while reassigning the old address still failed. This points to a hosting-route problem; the provider-internal cause was not confirmed.
 
-The working permanent URL is now https://studyduel-nova-main.streamlit.app/. APP_URL and PUBLIC_APP_URL in hosting configuration, Supabase Site URL, and the exact root/invitation redirects were updated. Localhost development remains allowed. Old public redirects were removed. Accounts, credentials, decks, messages and database tables were not changed. Users must sign in at the new origin; existing bookmarks and previously shared invitation URLs need the new hostname (the invitation token itself is unchanged). Request a fresh confirmation/recovery email if an old email points to the retired hostname.
+From 13 to 18 November, the app used `https://studyduel-nova-main.streamlit.app/`. APP_URL and PUBLIC_APP_URL in hosting configuration, Supabase Site URL, and the exact root/invitation redirects were updated. Localhost development remains allowed. Old public redirects were removed. Accounts, credentials, decks, messages and database tables were not changed. Users must sign in at the new origin; existing bookmarks and previously shared invitation URLs need the new hostname (the invitation token itself is unchanged). Request a fresh confirmation/recovery email if an old email points to the retired hostname.
 
 Verification: the welcome and sign-in screens load at the new URL, including a fresh reload. No application code change was needed; real email delivery and a signed-in session at the new origin remain user checks.
 

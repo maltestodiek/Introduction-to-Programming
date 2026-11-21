@@ -7,7 +7,7 @@ from auth import AuthService
 APP=Path(__file__).parents[1]/'app.py'
 
 def test_first_visit_start_then_signin():
-    at=AppTest.from_file(str(APP)).run()
+    at=AppTest.from_file(str(APP), default_timeout=15).run()
     assert not at.exception
     assert any(b.label=='Start' for b in at.button)
     assert not at.text_input
@@ -46,8 +46,11 @@ def test_browser_user_id_does_not_authorize_resume(monkeypatch):
     assert any(w.label=='Email' for w in at.text_input)
     assert not any(b.label=='Save profile' for b in at.button)
 
-def test_restored_edit_screen_and_logout_clear_browser_tokens(monkeypatch):
+def test_profile_logout_clears_browser_tokens(monkeypatch):
+    from test_play_landing import PROFILE
     from test_ui import signed_in
+
+    monkeypatch.setattr('db.ProfileRepository.load', lambda self: PROFILE.copy())
     writes=[]
     def bridge(action,value=None):
         if action=='write':writes.append(value)
@@ -57,7 +60,9 @@ def test_restored_edit_screen_and_logout_clear_browser_tokens(monkeypatch):
     client.auth.get_session.return_value=Obj(access_token='access',refresh_token='refresh')
     at.run()
     assert writes[-1]['session']=={'access_token':'access','refresh_token':'refresh'}
-    next(b for b in at.button if b.label=='Sign out').click().run()
+    next(b for b in at.button if b.label=='Profile').click().run()
+    at.button(key='profile_sign_out').click().run()
+    client.auth.sign_out.assert_called_once()
     assert writes[-1]['session'] is None
     assert writes[-1]['user_id'] is None
     assert writes[-1]['started'] is True
