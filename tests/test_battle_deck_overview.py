@@ -138,3 +138,12 @@ def test_pending_invitation_card_lists_the_deck_before_status_opponent_and_cours
     assert "direction.upper()+' · '+invite['username']" in APP
     assert "escape(str(invite['course']))" in APP
     assert 'strong title="'+"'+safe_deck+'" in APP
+
+
+def test_incoming_battle_invitation_is_marked_as_new_and_has_a_primary_accept_action():
+    assert "battle_overview_invite_received_" in APP
+    assert 'battle-invite-new' in APP
+    assert "accept.button('Accept',key='battle_accept_'+invite['id'],type='primary'" in APP
+    assert '[class*="st-key-battle_overview_invite_received_"]' in BATTLE_OVERVIEW_CSS
+    assert '.battle-invite-new{position:absolute' in BATTLE_OVERVIEW_CSS
+    assert 'background:#c9f5e7' in BATTLE_OVERVIEW_CSS
