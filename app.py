@@ -3242,9 +3242,10 @@ if not auth.user:
     st.title("Your next study win starts here.")
     st.write("Create your student profile. Build your knowledge, then challenge your friends.")
     mode=st.segmented_control("Account",["Sign in","Create account"],default=None if "account_mode" in st.session_state else "Sign in",key="account_mode")
-    if st.session_state.pop("clear_account_passwords",False):
-        st.session_state["account_password"]=""
-        st.session_state["account_confirmation"]=""
+    signup_notice = st.session_state.pop("signup_verification_notice", None)
+    if signup_notice:
+        for key in ("account_username", "account_email", "account_password", "account_confirmation"):
+            st.session_state[key] = ""
     with st.form("account",clear_on_submit=False):
         username=None
         username_error=None
@@ -3252,21 +3253,28 @@ if not auth.user:
             username=st.text_input("Username",key="account_username")
             st.caption("3–24 letters, numbers or underscores. No spaces. Your username is visible to other students.")
             username_error=st.empty()
-        email=st.text_input("Email",placeholder="you@university.edu",key="account_email")
+        email=st.text_input(
+            "Email", key="account_email",
+            help="University inboxes may block verification emails. Use a personal email address when signing up. To sign in, use the email you registered with.",
+        )
         password=st.text_input("Password",type="password",key="account_password")
         confirmation=st.text_input("Confirm password",type="password",key="account_confirmation") if mode=="Create account" else None
         submitted=st.form_submit_button(mode or "Sign in",type="primary",use_container_width=True)
+        if signup_notice and mode=="Create account":
+            st.success(signup_notice)
     if submitted:
         if mode=="Create account":
             try: validate_username(username)
             except ValueError as exc:
-                username_error.error(str(exc))
+                username_error.error(f"Please adjust your username. {exc}")
                 st.markdown("<style>.st-key-account_username input{border:2px solid #D84550!important}</style>",unsafe_allow_html=True)
                 st.stop()
             result=auth.sign_up(email,password,confirmation,username,st.session_state.get("pending_invite"))
         else: result=auth.sign_in(email,password)
-        if result.status in ("signed_in","check_email"):
-            st.session_state.clear_account_passwords=True
+        if result.status=="check_email":
+            st.session_state.signup_verification_notice=result.message
+            st.rerun()
+        if result.status=="signed_in":
             st.session_state.notice=result.message
             st.rerun()
         else:st.error(result.message)
