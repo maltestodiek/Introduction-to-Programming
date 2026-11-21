@@ -2,6 +2,7 @@
 import base64,hashlib,hmac,json,time
 from datetime import datetime,timedelta
 from urllib.parse import urlencode
+from uuid import NAMESPACE_URL, uuid5
 
 AUTH_URL='https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_URL='https://oauth2.googleapis.com/token'
@@ -48,7 +49,7 @@ def exchange_code(http,client_id,client_secret,redirect_uri,code):
 
 def event_body(title,details,day,start_time,minutes,timezone):
     start=datetime.combine(day,datetime.strptime(start_time,'%H:%M').time());end=start+timedelta(minutes=minutes)
-    return {'summary':title,'description':details,'start':{'dateTime':start.isoformat(),'timeZone':timezone},'end':{'dateTime':end.isoformat(),'timeZone':timezone},'source':{'title':'UniArena study plan','url':'https://studyduel-nova-main.streamlit.app'}}
+    return {'summary':title,'description':details,'start':{'dateTime':start.isoformat(),'timeZone':timezone},'end':{'dateTime':end.isoformat(),'timeZone':timezone},'source':{'title':'UniArena study plan','url':'https://uniarena.streamlit.app'}}
 
 
 def remove_events(http,token,recorded):
@@ -60,11 +61,34 @@ def remove_events(http,token,recorded):
     return left
 
 
+def _save_event(http, headers, event):
+    """Keep an existing Google ID. New sessions use the same ID across retries."""
+    body = {**event['body'], 'status': 'confirmed'}
+    existing = event.get('event_id')
+    if existing:
+        response = http.patch(f'{EVENTS_URL}/{existing}', headers=headers, json=body)
+        if response.status_code not in (404, 410):
+            return response
+
+    event_id = uuid5(NAMESPACE_URL, 'https://uniarena.streamlit.app/session/' + event['uid']).hex
+    response = http.post(EVENTS_URL, headers=headers, json={**body, 'id': event_id})
+    if response.status_code == 409:
+        # A previous insert can succeed even when its response never reaches UniArena.
+        return http.patch(f'{EVENTS_URL}/{event_id}', headers=headers, json=body)
+    return response
+
+
 def add_events(http,token,events):
-    """Create events from [{'uid','body'}]. Returns ([{'uid','event_id'}], number that failed)."""
-    created=[];failed=0
+    """Return tracked IDs (including known IDs on failure) and the failed count."""
+    tracked = []
+    failed = 0
+    headers = {'Authorization': 'Bearer ' + token}
     for event in events:
-        response=http.post(EVENTS_URL,headers={'Authorization':'Bearer '+token},json=event['body'])
-        if response.status_code in (200,201) and response.json().get('id'):created.append({'uid':event['uid'],'event_id':response.json()['id']})
-        else:failed+=1
-    return created,failed
+        response = _save_event(http, headers, event)
+        event_id = response.json().get('id') if response.status_code in (200, 201) else None
+        if not event_id:
+            failed += 1
+            event_id = event.get('event_id')
+        if event_id:
+            tracked.append({'uid': event['uid'], 'event_id': event_id})
+    return tracked, failed
