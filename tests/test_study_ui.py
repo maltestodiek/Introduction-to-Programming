@@ -19,6 +19,7 @@ def setup(monkeypatch):
             return {'state':'question','index':0,'total':10,'question':d['cards'][0]['question'],'chapter':'Lecture 1','options':d['cards'][0]['answers'],'part':'Solo study','allow_calculator':d['cards'][0].get('allow_calculator',False)}
         return {}
     monkeypatch.setattr('db.StudyRepository.action',action)
+    monkeypatch.setattr('db.StudyRepository.progress',lambda self,session_id:{'answers':[]})
     monkeypatch.setattr('db.StudyRepository.publication',lambda self,a,data=None:{'published_ids':[],'decks':[]} if a=='list' else {'id':data['id']})
     at=deck_app(monkeypatch);button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
     return at,calls,d
@@ -30,6 +31,7 @@ def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypa
     assert any(p.proto.popover.label.strip()=='' for p in at.get('popover'))
     button(at,'Start studying').click().run()
     assert any(a=='start' and v['count']==10 and v['mode']=='solo' for a,v in calls)
+    assert not at.exception
     button(at,d['cards'][0]['answers'][0]['text']).click().run()
     assert any(s.value=='Correct!' for s in at.success)
     assert not any(a=='next' for a,_ in calls)
@@ -56,7 +58,8 @@ def test_together_requires_consent_and_sufficient_questions(monkeypatch):
 
 def test_study_editor_requires_review_and_adds_more_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Decks').click().run();button(at,'Study decks & progress').click().run();button(at,'Create Study deck').click().run()
+    at.session_state['main_page']='Decks';at.session_state['study_library']=True;at.run()
+    button(at,'Create Study deck').click().run()
     button(at,'Add Study question').click().run();assert at.error
     for label,value in [('Study deck name','Practice'),('Question','A question?')]+[(f'Answer {i}',f'Choice {i}') for i in range(1,5)]:
         next(w for w in at.text_input if w.label==label).set_value(value)
@@ -79,7 +82,7 @@ def test_study_library_can_publish_an_owned_deck(monkeypatch):
         if action=='publish':published.append(data['id']);return {'id':data['id'],'published':True}
         return {'id':data['id'],'published':False}
     monkeypatch.setattr('db.StudyRepository.publication',publication)
-    button(at,'Decks').click().run();button(at,'Study decks & progress').click().run()
+    at.session_state['main_page']='Decks';at.session_state['study_library']=True;at.run()
     button(at,'Publish Study deck').click().run()
     assert d['id'] in published
     assert any('Published to students' in item.value for item in at.caption)
@@ -88,11 +91,11 @@ def test_study_library_can_publish_an_owned_deck(monkeypatch):
 
 def test_decks_navigation_returns_from_study_library_to_course_decks(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Decks').click().run();button(at,'Study decks & progress').click().run()
+    at.session_state['main_page']='Decks';at.session_state['study_library']=True;at.run()
     assert not any(w.label=='Back to course decks' for w in at.button)
     button(at,'Decks').click().run()
     assert not at.session_state.get('study_library')
-    assert button(at,'Study decks & progress')
+    assert any(heading.value=='Your courses' for heading in at.subheader)
     assert not at.exception
 
 

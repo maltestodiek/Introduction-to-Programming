@@ -732,78 +732,37 @@ def decks_screen(client,profile):
         if studio_open.button('Open Deck studio',key='open_deck_studio',icon=':material/design_services:',type='primary',use_container_width=True):
             st.session_state.deck_studio=True;st.rerun()
     course_names=list(dict.fromkeys(profile['courses']))
-    from db import BattleRepository
-    # Battle Mode decks live in battle_decks; the old decks table only holds retired classic duel decks.
-    try:battle_decks=BattleRepository(client).catalog()
-    except ValueError as exc:battle_decks=[];st.warning(str(exc))
     public_study=study_public_request(client,'list')
     if public_study is None:return
     course_keys={course.strip().casefold() for course in course_names}
     study_decks=[deck for deck in public_study.get('decks',[]) if deck.get('course','').strip().casefold() in course_keys]
-    battle_by_course={course.strip().casefold():[] for course in course_names}
     study_by_course={course.strip().casefold():[] for course in course_names}
-    for deck in battle_decks:battle_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
     for deck in study_decks:study_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
 
     st.subheader('Your courses')
+    query=st.text_input('Search your Study decks',placeholder='Search by deck name',key='course_study_search').strip().casefold()
     for index,course in enumerate(course_names):
         course_key=course.strip().casefold()
-        study_count=len(study_by_course.get(course_key,[]))
-        battle_count=len(battle_by_course.get(course_key,[]))
+        course_study_decks=study_by_course.get(course_key,[])
+        study_count=len(course_study_decks)
+        visible_study_decks=[deck for deck in course_study_decks if not query or query in deck.get('name','').casefold()]
         with st.container(border=True,key='course_list_'+str(index)):
-            summary,availability,actions=st.columns([2.2,1.5,2.3],vertical_alignment='center')
+            summary,availability=st.columns([2.2,1.5],vertical_alignment='center')
             with summary:
                 st.markdown('#### '+course)
-                total=study_count+battle_count
-                st.caption(f"{total} deck{'s' if total!=1 else ''} available")
+                st.caption(f"{study_count} Study deck{'s' if study_count!=1 else ''} available")
             with availability:
-                st.markdown(f'<div class="course-list-count"><strong>{study_count}</strong><span>Study decks</span><strong>{battle_count}</strong><span>Battle decks</span></div>',unsafe_allow_html=True)
-            with actions:
-                if st.button('Study',key='course_study_'+str(index),icon=':material/menu_book:',use_container_width=True):
-                    st.session_state.study_library=True;st.rerun()
-            course_decks=[('study',deck) for deck in study_by_course.get(course_key,[])]+[('battle',deck) for deck in battle_by_course.get(course_key,[])]
-            with st.expander(f'Decks in this course ({len(course_decks)})'):
-                if not course_decks:st.caption(f'No decks in {course} yet. Create the first one above.')
-                for kind,deck in course_decks:
+                st.markdown(f'<div class="course-list-count"><strong>{study_count}</strong><span>Study decks</span></div>',unsafe_allow_html=True)
+            with st.expander(f'Study decks in this course ({len(visible_study_decks)})'):
+                if not course_study_decks:st.caption(f'No Study decks in {course} yet. Create the first one above.')
+                elif not visible_study_decks:st.caption(f'No Study decks in {course} match your search.')
+                for deck in visible_study_decks:
                     info,action=st.columns([3,1],vertical_alignment='center')
-                    info.markdown((':material/menu_book:' if kind=='study' else ':material/swords:')+' **'+deck['name']+'**')
-                    info.caption(course_deck_meta(kind,deck))
-                    with action:course_deck_action(client,kind,deck,f'course_menu_{index}_{kind}_{deck["id"]}',compact=True)
-
-    st.subheader('Browse decks')
-    search,course_choice=st.columns([3,2])
-    with search:
-        query=st.text_input('Search decks',placeholder='Search by deck name',key='deck_library_search')
-    with course_choice:
-        selected_course=st.selectbox('Course',['All courses',*course_names],key='deck_library_course')
-    filter_choice=st.segmented_control('Deck filter',['All','Study','Battle','Created by me'],default='All',key='deck_library_filter',label_visibility='collapsed')
-    if filter_choice=='Created by me':
-        deck_rows=[('battle',deck) for deck in battle_decks if deck.get('owned')]+[('study',deck) for deck in study_decks if deck.get('owned')]
-    else:
-        deck_rows=[]
-        if filter_choice in ('All','Battle'):deck_rows += [('battle',deck) for deck in battle_decks]
-        if filter_choice in ('All','Study'):deck_rows += [('study',deck) for deck in study_decks]
-    if selected_course!='All courses':
-        deck_rows=[row for row in deck_rows if row[1].get('course')==selected_course]
-    query=query.strip().casefold()
-    if query:
-        deck_rows=[row for row in deck_rows if query in row[1].get('name','').casefold()]
-    if not deck_rows:
-        st.info('No decks match these filters.')
-        return
-    for row in range(0,len(deck_rows),2):
-        for column,(kind,deck) in zip(st.columns(2),deck_rows[row:row+2]):
-            with column:
-                with st.container(border=True,key=f'course_deck_{kind}_{deck["id"]}'):
-                    icon=':material/menu_book:' if kind=='study' else ':material/swords:'
-                    label='Study deck' if kind=='study' else 'Battle deck'
-                    st.caption(icon+' '+label)
-                    st.markdown('#### '+deck['name'])
-                    st.caption(course_deck_meta(kind,deck))
-                    if kind=='battle':key='course_battle_deck_'+deck['id']
-                    else:key=('course_open_study_' if deck.get('owned') else 'course_copy_study_')+deck['id']
-                    course_deck_action(client,kind,deck,key)
-
+                    info.markdown(':material/menu_book: **'+deck['name']+'**')
+                    info.caption(course_deck_meta('study',deck))
+                    with action:
+                        if st.button('Study',key=f'course_study_{index}_{deck["id"]}',icon=':material/menu_book:',use_container_width=True):
+                            open_course_study_deck(client,deck)
 
 def deck_studio_timezone():
     from zoneinfo import ZoneInfo
@@ -846,7 +805,6 @@ def deck_studio_screen(client,profile):
             times.caption('Created '+(created[0].lower()+created[1:] if created.startswith('On or before') else created))
             if not study:
                 status.markdown(':red-badge[Battle · public]');times.caption('Fixed 15-question snapshot')
-                with actions:course_deck_action(client,'battle',deck,'studio_start_'+did)
                 continue
             times.caption('Last edited '+format_deck_time(deck['updated_at'],zone))
             if deck.get('published_at'):
@@ -871,16 +829,20 @@ def course_deck_meta(kind,deck):
     return f"{deck['course']} · {deck['language']} · By {deck.get('author','Student')} · {deck.get('count',15)} questions"
 
 
-def course_deck_action(client,kind,deck,key,compact=False):
-    """Open or copy Study decks; Battle matchmaking begins only from Play."""
-    if kind=='battle':
-        return
-    elif deck.get('owned'):
-        if st.button('Open' if compact else 'Open Study deck',key=key,use_container_width=True):
-            st.session_state.study_library=True;st.session_state.study_deck_open={'id':deck['id'],'shared':False};st.rerun()
-    elif st.button('Save copy' if compact else 'Save private Study copy',key=key,use_container_width=True):
-        if study_public_request(client,'copy',{'id':deck['id']}) is not None:
-            st.success('Saved a private Study copy.');st.rerun()
+def open_course_study_deck(client,deck):
+    """Open Study Mode with the selected published Study deck preselected."""
+    deck_id=deck['id']
+    if not deck.get('owned'):
+        copied=study_public_request(client,'copy',{'id':deck_id})
+        if copied is None:return
+        deck_id=copied['id']
+    st.session_state.main_page='Play'
+    st.session_state.study_active=True
+    st.session_state.study_choice='Study alone'
+    st.session_state.study_deck_preselection=deck_id
+    st.session_state.pop('study_session',None)
+    st.session_state.pop('study_join',None)
+    st.rerun()
 
 
 def anki_import_reset():
@@ -2099,7 +2061,10 @@ def study_screen(client,profile):
     st.subheader('Your session settings' if offer else 'Create a new study session')
     courses=sorted({d['course'] for d in decks});course=st.selectbox('Study course',courses)
     choices=[d for d in decks if d['course']==course]
-    selected_id=st.selectbox('Select quiz deck',[d['id'] for d in choices],format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
+    deck_ids=[d['id'] for d in choices]
+    preselected=st.session_state.pop('study_deck_preselection',None)
+    selected_index=deck_ids.index(preselected) if preselected in deck_ids else 0
+    selected_id=st.selectbox('Select quiz deck',deck_ids,index=selected_index,format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
     deck=next(d for d in choices if d['id']==selected_id)
     request={'deck_id':selected_id,'shared':deck['shared']}
     valid=True
