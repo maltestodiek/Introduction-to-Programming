@@ -6,6 +6,20 @@
 2. Keep one active coding agent per working folder. To work in parallel, use separate clones or Git worktrees, each on its own branch.
 3. When handing over the same folder, stop the outgoing agent, inspect `git diff` and the staged changes, and commit the reviewed work. Give the incoming agent the branch, commit, last test results and any unfinished work.
 
+## Coordinating shared files
+
+Use one GitHub issue per feature or bug. Before starting, claim the issue and link the relevant spec. The assignee coordinates the feature from screen to storage and links the pull request to the issue.
+
+- For `app.py` and `AGENTS.md`, the issue assignee coordinates the sections their change touches. Name the screen, function or rule in the issue. If another open issue or PR touches the same section, agree with its owner on who edits it first and pull the merged change before continuing.
+- Jan-Malte Stodiek coordinates changes to the Supabase schema and shared data formats. Bring proposed table, migration or data-contract changes to him while planning the issue.
+
+## When main breaks
+
+1. Whoever spots a new failure on `main` opens or updates a GitHub issue with the commit, the failing test or public-app steps, the expected result and the actual result. Check existing issues for previously reported failures.
+2. Pause unrelated merges while the new regression is investigated. The person who merged the change coordinates recovery. If the responsible change is unclear, the reporter coordinates until someone takes over in the issue.
+3. Reproduce the failure and submit a focused fix or a PR reverting the responsible change. Coordinate any database recovery with Jan-Malte before changing shared data.
+4. After merging the recovery, rerun the failing check on `main` and check the affected workflow on the public app if it was impacted. Record the results in the issue, then resume unrelated merges.
+
 ## What a branch means
 A feature is a product capability; a branch is a temporary working copy of the entire repository. Every branch contains the whole app at that point in history, not just one feature. A feature can have several small implementation/fix branches. Naming a branch first-feature does not mean the app only has one feature.
 
@@ -18,7 +32,7 @@ Use `main` for the reviewed shared application. It was already GitHub's default 
 3. Create a descriptive branch, for example `feature/study-session-filters`, `fix/appearance-contrast`, `feature/social-chat-search` or `docs/project-organization`.
 4. Review expected outcomes; write behavioral acceptance tests before implementation. Keep allowed/rejected/restart expectations fixed.
 5. Build the task, run relevant checks, inspect the diff and manually verify the workflow.
-6. Open a pull request into main, review it, then merge. Do not overwrite other students' commits or force-push shared branches.
+6. Open a pull request into main. The person merging checks the diff and test results. Peer review is optional. Do not overwrite other students' commits or force-push shared branches.
 7. Streamlit deploys the merged main commit automatically. Check the live app, then begin the next task on a new branch from main.
 
 ## Hosting from main
