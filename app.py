@@ -1942,7 +1942,10 @@ def study_plan_editor(client,profile,decks,user_id=''):
                 st.write('**Your workload**')
                 for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
                 if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
-            st.caption(':material/event: Calendar export is available after saving.')
+            st.caption(
+                ':material/event: After saving, you can download a calendar file. '
+                'Direct Google Calendar sync is available to registered Google test accounts.'
+            )
         else:st.info('Choose courses, decks and dates to see the live preview.')
     with actions:
         cancel=st.button('Cancel')
