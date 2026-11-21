@@ -59,7 +59,7 @@ def test_decks_show_a_vertical_course_list_and_filtered_deck_section(monkeypatch
     assert not any(field.label=='Browse course' for field in at.selectbox)
     assert len([item for item in at.button if item.label=='Study'])==2
     assert not any(item.label in ('Battle','Start Battle') for item in at.button)
-    assert button(at,'Daily review')
+    assert not any(item.label=='Daily review' for item in at.button)
     assert not at.exception
 
 
@@ -191,8 +191,7 @@ def test_completed_battle_review_offers_a_report_for_each_question(monkeypatch):
     assert not at.exception
 
 
-def test_daily_review_opens_the_deck_studio():
+def test_decks_page_does_not_include_daily_review_controls():
     from pathlib import Path
     app=(Path(__file__).parents[1]/'app.py').read_text()
-    section=app[app.index("'Daily review'"):]
-    assert section.index('st.session_state.deck_studio=True')<section.index('for index,course in enumerate(course_names)')
+    assert 'Daily review' not in app

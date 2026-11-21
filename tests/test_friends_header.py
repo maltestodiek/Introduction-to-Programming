@@ -19,6 +19,16 @@ def test_large_tabs_no_longer_include_friends(monkeypatch):
     assert not at.exception
 
 
+def test_play_shows_a_badge_for_incoming_battle_invitations(monkeypatch):
+    monkeypatch.setattr('db.BattleRepository.action',lambda self,action,data=None:{
+        'sessions':[],'search':None,'invites':[{'id':'battle-invite','incoming':True}]
+    } if action=='list' else {})
+    at=deck_app(monkeypatch)
+    assert "if label=='Play' and battle_invites:" in APP
+    assert keyed(at,'nav_Play')
+    assert not at.exception
+
+
 def test_friends_sits_in_the_separate_sidebar_account_group(monkeypatch):
     at=deck_app(monkeypatch)
     keys=[str(b.key) for b in at.button]
@@ -61,6 +71,7 @@ def test_sidebar_has_consistent_vertical_actions_and_reserves_main_content_space
     assert 'text-align:left!important' in NAVIGATION_CSS
     assert 'justify-content:flex-start' in NAVIGATION_CSS
     assert '.st-key-open_chats button:focus-visible' in NAVIGATION_CSS
+    assert '.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:"1"' in NAVIGATION_CSS
 
 
 def test_friends_styles_do_not_change_the_shared_page_container_or_header():

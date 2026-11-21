@@ -864,12 +864,7 @@ def decks_screen(client,profile):
     for deck in battle_decks:battle_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
     for deck in study_decks:study_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
 
-    course_heading,review_action=st.columns([5,1],vertical_alignment='center')
-    with course_heading:
-        st.subheader('Your courses')
-    with review_action:
-        if st.button('Daily review',key='open_daily_review',icon=':material/local_fire_department:',use_container_width=True):
-            st.session_state.deck_studio=True;st.rerun()
+    st.subheader('Your courses')
     for index,course in enumerate(course_names):
         course_key=course.strip().casefold()
         study_count=len(study_by_course.get(course_key,[]))
@@ -2717,14 +2712,18 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                         else:st.html('<div class="bo-empty"><span>⏳</span>No pending Battles.</div>')
                     if status=='pending' and search:battle_pending_search(client,search)
                     for invite in pending_invites:
-                        with st.container(border=True,key='battle_overview_invite_'+invite['id']):
+                        invite_key='battle_overview_invite_received_' if invite['incoming'] else 'battle_overview_invite_sent_'
+                        with st.container(border=True,key=invite_key+invite['id']):
                             direction='Invitation received' if invite['incoming'] else 'Invitation sent'
                             deck_name=str(invite.get('deck_name') or 'Random Deck')
                             safe_deck=escape(deck_name,quote=True)
-                            st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p>'+escape(direction.upper()+' · '+invite['username'])+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                            if invite['incoming']:
+                                st.html('<div class="battle-overview-card-copy battle-invite-received"><span class="battle-invite-new">✦ New</span><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="battle-invite-sender">'+escape(str(invite['username']))+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                            else:
+                                st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p>'+escape(direction.upper()+' · '+invite['username'])+'</p><p>'+escape(str(invite['course']))+'</p></div>')
                             if invite['incoming']:
                                 accept,decline=st.columns(2)
-                                if accept.button('Accept',key='battle_accept_'+invite['id'],use_container_width=True):
+                                if accept.button('Accept',key='battle_accept_'+invite['id'],type='primary',use_container_width=True):
                                     result=battle_request(client,'accept_invite',{'invite_id':invite['id']})
                                     if result is not None:st.session_state.battle_session=result['session_id'];st.rerun()
                                 if decline.button('Decline',key='battle_decline_'+invite['id'],use_container_width=True):
@@ -2918,6 +2917,14 @@ def battle_screen(client,profile):
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
     battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile.get('username'))
     battle_session_history(client,state.get('sessions',[]))
+
+
+def incoming_battle_invite_count(client):
+    """Return the authenticated player's currently actionable Battle invitations."""
+    try:state=battle_request(client,'list')
+    except Exception:return 0
+    if not isinstance(state,dict):return 0
+    return sum(1 for invite in state.get('invites',[]) if invite.get('incoming'))
 
 
 LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-identity{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.sd-lb-name{font-weight:600}.sd-lb-university{color:var(--sd-muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
@@ -3210,6 +3217,7 @@ if profile:
 page=st.session_state.get('main_page','Play')
 if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
 if profile:
+    battle_invites=incoming_battle_invite_count(auth.client)
     with st.container(key='sidebar_navigation'):
         with st.container(key='top_brand'):
             # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
@@ -3218,7 +3226,12 @@ if profile:
                 navigate('Play')
         with st.container(key='sidebar_main_actions'):
             for label in ['Decks','Play','Leaderboard','Study Plan']:
-                if st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True):
+                if label=='Play' and battle_invites:
+                    with st.container(key='nav_play_invite_badge'):
+                        clicked=st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True)
+                else:
+                    clicked=st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True)
+                if clicked:
                     navigate(label)
         st.divider()
         with st.container(key='sidebar_account_actions'):

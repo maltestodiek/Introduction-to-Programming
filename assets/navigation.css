@@ -63,6 +63,7 @@
  outline: 3px solid var(--sd-text);
  outline-offset: 3px;
 }
+.st-key-nav_play_invite_badge .st-key-nav_Play button{position:relative!important;padding-right:2.6rem!important}.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:"1";position:absolute;z-index:2;top:50%;right:.7rem;display:grid;place-items:center;min-width:1.25rem;height:1.25rem;padding:0 .28rem;border-radius:999px;background:#5142e5;color:#fff;font-size:.72rem;font-weight:800;line-height:1;box-shadow:0 1px 4px rgba(47,38,130,.28);transform:translateY(-50%);pointer-events:none}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button:hover{background:var(--sd-nav-hover)!important;box-shadow:none!important;transform:none}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button[kind="primary"]{border-left:4px solid var(--sd-accent)!important;background:linear-gradient(90deg,var(--sd-nav-selected-start),var(--sd-nav-selected-end))!important;color:var(--sd-nav-selected-text)!important;font-weight:800}
 .st-key-sidebar_navigation [class*="st-key-nav_"] button::before,.st-key-sidebar_navigation .st-key-open_friends button::before{width:22px;height:22px}
