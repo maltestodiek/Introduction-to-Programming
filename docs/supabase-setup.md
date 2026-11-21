@@ -8,7 +8,8 @@ Verified on 11 November 2026:
 - Status: Healthy
 - Region: Central EU (Frankfurt)
 - Email provider enabled; signups enabled; email confirmation enabled.
-- No app connection or live signup test has been completed.
+
+For the later public signup, recovery and sign-out results, see the [live account tests from 21 November](verification.md#live-account-tests).
 
 Before live testing:
 1. Retrieve the publishable API key; never use a service-role key.
