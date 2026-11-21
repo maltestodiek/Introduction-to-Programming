@@ -160,3 +160,47 @@ def test_forgot_password_ui_invalid_email_does_not_send():
     assert not at.exception
 
 
+
+
+def test_signup_retains_invalid_entries_and_clears_after_confirmation_request(monkeypatch):
+    client = Mock()
+    at = AppTest.from_file(str(APP), default_timeout=15)
+    at.session_state["auth"] = AuthService(client)
+    at.session_state["browser_loaded"] = True
+    at.session_state["started"] = True
+    monkeypatch.setattr("launch.browser_bridge", lambda *args: {})
+    at.run()
+
+    def check_email_hint():
+        field = at.text_input(key="account_email")
+        assert not field.proto.placeholder
+        assert "personal email" in field.proto.help
+
+    def submit():
+        next(b for b in at.button if b.label == "Create account").click().run()
+        assert not at.exception
+
+    check_email_hint()
+    at.segmented_control(key="account_mode").set_value("Create account").run()
+    check_email_hint()
+    entries = {"account_username": "a!", "account_email": "student@example.test",
+               "account_password": "example-password", "account_confirmation": "different-password"}
+    for key, value in entries.items():
+        at.text_input(key=key).set_value(value)
+    submit()
+    assert "3–24" in at.error[0].value
+    assert all(at.text_input(key=k).value == v for k, v in entries.items())
+    entries["account_username"] = "student_a"
+    at.text_input(key="account_username").set_value("student_a")
+    submit()
+    assert "passwords do not match" in at.error[0].value
+    assert all(at.text_input(key=k).value == v for k, v in entries.items())
+    client.auth.sign_up.assert_not_called()
+
+    at.text_input(key="account_confirmation").set_value(entries["account_password"])
+    submit()
+    client.auth.sign_up.assert_called_once()
+    assert all(at.text_input(key=k).value == "" for k in entries)
+    form = at.get("form")[0]
+    assert "Check your inbox" in form.success[0].value
+    assert list(form).index(form.success[0]) > list(form).index(form.button[0])
