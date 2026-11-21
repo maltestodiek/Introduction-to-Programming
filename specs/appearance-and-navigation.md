@@ -12,7 +12,7 @@ Use consistent vector/Material icons instead of emoji. Book and crossed-swords m
 
 Top navigation: Decks, Play, Leaderboard and Study Plan; Profile, Friends and Chats appear in the header (see [Friends header button](tasks/friends-header-button.md)), and the Profile button carries the user's picture (see [Profile button avatar](tasks/profile-button-avatar.md)). Leaderboard and Study Plan remain placeholders. Friends, Chats and Profile form a horizontally centered group in the desktop sidebar, with aligned icons and labels even when Chats shows an unread count. Clicking Study Mode reveals Study alone and Study together within the mode card before settings open.
 
-Play displays Create new session, Ongoing sessions, then Session history. The empty Ongoing and Pending Battle panels have equal dimensions. Separate Battle and Study cards; solo cards have no partner actions. Show completed/expired/cancelled Study history and completed Battle history with actions to reopen/review. Partner menus link to Social Connections.
+Play initially displays only separate Battle and Study cards; the selected mode contains its own session controls. Solo cards have no partner actions. Partner menus link to Social Connections.
 
 Learning-level selections use real colour swatches and readable names, with an info-only legend control. Show question preferences below What do you want to focus on? Keep the calculator beside the quiz on desktop. Keep the chat composer visible and only its message area scrollable.
 
@@ -20,6 +20,6 @@ Learning-level selections use real colour swatches and readable names, with an i
 Changing study scoring, stored avatar character design, authentication, matching, message permissions or database rules while making visual changes.
 
 ## Done when
-Light and dark surfaces remain readable, including popovers and university search. Keyboard navigation and reduced-motion support work. Creation appears above ongoing sessions and history. Chat and calculator do not obscure required controls at supported viewport sizes. Verify visually in the running app; theme preferences survive browser reloads independently of account data.
+Light and dark surfaces remain readable, including popovers and university search. Keyboard navigation and reduced-motion support work. The Play landing page keeps its two mode cards clear of dashboard content. Chat and calculator do not obscure required controls at supported viewport sizes. Verify visually in the running app; theme preferences survive browser reloads independently of account data.
 
 Checks: `tests/test_appearance.py`, `tests/test_navigation.py`, `tests/test_launch.py`, `tests/test_study_ui.py`, `tests/test_chat.py`, plus manual layout checks.

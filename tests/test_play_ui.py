@@ -20,7 +20,7 @@ def setup(monkeypatch,friend=None,state=None):
     from streamlit.testing.v1 import AppTest
     root=Path(__file__).parents[1]
     source=(root/'app.py').read_text().replace('Path(__file__).parent',f'Path({str(root)!r})')
-    source=source.replace('        ongoing_sessions(client)\n','        ongoing_sessions(client)\n        play_lobby(client,profile)\n')
+    source=source.replace("        elif selected=='Battle':", "        if not selected:play_lobby(client,profile)\n        elif selected=='Battle':")
     auth=at.session_state['auth']
     at=AppTest.from_string(source,default_timeout=20)
     at.session_state['auth']=auth;at.session_state['main_page']='Play';at.run()
