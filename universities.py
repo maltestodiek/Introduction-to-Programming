@@ -1,6 +1,7 @@
 """Live ROR v2 university search. No account details are sent to ROR."""
 import json
 import re
+import streamlit as st
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError
@@ -12,6 +13,11 @@ def search_universities(query):
     query=" ".join(query.split())
     if not 2<=len(query)<=120:
         raise ValueError("Enter 2–120 characters to search for a university.")
+    return _directory_results(query.casefold())
+
+
+@st.cache_data(ttl=600, max_entries=128, show_spinner=False)
+def _directory_results(query):
     # Escape search syntax while allowing normal multi-word name searches.
     escaped=re.sub(r'([+\-=><!(){}\[\]^"~*?:\\/|&])',r'\\\1',query)
     url="https://api.ror.org/v2/organizations?"+urlencode(

@@ -5,6 +5,14 @@ from urllib.error import URLError
 import pytest
 from universities import search_universities, UniversitySearchError
 
+@pytest.fixture(autouse=True)
+def clear_directory_cache():
+    from universities import _directory_results
+    _directory_results.clear()
+    yield
+    _directory_results.clear()
+
+
 def test_ror_search_filters_and_formats_education_results():
     payload={"items":[{"id":"https://ror.org/123abc","status":"active","types":["education"],
        "names":[{"value":"Example University","types":["ror_display"]}],
@@ -35,3 +43,13 @@ def test_custom_avatar_choice_is_preserved_and_unknown_values_rejected():
     saved=clean_selection(dict(DEFAULT_AVATAR,hair="Mohawk",accessory="Crown"),DEFAULT_AVATAR)
     assert saved["hair"]=="Mohawk" and saved["accessory"]=="Crown"
     assert clean_selection({"hair":"invalid"},DEFAULT_AVATAR)==DEFAULT_AVATAR
+
+
+def test_repeat_lookup_reuses_success_but_retries_after_timeout():
+    query = "Example Cache University"
+    with patch("universities.urlopen", side_effect=[TimeoutError(), io.BytesIO(b'{"items":[]}')]) as call:
+        with pytest.raises(UniversitySearchError):
+            search_universities(query)
+        assert search_universities(query) == []
+        assert search_universities("example  cache University") == []
+        assert call.call_count == 2

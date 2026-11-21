@@ -60,3 +60,47 @@ def test_created_events_are_recorded_with_their_google_ids():
     http=Http(post=lambda url,**k:next(replies))
     created,failed=gc.add_events(http,'token',[{'uid':'a','body':{}},{'uid':'b','body':{}},{'uid':'c','body':{}}])
     assert created==[{'uid':'a','event_id':'g1'},{'uid':'c','event_id':'g3'}] and failed==1
+
+
+def test_retry_after_google_saves_event_but_reply_is_lost():
+    import httpx
+
+    saved = {}
+    lose_reply = True
+
+    def insert(url, headers, json):
+        nonlocal lose_reply
+        event_id = json.get('id', 'random-' + str(len(saved)))
+        if event_id in saved:
+            return Response(409)
+        saved[event_id] = json.copy()
+        if lose_reply:
+            lose_reply = False
+            raise httpx.ReadTimeout('Lost response')
+        return Response(201, {'id': event_id})
+
+    def update(url, headers, json):
+        event_id = url.rsplit('/', 1)[1]
+        saved[event_id].update(json)
+        return Response(200, {'id': event_id})
+
+    http = Http(post=insert)
+    http.patch = update
+    events = [{'uid': uid, 'body': {'summary': uid}} for uid in ('plan-a-slot-1', 'plan-a-slot-2')]
+    with pytest.raises(httpx.ReadTimeout):
+        gc.add_events(http, 'token', events)
+    records, failed = gc.add_events(http, 'token', events)
+    assert failed == 0 and len(saved) == len(records) == 2
+    assert [saved[r['event_id']]['summary'] for r in records] == [e['uid'] for e in events]
+
+
+def test_update_preserves_legacy_google_id_even_after_temporary_failure():
+    from unittest.mock import Mock
+    event = {'uid': 'existing-slot', 'event_id': 'legacy123', 'body': {'summary': 'Revised'}}
+    http = Mock()
+    http.patch.side_effect = [Response(503), Response(200, {'id': 'legacy123'})]
+    record = {'uid': 'existing-slot', 'event_id': 'legacy123'}
+    assert gc.add_events(http, 'token', [event]) == ([record], 1)
+    assert gc.add_events(http, 'token', [event]) == ([record], 0)
+    assert http.patch.call_args.args == (gc.EVENTS_URL + '/legacy123',)
+    http.post.assert_not_called()

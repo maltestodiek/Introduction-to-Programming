@@ -2001,14 +2001,23 @@ def study_plan_google_answer(client,decks,user_id):
                 try:timezone=st.context.timezone or 'UTC'
                 except Exception:timezone='UTC'
                 events=[{'uid':rules.session_uid(plan,s),'body':google.event_body(rules.session_title(plan,s),rules.session_details(s),s['date'],s['time'],rules.session_minutes(s['steps']),timezone)} for s in rules.plan_sessions(plan,levels,date.today())]
-            left=google.remove_events(http,token,stored['calendar_events'])
-            if events:created,failed=google.add_events(http,token,events)
+            wanted = {event['uid']: event for event in events}
+            obsolete = []
+            for record in stored['calendar_events']:
+                event = wanted.get(record['uid'])
+                if event is None or 'event_id' in event:
+                    obsolete.append(record)
+                else:
+                    event['event_id'] = record['event_id']
+            left = google.remove_events(http, token, obsolete)
+            if events:
+                created, failed = google.add_events(http, token, events)
         if study_plan_request(client,'events',{'id':stored['id'],'events':left+created}) is None:return
-        if left or failed:st.warning(f"Google Calendar was only partly updated for {plan['name']}: {len(created)} entries added, {failed} could not be added and {len(left)} old entries could not be removed. Choose Update Google Calendar to try again.")
+        if left or failed:st.warning(f"Google Calendar was only partly updated for {plan['name']}: {len(events)-failed} entries synced, {failed} could not be synced and {len(left)} old entries could not be removed. Choose Update Google Calendar to try again.")
         elif request['kind']=='sync':st.success(f"Google Calendar now has {len(created)} entries for {plan['name']}.")
         else:st.success(f"The Google Calendar entries for {plan['name']} were removed.")
     except ValueError as exc:st.error(str(exc))
-    except httpx.HTTPError:st.error('Google Calendar could not be reached. Choose Update Google Calendar to try again.')
+    except httpx.HTTPError:st.error('Google Calendar could not be reached. Retry the sync or download the Calendar file.')
 
 
 def study_plan_calendar_action(label,kind,plan_id,user_id):

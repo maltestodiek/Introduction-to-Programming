@@ -214,3 +214,32 @@ def test_plan_to_dos_appear_above_new_solo_session_in_study_mode(monkeypatch):
     button(at,'Start morning session · Finance · 15 questions').click().run()
     assert any(a=='study:start' for a,_ in calls) and at.session_state['study_session']=='session-1'
     assert not at.exception
+
+
+def test_google_callback_updates_existing_session_without_deleting_it(monkeypatch):
+    import google_calendar as gc
+    import study_plan as rules
+    monkeypatch.setenv('GOOGLE_CLIENT_ID', 'test-client')
+    monkeypatch.setenv('GOOGLE_CLIENT_SECRET', 'test-secret')
+    plan = google_plan()
+    stored_plan = {**plan['plan'], 'id': plan['id']}
+    first = rules.plan_sessions(stored_plan, {'Finance': [None] * 30}, date.today())[0]
+    uid = rules.session_uid(stored_plan, first)
+    plan['calendar_events'].append({'uid': uid, 'event_id': 'legacy-id'})
+    monkeypatch.setattr(gc, 'exchange_code', lambda *args: 'token')
+    removed, updated = [], []
+    monkeypatch.setattr(gc, 'remove_events', lambda http, token, rows: removed.extend(rows) or [])
+
+    def sync(http, token, events):
+        updated.extend(events)
+        return [{'uid': e['uid'], 'event_id': e.get('event_id', 'new-id')} for e in events], 0
+
+    monkeypatch.setattr(gc, 'add_events', sync)
+    at, calls = setup(monkeypatch, [plan])
+    at.query_params['state'] = gc.sign_state('test-secret', 'sync', plan['id'], 'a')
+    at.query_params['code'] = 'test-code'
+    at.run()
+    assert not at.exception
+    assert removed == [{'uid': 'old', 'event_id': 'g-old'}]
+    assert any(e['uid'] == uid and e.get('event_id') == 'legacy-id' for e in updated)
+    assert {'uid': uid, 'event_id': 'legacy-id'} in next(v['events'] for a, v in calls if a == 'events')

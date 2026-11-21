@@ -9,6 +9,7 @@ UniArena is a Python/Streamlit app for creating course decks, studying alone or 
 - [Current product brief](docs/product-brief.md)
 - [Team branch workflow](docs/team-workflow.md)
 - [Deployment and storage](docs/deployment.md)
+- [External APIs and what to do during an outage](docs/external-apis.md)
 - [Project instructions](AGENTS.md)
 
 ## How the stack fits together
