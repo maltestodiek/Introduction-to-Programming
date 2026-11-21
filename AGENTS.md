@@ -4,6 +4,8 @@ Use English for UI, docs and tests. Read docs/product-brief.md, docs/features.md
 
 Keep the class structure: screens in app.py, business rules in logic.py, database adapters in db.py, tests in tests/, feature plans in specs/, product/verification guidance in docs/. Focused Python helpers may support these files. Use Python, Streamlit, uv and pytest; no React frontend. Supabase Auth, PostgreSQL and private Storage are the approved persistence choice for the shared app; SQLite is only appropriate for isolated local exercises/tests.
 
+Jan-Malte Stodiek is the team's database administrator. Coordinate proposed Supabase schema changes with him before merging them.
+
 Commands: uv sync; uv run pytest -q; uv run streamlit run app.py. On this Mac use sh run-tests.sh and sh run-app.sh when the Desktop environment stalls. SQL checks use tests/*_database.mjs with isolated PGlite; Node is test tooling only. Never use real users, messages or production data in tests. Each persistence test must use a temporary/local database. Reset test data by rerunning the isolated test setup; do not reset production.
 
 Keep the UI in Python and Streamlit. Use CSS for themes and animation, and scoped JavaScript inside Streamlit components for browser interactions such as avatar swiping and copying invitation links. Keep shared multiplayer updates and access checks in PostgreSQL so they apply across player sessions.
