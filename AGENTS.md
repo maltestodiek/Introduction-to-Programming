@@ -19,3 +19,14 @@ Use main as the stable shared baseline. Fetch and check team changes first. Work
 Every task spec uses Why, What, Out of scope, Done when. Group visual changes under Appearance and Navigation, social changes under Social Connections, and deck/subsection/calculator changes under Deck Authoring. Write behavioral tests first for new workflows, review expected outcomes, and preserve them during implementation. Do not weaken, skip or remove tests to get green output. Correct mistaken expectations explicitly against the approved spec.
 
 Run appropriate tests; check allowed and rejected actions and a full process restart for persistence changes. Review the diff before merging. Report results, changed files and any unverified manual steps accurately. Verify remote ownership and visibility before pushing. Keep secrets, local databases and private student data out of Git. Preserve applied SQL filenames and document a new migration for production schema/rule changes.
+
+## Before committing a change that uses credentials
+
+Read credentials by name from environment variables or the designated secrets store. Use placeholders in tracked examples. Before the first commit that uses a new credential, run both commands from the repository root. If the credential uses a different local file, repeat the checks with that path.
+
+```sh
+git check-ignore -v .streamlit/secrets.toml
+git ls-files -- .streamlit/secrets.toml
+```
+
+The first command must show the matching ignore rule. The second must produce no output, confirming the file is absent from Git’s index. If either check fails, stop before committing and fix the ignore rule or index entry while preserving the local file. If a real value was already shared or pushed, follow the [leak response](docs/deployment.md#if-a-credential-leaks).

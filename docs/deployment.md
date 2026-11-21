@@ -15,6 +15,27 @@ Configure SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and APP_URL in Streamlit secret
 
 Supabase stores accounts, profiles/images, friendships, decks, progress, sessions and messages independently of Streamlit's temporary disk. Restarting/redeploying Streamlit must not reset those records. Browser storage is limited to the documented session restoration behavior; it is not the shared database.
 
+### If a credential leaks
+
+1. Immediately tell the teammate who manages the issuing provider which credential was exposed, where and when. Identify it by service and setting name. Keep the value private. The owner revokes the exposed credential at the provider immediately and creates a replacement. Removing a post or Git commit alone leaves copied credentials usable.
+2. Update each place that uses the credential, including the team password manager and any affected local configuration. Use these destinations for the hosted app.
+
+   | Exposed credential | Where to revoke and replace it | Where UniArena reads the replacement |
+   | --- | --- | --- |
+   | Requesty API key | Requesty workspace, through the teammate who owns it | Supabase Edge Function secret `REQUESTY_API_KEY` |
+   | Google OAuth client secret | Google Cloud project for Calendar sync | Streamlit Community Cloud Secrets and local `.streamlit/secrets.toml` for developers using Calendar sync |
+   | Resend SMTP credential | Resend account for the sending domain | Supabase Auth custom SMTP password |
+   | Supabase privileged key or database password | Supabase project, coordinated by Jan-Malte Stodiek | Each authorized administrative tool or deployment job that uses it. The Streamlit app uses the publishable key. |
+
+3. Check provider access, usage and billing records from the earliest possible exposure through revocation. Investigate unexpected requests, email sends or database access with the provider owner. Verify the affected feature with a demo account and record the outcome without credentials or private student data.
+4. Remove exposed copies from the repository, issues, logs or shared media where possible. Coordinate any Git history cleanup with the team so other clones and branches are accounted for.
+
+### Sharing credentials and presenting UniArena
+
+Give teammates individual provider access with the minimum permissions their task needs. When a credential must be shared, use a password-manager item restricted to those teammates. Use setting names and placeholders in GitHub, chat, coding-agent prompts, logs and screenshots.
+
+For the presentation, use a demo account with fictional data and share the app window. Close provider dashboards, terminals displaying configuration, inboxes and the password manager before sharing. To explain configuration, show the [committed secrets template](../.streamlit/secrets.toml.example). If a credential appears on screen or in a recording, stop sharing and follow the leak response above.
+
 ## Database changes
 The SQL files in supabase/ are versioned setup and incremental update scripts. Many are already applied and some are not safe to rerun. Preserve filenames, review the exact migration and apply only the missing change. Never infer the production migration state merely from file existence. Tests use isolated databases; no production reset or data deletion is part of deployment.
 
