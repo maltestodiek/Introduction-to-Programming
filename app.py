@@ -1422,7 +1422,7 @@ STUDY_LEVEL_TITLES={'new':'New','0':'Needs practice','1':'Level 1 · Building co
 STUDY_LEVEL_MEANINGS={'new':'Not answered yet.','0':'Answered, but no correct answer is counted at the moment.','1':'Answered correctly once.','2':'Answered correctly twice.','3':'Answered correctly three times, the highest level.'}
 
 
-def study_level_selector(label,key):
+def study_level_selector(label,key,restored_levels=None):
     heading, info = st.columns([8, 1], vertical_alignment='center')
     heading.markdown(f'**{label}**')
     with info:
@@ -1430,7 +1430,10 @@ def study_level_selector(label,key):
     selected = []
     with st.container(horizontal=True, key=key+'_cards'):
         for level, title in STUDY_LEVEL_TITLES.items():
-            if st.checkbox(title, value=True, key=f'{key}_{level}', width='stretch'):
+            widget_key = f'{key}_{level}'
+            initial = level in restored_levels if isinstance(restored_levels, list) else True
+            st.session_state.setdefault(widget_key, initial)
+            if st.checkbox(title, key=widget_key, width='stretch'):
                 selected.append(level)
     return selected
 
@@ -2264,7 +2267,14 @@ def study_continue_sessions(client, sessions, together):
         st.rerun()
 
 
-def study_screen(client,profile):
+def restore_study_option(saved, field, widget_key, options):
+    """Only restore a widget value that still exists in the current form."""
+    value = saved.get(field)
+    if value in options:
+        st.session_state[widget_key] = options[options.index(value)]
+
+
+def study_screen(client,profile,draft):
     from uuid import uuid4
     from logic import filter_study_cards
     study_design()
@@ -2283,7 +2293,14 @@ def study_screen(client,profile):
         st.session_state.play_mode_preview = 'Study'
         st.rerun()
     data=study_request(client,'list')
-    if data is None:return
+    if data is None:
+        return
+    saved = st.session_state.pop('returning_study_setup', {})
+    if saved.get('mode') != draft['mode']:
+        saved = {}
+    if draft['mode'] == 'Study together':
+        restore_study_option(saved, 'partner', 'study_partner', ('Random player', 'Friend'))
+        restore_study_option(saved, 'join', 'study_join', [o['id'] for o in data['invites'] + data.get('open', [])])
     # Incoming invitations stay above all setup, regardless of selected course.
     if data['invites']:
         st.subheader('Study invitations')
@@ -2320,6 +2337,7 @@ def study_screen(client,profile):
         st.info('Create a Study deck in Decks, or set the language of an existing deck first.');return
     offer=next((o for o in data['invites']+data['open'] if o['id']==st.session_state.get('study_join')),None) if together else None
     if offer:
+        draft['join'] = offer['id']
         st.info(f"Joining: {offer['course']} · {offer['language']} · {offer['count']} questions")
         if st.button('Cancel joining and create a new session'):
             st.session_state.pop('study_join',None);st.rerun()
@@ -2327,12 +2345,17 @@ def study_screen(client,profile):
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
     st.subheader('Your session settings' if offer else 'Create a new study session')
-    courses=sorted({d['course'] for d in decks});course=st.selectbox('Study course',courses)
+    courses=sorted({d['course'] for d in decks})
+    restore_study_option(saved, 'course', 'study_setup_course', courses)
+    course=st.selectbox('Study course',courses,key='study_setup_course')
+    draft['course'] = course
     choices=[d for d in decks if d['course']==course]
     deck_ids=[d['id'] for d in choices]
     preselected=st.session_state.pop('study_deck_preselection',None)
     selected_index=deck_ids.index(preselected) if preselected in deck_ids else 0
-    selected_id=st.selectbox('Select quiz deck',deck_ids,index=selected_index,format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
+    restore_study_option(saved, 'deck', 'study_setup_deck', deck_ids)
+    selected_id=st.selectbox('Select quiz deck',deck_ids,index=selected_index,key='study_setup_deck',format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
+    draft['deck'] = selected_id
     deck=next(d for d in choices if d['id']==selected_id)
     request={'deck_id':selected_id,'shared':deck['shared']}
     valid=True
@@ -2342,16 +2365,30 @@ def study_screen(client,profile):
         study_progress_summary(full['cards'])
         st.subheader('What do you want to focus on?')
         st.caption('Choose chapters and learning levels to decide which questions you practise. Leave chapters empty to include the full deck; select multiple levels to combine them.')
-        chapters=st.multiselect('Chapters / lectures (leave empty for full deck)',sorted({c.get('chapter','') for c in full['cards']}),format_func=lambda x:x or 'General')
-        levels=study_level_selector('Learning levels','study_solo_levels')
+        chapter_options = sorted({c.get('chapter','') for c in full['cards']})
+        chapter_key = 'study_setup_chapters_'+selected_id
+        if saved.get('deck') == selected_id and isinstance(saved.get('chapters'), list):
+            st.session_state[chapter_key] = [c for c in chapter_options if c in saved['chapters']]
+        chapters=st.multiselect('Chapters / lectures (leave empty for full deck)',chapter_options,key=chapter_key,format_func=lambda x:x or 'General')
+        levels=study_level_selector('Learning levels','study_solo_levels',saved.get('levels'))
         eligible=filter_study_cards(full['cards'],chapters,levels);st.caption(f'{len(eligible)} matching questions. No repeats within this session.')
-        length=st.radio('Session length',['Choose a number','All matching questions'],horizontal=True)
-        count=st.number_input('Number of questions',1,100,min(10,max(1,len(eligible)))) if length=='Choose a number' else 0
+        lengths = ['Choose a number','All matching questions']
+        restore_study_option(saved, 'length', 'study_setup_length', lengths)
+        length=st.radio('Session length',lengths,horizontal=True,key='study_setup_length')
+        count = 0
+        if length == lengths[0]:
+            default_count = min(10,max(1,len(eligible)))
+            previous = saved.get('count')
+            if type(previous) is int and 1 <= previous <= 100:
+                default_count = previous
+            count = st.number_input('Number of questions',1,100,default_count,key='study_setup_count')
+        draft.update(chapters=chapters, levels=levels, length=length, count=count)
         valid=bool(eligible) and (count==0 or count<=len(eligible))
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
         st.caption('Answer your own half first, then your partner’s. No timer per question.')
         opponent=study_choice_cards('study_partner',[('Random player','random','Meet someone studying your course.'),('Friend','friend','Practise with someone you know.')],locked=bool(offer))
+        draft['partner'] = opponent
         mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
         if offer:
             count=offer['count'];request['join_id']=offer['id']
@@ -2378,7 +2415,9 @@ def study_screen(client,profile):
                     if requested_id and requested_id not in friend_ids:
                         st.warning(f"{requested_friend.get('username','This friend')} is not eligible for the selected course and language. Choose another friend or update the session settings.")
                     index=friend_ids.index(requested_id) if requested_id in friend_ids else 0
-                    friend=st.selectbox('Choose a friend',friend_ids,index=index,format_func=lambda x:next(f['username'] for f in friends if f['id']==x))
+                    restore_study_option(saved, 'friend', 'study_setup_friend', friend_ids)
+                    friend=st.selectbox('Choose a friend',friend_ids,index=index,key='study_setup_friend',format_func=lambda x:next(f['username'] for f in friends if f['id']==x))
+                    draft['friend'] = friend
                     request['friend_id']=friend
                     st.caption('Only friends enrolled in this course and speaking the deck language are shown.')
                 st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
@@ -2391,14 +2430,19 @@ def study_screen(client,profile):
                         cols=st.columns([3,1]);cols[0].write(f"**{available['count']} questions** · {available['course']}")
                         if cols[1].button('Join',key='study_join_'+available['id']):
                             st.session_state.study_join=available['id'];st.rerun()
-        if not offer:count=st.selectbox('Total questions',[20,40,60,80,100])
+        if not offer:
+            totals = [20,40,60,80,100]
+            restore_study_option(saved, 'total', 'study_setup_total', totals)
+            count=st.selectbox('Total questions',totals,key='study_setup_total')
+        draft['total'] = count
         st.info(f'{count} questions = {count//2} from your deck + {count//2} from your partner’s deck.')
         st.caption(f'First, answer {count//2} questions from your own deck. Once a partner is matched or your friend accepts, answer their {count//2} questions. Both of you answer the same combined set, starting with your own half. You can leave and return while waiting.')
         full=study_request(client,'deck',{'id':selected_id})
         if full is None:return
         st.subheader('What do you want to focus on?')
         st.caption('Choose the learning levels to prioritise in your half of the session. If there are not enough, we fill the remaining places with other questions from your deck, without repeats.')
-        levels=study_level_selector('Preferred learning levels','study_together_levels')
+        levels=study_level_selector('Preferred learning levels','study_together_levels',saved.get('levels'))
+        draft['levels'] = levels
         request['levels']=levels
         preferred=len(filter_study_cards(full['cards'],[],levels))
         needed=max(0,count//2-preferred)
@@ -3160,7 +3204,9 @@ def leaderboard_screen(client,repo,profile=None):
 def play_screen(client,profile):
     from db import PlayRepository
     if st.session_state.get('study_active'):
-        study_screen(client,profile);return
+        draft = {'mode': st.session_state.get('study_choice','Study alone')}
+        study_screen(client,profile,draft)
+        return draft
     if st.session_state.get('play_duel'):
         if st.button('Exit round'):
             st.session_state.play_exit_to='Play';st.rerun()
@@ -3309,6 +3355,13 @@ if not st.session_state.get("browser_loaded"):
             if saved.get("user_id")==auth.user.id:
                 st.session_state.editing=saved.get("route")=="edit"
                 st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Play","Friends","Leaderboard","Study Plan","Profile","Chats") else "Play"
+                setup = saved.get('study_setup')
+                if (st.session_state.main_page == 'Play' and isinstance(setup, dict)
+                        and setup.get('mode') in ('Study alone', 'Study together')):
+                    st.session_state.study_choice = setup['mode']
+                    st.session_state.play_mode_preview = 'Study'
+                    st.session_state.study_active = True
+                    st.session_state.returning_study_setup = setup
                 if isinstance(saved.get("deck_open"),str):st.session_state.deck_open=saved["deck_open"]
             st.session_state.started=True
         else:
@@ -3324,7 +3377,7 @@ elif verification_due:
     st.session_state.browser_loaded=True
     st.session_state.started=True
     st.warning("Your session has ended. Please sign in again.")
-browser_bridge("write",{
+resume_payload = {
     "started":bool(st.session_state.get("started") or auth.user),
     "mode":st.session_state.get("account_mode","Sign in"),
     "route":"edit" if st.session_state.get("editing") else "profile",
@@ -3332,7 +3385,13 @@ browser_bridge("write",{
     "deck_open":st.session_state.get("deck_open"),
     "user_id":auth.user.id if auth.user else None,
     "session":auth.resumable_session(),
-})
+}
+# Study setup writes once its widgets have resolved their current, accessible options.
+remember_setup = (auth.user is not None and resume_payload['page'] == 'Play'
+                  and st.session_state.get('study_active') and not st.session_state.get('study_session')
+                  and not str(st.query_params.get('state','')).startswith('sdplan.'))
+if not remember_setup:
+    browser_bridge('write', resume_payload)
 if not auth.user and not st.session_state.get("started") and not st.session_state.get("pending_invite") and not st.session_state.get("recovery_error"):
     if welcome(logo_data):
         st.session_state.started=True
@@ -3486,7 +3545,11 @@ if profile:
         chats_screen(auth.client, picture)
         st.stop()
     if page=='Play':
-        play_screen(auth.client,profile);st.stop()
+        setup = play_screen(auth.client,profile)
+        if remember_setup:
+            resume_payload['study_setup'] = setup
+            browser_bridge('write', resume_payload)
+        st.stop()
     if page=='Decks':
         decks_screen(auth.client,profile);st.stop()
     if page=='Friends':

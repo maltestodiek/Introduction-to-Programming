@@ -233,3 +233,91 @@ def test_level_cards_keep_combined_learning_levels(monkeypatch):
     button(at,'Start studying').click().run()
     assert any(action=='start' and data['levels']==['new','0'] for action,data in calls)
     assert not at.exception
+
+
+def test_reopening_study_settings_in_a_fresh_app(monkeypatch):
+    from types import SimpleNamespace
+    from auth import AuthService
+    from streamlit.testing.v1 import AppTest
+    from test_launch import APP
+    from db import StudyRepository
+
+    saved = {}
+    def browser(action, value=None):
+        if action == 'write':
+            saved.clear()
+            saved.update(deepcopy(value))
+        return deepcopy(saved)
+    monkeypatch.setattr('launch.browser_bridge', browser)
+    at, calls, deck = setup(monkeypatch)
+    client = at.session_state['auth'].client
+    client.auth.get_session.return_value = SimpleNamespace(access_token='access', refresh_token='refresh')
+    original = StudyRepository.action
+    def with_options(repo, action, data=None):
+        result = original(repo, action, data)
+        if action == 'list':
+            result['decks'].append(dict(result['decks'][0], id='second', course='Economics', name='Microeconomics'))
+        if action == 'friend_options':
+            return {'friends': [{'id':'f1','username':'Alex'}, {'id':'f2','username':'Sam'}]}
+        return result
+    monkeypatch.setattr(StudyRepository, 'action', with_options)
+    def reopen():
+        fresh = AppTest.from_file(str(APP), default_timeout=20)
+        fresh.session_state['auth'] = AuthService(client)
+        fresh.run()
+        assert not fresh.exception
+        return fresh
+    def widget(widgets, label):
+        return next(w for w in widgets if w.label == label)
+
+    at.run()
+    widget(at.selectbox, 'Study course').set_value('Economics').run()
+    widget(at.multiselect, 'Chapters / lectures (leave empty for full deck)').set_value(['Lecture 1']).run()
+    at.checkbox(key='study_solo_levels_1').uncheck().run()
+    widget(at.number_input, 'Number of questions').set_value(6).run()
+    at = reopen()
+    assert at.session_state.study_choice == 'Study alone'
+    assert widget(at.selectbox, 'Study course').value == 'Economics'
+    assert widget(at.selectbox, 'Select quiz deck').value == 'second'
+    assert at.multiselect[0].value == ['Lecture 1']
+    assert not at.checkbox(key='study_solo_levels_1').value
+    assert widget(at.number_input, 'Number of questions').value == 6
+    widget(at.radio, 'Session length').set_value('All matching questions').run()
+    at = reopen()
+    assert widget(at.radio, 'Session length').value == 'All matching questions'
+    button(at,'Change study mode').click().run()
+    button(at,'Study together').click().run()
+    button(at,'Friend').click().run()
+    widget(at.selectbox,'Choose a friend').set_value('f2').run()
+    widget(at.selectbox,'Total questions').set_value(40).run()
+    at.checkbox(key='study_together_levels_2').uncheck().run()
+    next(w for w in at.checkbox if w.label.startswith('I agree')).check().run()
+    at = reopen()
+    assert at.session_state.study_choice == 'Study together'
+    assert widget(at.selectbox,'Choose a friend').value == 'f2'
+    assert widget(at.selectbox,'Total questions').value == 40
+    assert not at.checkbox(key='study_together_levels_2').value
+    assert not next(w for w in at.checkbox if w.label.startswith('I agree')).value
+    at.run()
+    assert widget(at.selectbox,'Choose a friend').value == 'f2'
+    assert widget(at.selectbox,'Total questions').value == 40
+
+    saved['study_setup'].update(course='Gone', deck='deleted', friend='removed', total=-1,
+                                join='expired', levels={'invalid':True})
+    at = reopen()
+    assert widget(at.selectbox,'Choose a friend').value in ('f1','f2')
+    assert widget(at.selectbox,'Total questions').value == 20
+    assert not at.session_state.get('study_join')
+    restored = deepcopy(saved)
+    button(at,'Change study mode').click().run()
+    assert 'study_setup' not in saved
+    button(at,'Study alone').click().run()
+    button(at,'Profile').click().run()
+    at = reopen()
+    assert at.session_state.main_page == 'Profile'
+    assert 'study_setup' not in saved
+    saved.update(restored, user_id='different-account')
+    at = reopen()
+    assert not at.session_state.get('study_active')
+    assert 'study_setup' not in saved
+    assert not any(action in ('start','answer','next','decline') for action,_ in calls)
