@@ -51,3 +51,10 @@ def test_play_landing_shows_only_mode_cards_and_does_not_load_sessions(monkeypat
     assert not any(name in headings for name in ['Your study sessions','Ongoing study sessions','Study history'])
     assert not calls
     assert not at.exception
+
+
+def test_timed_out_study_match_shows_a_loss_in_completed_history():
+    session = dict(id='study', name='Finance', mode='friend', state='completed',
+                   result='Loss', cursor=10, count=20)
+    row, = session_history_rows([], [session])
+    assert (row['result'], row['tone']) == ('Loss', 'red')

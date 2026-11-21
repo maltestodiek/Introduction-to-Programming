@@ -1602,7 +1602,11 @@ def study_library(client,profile):
 def study_round_screen(client,sid):
     show_round_intro('study',sid)
     r=study_request(client,'round',{'id':sid})
-    if r is None:return
+    if r is None:
+        if st.button('Back to Study Mode'):
+            st.session_state.pop('study_session',None)
+            st.rerun()
+        return
     from db import StudyRepository
     try:progress=StudyRepository(client).progress(sid)
     except ValueError as exc:st.error(str(exc));return
@@ -1670,6 +1674,7 @@ def study_round_screen(client,sid):
     elif state=='completed':
         st.subheader(r['result']);st.metric('Your correct answers',f"{r['score']} / {r['total']}")
         if r.get('opponent_score') is not None:st.metric('Partner’s correct answers',f"{r['opponent_score']} / {r['total']}")
+        if r.get('timed_out'):st.caption('The 48-hour deadline passed. Each player who did not finish received a loss.')
         st.caption('Study Mode does not change XP, rankings or win streaks.')
         if r.get('shared'):st.success('Your partner’s full deck is available under Decks → Study decks & progress → Shared with me.')
         if st.button('Refresh session result'):st.rerun()
@@ -2207,7 +2212,10 @@ def study_screen(client,profile):
     with st.expander('Your saved study sessions',expanded=False):
         if st.button('Refresh study sessions'):st.rerun()
         for s in data['sessions']:
-            cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {s['state']} · {s['count']} questions")
+            status = s['state'].capitalize()
+            if s.get('result'):
+                status += f" · {s['result']}"
+            cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {status} · {s['count']} questions")
             if s['mode']!='solo':session_partner_chat(client,'study',s['id'],'saved')
             if cols[1].button('Open',key='study_resume_'+s['id']):open_round('study', s['id'], fresh=False)
             if s['state'] in ('own','waiting') and s['mode']!='solo':
@@ -2217,6 +2225,8 @@ def study_screen(client,profile):
     together=choice=='Study together'
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
     if together:
+        st.caption('Before matching, your unfinished session expires after 48 hours of inactivity. Once you finish your half, the search stays open for 48 hours. Your practice progress is saved.')
+        st.caption('After matching, both players have 48 hours to finish. The match then moves to completed history. Each player who did not finish receives a loss.')
         if profile.get('course_history'):
             st.caption(f"Matching uses courses at {profile['university']}. Switch universities in Profile to use a course from another university.")
         active_courses={name.strip().casefold() for name in profile['courses']}
@@ -2261,7 +2271,7 @@ def study_screen(client,profile):
         valid=bool(eligible) and (count==0 or count<=len(eligible))
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
-        st.caption('Answer your own half first, then your partner’s. No timer per question. After matching, both players have 24 hours to finish.')
+        st.caption('Answer your own half first, then your partner’s. No timer per question.')
         opponent=study_choice_cards('study_partner',[('Random player','random','Meet someone studying your course.'),('Friend','friend','Practise with someone you know.')],locked=bool(offer))
         mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
         if offer:
@@ -2294,7 +2304,7 @@ def study_screen(client,profile):
                     st.caption('Only friends enrolled in this course and speaking the deck language are shown.')
                 st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
             else:
-                st.caption('Only students who also choose random study can match. Your search lasts 24 hours after your own half.')
+                st.caption('Only students who also choose random study can match. Your search lasts 48 hours after your own half.')
                 offers=[o for o in data['open'] if o['course'].strip().casefold()==course.strip().casefold() and o['language']==deck['language']]
                 with st.expander('Discover open study sessions',expanded=bool(offers)):
                     if not offers:st.caption('No open sessions for this course yet. Be the first to start one.')
