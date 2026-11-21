@@ -1157,21 +1157,28 @@ def anki_generation_screen(client,profile):
             try:result=generate_with_progress(repository,pending)
             except ValueError as exc:result=None;st.error(str(exc))
             if result:st.session_state.notice=f"Generated {result['count']} private drafts. Review them below.";st.rerun()
+        st.caption("Generating sends the selected card or slide text to Requesty and its model provider. "
+                   "Leave out confidential material and personal information.")
         st.button(f'Generate {len(selected)} question drafts',type='primary',disabled=not selected,on_click=request_ai_generation,args=(imported['id'],selected))
     else:st.caption('All source cards from this import already have a draft or were published.')
     drafts=[draft for draft in imported['drafts'] if draft['status']=='draft']
     if not drafts:return
     st.subheader('2. Review drafts');selected_drafts=[]
+    unsaved_drafts = []
     if st.button('Include all in Study Deck',key='ai_include_all_'+imported['id']):
         for draft in drafts:st.session_state['ai_include_'+draft['id']]=True
         st.rerun()
     for number,draft in enumerate(drafts,1):
         include,review=st.columns([.26,.74],vertical_alignment='center')
-        if include.checkbox('Include in Study deck',key='ai_include_'+draft['id']):selected_drafts.append(draft)
+        included = include.checkbox('Include in Study deck',key='ai_include_'+draft['id'])
+        if included:
+            selected_drafts.append(draft)
         with review.expander(f"Draft {number}: {draft['question'][:70]}",expanded=number==1):
             question=st.text_area('Question',value=draft['question'],key='ai_question_'+draft['id'])
             options=[st.text_input(f'Answer {index+1}',value=option,key=f'ai_option_{draft["id"]}_{index}') for index,option in enumerate(draft['options'])]
             correct=st.radio('Correct answer',range(4),index=draft['correct_option_index'],format_func=lambda value:f'Answer {value+1}',horizontal=True,key='ai_correct_'+draft['id'])
+            if included and (question, options, correct) != (draft['question'], draft['options'], draft['correct_option_index']):
+                unsaved_drafts.append(str(number))
             edit,discard=st.columns(2)
             if edit.button('Save edits',key='ai_save_'+draft['id']):
                 try:repository.update_draft(draft['id'],question,options,correct)
@@ -1184,7 +1191,10 @@ def anki_generation_screen(client,profile):
     st.subheader('3. Publish Study deck')
     st.caption('The review above is the deck review: publishing creates the Study deck directly. You can edit it anytime under Decks.')
     name=st.text_input('Study deck name',value=f"{imported['name']} questions",key='ai_study_name_'+imported['id'])
-    if st.button(f'Publish Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not selected_drafts):
+    if unsaved_drafts:
+        st.warning('Choose Save edits for the following drafts before publishing: ' + ', '.join(unsaved_drafts))
+    can_publish = bool(selected_drafts) and not unsaved_drafts
+    if st.button(f'Publish Study deck from {len(selected_drafts)} drafts',type='primary',disabled=not can_publish) and can_publish:
         from logic import validate_study_deck
         cards=[]
         for draft in selected_drafts:

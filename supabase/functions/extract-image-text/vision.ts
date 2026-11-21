@@ -44,7 +44,7 @@ export function validateImages(input: unknown): CardImage[] {
 }
 
 /** Transcribe the text on one image with a vision model through Requesty. Retries one temporary failure. */
-export async function readImageText(apiKey: string, model: string, image: CardImage, fetcher: FetchLike = fetch): Promise<string> {
+export async function readImageText(apiKey: string, model: string, image: CardImage, fetcher: FetchLike): Promise<string> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);

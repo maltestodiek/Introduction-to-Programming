@@ -1,3 +1,4 @@
+import { offlineTest } from "../offline-test-helper.ts";
 import { assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { readImageText, validateImages } from "./vision.ts";
 
@@ -5,7 +6,7 @@ const png = { id: "0-0", mime: "image/png", data: btoa("\x89PNG fake image") };
 const reply = (text: string) =>
   new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ text }) } }] }), { status: 200 });
 
-Deno.test("sends the image as a data URL and returns the transcribed text", async () => {
+offlineTest("sends the image as a data URL and returns the transcribed text", async () => {
   let body: Record<string, unknown> | undefined;
   const fakeFetch: typeof fetch = async (_input, init) => {
     body = JSON.parse(String(init?.body));
@@ -18,7 +19,7 @@ Deno.test("sends the image as a data URL and returns the transcribed text", asyn
   assertEquals(JSON.stringify(body).includes("test-key"), false);
 });
 
-Deno.test("retries one temporary provider failure", async () => {
+offlineTest("retries one temporary provider failure", async () => {
   let calls = 0;
   const fakeFetch: typeof fetch = async () => {
     calls += 1;
@@ -28,16 +29,16 @@ Deno.test("retries one temporary provider failure", async () => {
   assertEquals(calls, 2);
 });
 
-Deno.test("reports a lasting provider failure", async () => {
+offlineTest("reports a lasting provider failure", async () => {
   const fakeFetch: typeof fetch = async () => new Response("bad", { status: 400 });
   await assertRejects(() => readImageText("test-key", "test-model", png, fakeFetch), Error, "could not be read");
 });
 
-Deno.test("accepts an empty transcription for images without text", async () => {
+offlineTest("accepts an empty transcription for images without text", async () => {
   assertEquals(await readImageText("test-key", "test-model", png, async () => reply("   ")), "");
 });
 
-Deno.test("validates image count, type, size and ids", () => {
+offlineTest("validates image count, type, size and ids", () => {
   assertEquals(validateImages({ images: [png] }).length, 1);
   assertThrows(() => validateImages({ images: [] }), Error, "between 1 and 3");
   assertThrows(() => validateImages({ images: [png, png, png, png] }), Error, "between 1 and 3");

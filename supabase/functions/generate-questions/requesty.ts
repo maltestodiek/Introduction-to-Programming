@@ -84,7 +84,7 @@ export async function requestQuestionsFromRequesty(
   apiKey: string,
   model: string,
   cards: SourceCard[],
-  fetcher: FetchLike = fetch,
+  fetcher: FetchLike,
   rewrite?: string,
 ): Promise<GeneratedQuestion[]> {
   const controller = new AbortController();
@@ -218,7 +218,7 @@ export async function requestQuestionsWithRetry(
   apiKey: string,
   model: string,
   cards: SourceCard[],
-  fetcher: FetchLike = fetch,
+  fetcher: FetchLike,
 ): Promise<GeneratedQuestion[]> {
   const drafts = await requestCompleteBatch(apiKey, model, cards, fetcher);
   return await rewriteLengthCues(apiKey, model, cards, drafts, fetcher);
