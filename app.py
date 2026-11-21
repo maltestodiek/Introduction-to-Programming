@@ -2937,6 +2937,41 @@ def battle_screen(client,profile):
     battle_session_history(client,state.get('sessions',[]))
 
 
+def play_landing_invitation_notices(client):
+    """Read-only, server-authoritative invitation notices for the Play landing page."""
+    battle_state=battle_request(client,'list') or {}
+    study_state=study_request(client,'list') or {}
+    battle_invites=[invite for invite in battle_state.get('invites',[]) if invite.get('incoming')]
+    study_invites=list(study_state.get('invites',[]))
+    if not battle_invites and not study_invites:return
+
+    def notice_markup(kind,invite,count=None):
+        is_battle=kind=='battle'
+        deck_name=str(invite.get('deck_name') or ('Battle invitation' if is_battle else 'Study invitation'))
+        sender=escape(str(invite.get('username') or 'A student'))
+        course=escape(str(invite.get('course') or 'Course not specified'))
+        label='New Battle invitation' if is_battle else 'New Study invitation'
+        icon=inline_icon('swords' if is_battle else 'file')
+        count_badge='<span class="play-invite-count">'+str(count)+'</span>' if count else ''
+        return ('<div class="play-invite-notice play-invite-'+kind+'">'
+                '<span class="play-invite-badges">'+count_badge+'<span class="play-invite-new">'+inline_icon('sparkles')+' New</span></span>'
+                '<p class="play-invite-label">'+icon+label+'</p>'
+                '<strong>'+escape(deck_name)+'</strong>'
+                '<p><b>'+sender+'</b> · '+course+'</p></div>')
+
+    battle_column,study_column=st.columns(2)
+    with battle_column:
+        for index,invite in enumerate(battle_invites):
+            with st.container(border=True,key='play_battle_invitation_'+invite['id']):
+                st.markdown(notice_markup('battle',invite,len(battle_invites) if index==0 else None),unsafe_allow_html=True)
+                if st.button('Open Battle Mode',key='open_battle_invitation_notice_'+invite['id'],icon=':material/swords:',use_container_width=True):
+                    st.session_state.play_mode_preview='Battle';st.rerun()
+    with study_column:
+        for invite in study_invites:
+            with st.container(border=True,key='play_study_invitation_'+invite['id']):
+                st.markdown(notice_markup('study',invite),unsafe_allow_html=True)
+
+
 def incoming_battle_invite_count(client):
     """Return the authenticated player's currently actionable Battle invitations."""
     try:state=battle_request(client,'list')
@@ -3057,6 +3092,7 @@ def play_screen(client,profile):
                     st.caption('Practise together and focus on learning.')
                     if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
                         st.session_state.play_mode_preview='Study';st.rerun()
+            play_landing_invitation_notices(client)
         elif selected=='Battle':
             battle_screen(client,profile);return
         else:
