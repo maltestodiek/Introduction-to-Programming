@@ -30,38 +30,73 @@ def test_streak_milestones_are_announced_at_three_five_and_ten():
     assert streak_milestone(4) is None
 
 
-def test_countdown_overlay_counts_down_and_ends_on_the_mode_emblem():
-    battle=countdown_overlay('battle')
-    study=countdown_overlay('study',decorative=True)
-    for digit in ('>3<','>2<','>1<','round-mode-icon'):
-        assert digit in battle and digit in study
-    assert 'GO!' not in battle
-    assert 'battle-emblem' in battle and 'study-emblem' in study
-    assert 'Battle starting' in battle and 'Study starting' in study
-    assert 'is-decorative' in study and 'is-decorative' not in battle
+def test_intro_shows_the_approved_beats_in_order_for_both_modes():
+    for mode in ('battle', 'study'):
+        markup=countdown_overlay(mode)
+        positions=[markup.index('>'+word+'<') for word in ('3','2','1','Best of Luck!','Go!')]
+        assert positions==sorted(positions)
+        assert mode.title()+' Mode' in markup
+        assert 'aria-label=' in markup
 
 
-def test_countdown_overlay_blocks_no_clicks_and_respects_reduced_motion():
-    assert 'pointer-events:none' in EFFECTS_CSS
-    assert '.round-countdown' in EFFECTS_CSS
-    assert '.round-mode-icon .sword-left{transform:rotate(-38deg)' in EFFECTS_CSS
-    assert '.round-mode-icon .sword-right{transform:rotate(38deg)' in EFFECTS_CSS
-    # The emblem must still be on screen when the first question replaces the overlay.
-    assert '@keyframes round-go{0%{opacity:0;transform:scale(.4)}40%{opacity:1;transform:scale(1.25)}70%{transform:scale(1)}100%{opacity:1;transform:scale(1)}}' in EFFECTS_CSS
-    assert 'time.sleep(4.5)' in APP
-    assert '@media(prefers-reduced-motion:reduce)' in EFFECTS_CSS
+def test_countdown_keeps_the_sidebar_clear_and_supports_reduced_motion():
+    css=(ROOT/'assets'/'session-intro.css').read_text()
+    assert 'inset:3.75rem 0 0 14rem' in css and '@media(max-width:760px)' in css
+    assert 'pointer-events:none' in css and '@media(prefers-reduced-motion:reduce)' in css
 
 
-def test_battle_requests_the_first_question_only_after_the_countdown():
-    assert "st.session_state.get(countdown_key)" in APP
-    section=APP[APP.index('def battle_round_screen'):APP.index('def battle_game_dialog')]
-    assert "countdown_overlay('battle')" in section
-    assert section.index('battle_countdown_')<section.index("battle_request(client,'round'")
+def test_battle_start_precedes_first_question_and_resume_skips_intro(monkeypatch):
+    from test_deck_ui import deck_app
+    events=[]
+    monkeypatch.setattr('round_effects.INTRO_SECONDS',0)
+    def action(self,action,data=None):
+        if action=='list':
+            return {'sessions':[{'id':sid,'deck_name':'Finance','status':'ongoing','started':started,
+                                 'opponent_username':'Peer'} for sid,started in [('new',False),('opened',True)]]}
+        if action=='round':
+            events.append(data['id'])
+            return {'state':'question','index':0,'seconds':30,'options':[],'question':'First question'}
+        return {}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    monkeypatch.setattr('db.BattleRepository.progress',lambda *args:{'answers':[]})
+    monkeypatch.setattr('round_effects.countdown_overlay',lambda mode: events.append(mode+' intro') or '<p>Intro</p>')
+    at=deck_app(monkeypatch)
+    at.session_state['main_page']='Play'
+    at.session_state['play_mode_preview']='Battle'
+    at.run()
+    at.button(key='overview_battle_new').click().run()
+    assert events==['battle intro','new'] and not at.exception
+    del at.session_state['battle_session']
+    at.run()
+    at.button(key='overview_battle_opened').click().run()
+    assert events==['battle intro','new','opened'] and not at.exception
 
 
-def test_study_round_shows_a_decorative_countdown_once():
-    assert 'study_countdown_' in APP
-    assert "countdown_overlay('study',decorative=True)" in APP
+def test_study_start_then_reopen_unanswered_session_skips_intro(monkeypatch):
+    from test_deck_ui import button
+    from test_study_ui import setup
+    from db import StudyRepository
+    at,calls,_=setup(monkeypatch)
+    original_action=StudyRepository.action
+    def action(repo, name, data=None):
+        result=original_action(repo,name,data)
+        if name=='list' and any(a=='start' for a,_ in calls):
+            result['sessions']=[{'id':'session','name':'Practice','mode':'solo','state':'own','cursor':0,'count':10}]
+        return result
+    monkeypatch.setattr(StudyRepository,'action',action)
+    monkeypatch.setattr('round_effects.INTRO_SECONDS',0)
+    def intro(mode):
+        calls.append(('intro',mode))
+        return '<p>Intro</p>'
+    monkeypatch.setattr('round_effects.countdown_overlay',intro)
+    button(at,'Start studying').click().run()
+    assert [a for a,_ in calls if a in ('start','intro','round')]==['start','intro','round']
+    button(at,'Save and leave Study session').click().run()
+    assert [a for a,_ in calls if a=='intro']==['intro']
+    calls_before_resume=len(calls)
+    at.button(key='study_resume_session').click().run()
+    assert [a for a,_ in calls[calls_before_resume:] if a in ('intro','round')]==['round']
+    assert not at.exception
 
 
 def test_overview_heads_carry_the_live_accuracy_chip_in_both_modes():

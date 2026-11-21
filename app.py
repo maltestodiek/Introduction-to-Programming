@@ -25,7 +25,7 @@ from course_catalog import course_options,field_options,load_universities,load_u
 from sharing import share_invitation
 from ui_icons import inline_icon
 from answer_order import display_options
-from round_effects import accuracy_chip, combo_markup, countdown_overlay, streak_badge, streak_length, streak_milestone
+from round_effects import accuracy_chip, combo_markup, INTRO_SECONDS, countdown_overlay, streak_badge, streak_length, streak_milestone
 from logic import normalize_friend_code, invitation_url, invitation_token
 from logic import CATALOG, LANGUAGES, DEFAULT_AVATAR, OPTIONS, DEGREES, render_avatar, crop_photo, validate_username, xp_breakdown
 
@@ -1572,6 +1572,7 @@ def study_library(client,profile):
 
 
 def study_round_screen(client,sid):
+    show_round_intro('study',sid)
     r=study_request(client,'round',{'id':sid})
     if r is None:return
     from db import StudyRepository
@@ -1586,12 +1587,6 @@ def study_round_screen(client,sid):
         from study_ui import study_progress_tiles
         symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
         current_index=r['index'] if state=='question' else r['index']+1
-        # The decorative start countdown hides itself; it only appears on a fresh round.
-        countdown_key=f'study_countdown_{sid}'
-        if not st.session_state.get(countdown_key):
-            st.session_state[countdown_key]=True
-            if state=='question' and not progress.get('answers'):
-                st.html(countdown_overlay('study',decorative=True))
         streak=streak_length(progress.get('answers',[]))
         flash=r['index'] if state=='feedback' else None
         tiles=study_progress_tiles(progress.get('answers',[]),current_index,r['total'])
@@ -1707,7 +1702,8 @@ def study_plan_start(client,plan,course,steps,by_deck,decks):
         st.info('Every question of this course has reached your target level.');return
     started=study_request(client,'start',{'deck_id':deck_id,'shared':lookup[deck_id]['shared'],'mode':'solo','count':min(steps,waiting[deck_id],100),'chapters':[],'levels':['new']+[str(level) for level in range(plan['target'])],'request_id':str(uuid4())})
     if started is not None:
-        st.session_state.study_active=True;st.session_state.study_choice='Study alone';st.session_state.study_session=started['id'];st.session_state.main_page='Play';st.rerun()
+        st.session_state.study_active=True;st.session_state.study_choice='Study alone';st.session_state.main_page='Play'
+        open_round('study', started['id'], fresh=True)
 
 
 def study_plan_clock():
@@ -2173,7 +2169,7 @@ def study_screen(client,profile):
         for s in data['sessions']:
             cols=st.columns([4,1]);cols[0].write(f"**{s['name']}** · {s['mode']} · {s['state']} · {s['count']} questions")
             if s['mode']!='solo':session_partner_chat(client,'study',s['id'],'saved')
-            if cols[1].button('Open',key='study_resume_'+s['id']):st.session_state.study_session=s['id'];st.rerun()
+            if cols[1].button('Open',key='study_resume_'+s['id']):open_round('study', s['id'], fresh=False)
             if s['state'] in ('own','waiting') and s['mode']!='solo':
                 if st.button('Cancel search / invitation',key='study_cancel_'+s['id']):
                     if study_request(client,'cancel',{'id':s['id']}) is not None:st.rerun()
@@ -2281,16 +2277,33 @@ def study_screen(client,profile):
         request['request_id']=st.session_state.study_request_id
         r=study_request(client,'start',request)
         if r is not None:
-            st.session_state.study_session=r['id'];st.session_state.pop('study_request_id',None);st.session_state.pop('study_invite_friend',None);st.rerun()
+            st.session_state.pop('study_request_id',None);st.session_state.pop('study_invite_friend',None)
+            open_round('study', r['id'], fresh=True)
 
 
-def resume_battle_session(session_id):
-    st.session_state.battle_session=session_id;st.session_state.pop('battle_feedback',None);st.rerun()
+def open_round(mode, session_id, *, fresh):
+    """Only a successful start action schedules the intro; reopening never does."""
+    st.session_state[f'{mode}_session'] = session_id
+    st.session_state.pop('pending_round_intro', None)
+    if fresh:
+        st.session_state.pending_round_intro = (mode, session_id)
+    if mode == 'battle':
+        st.session_state.play_mode_preview = 'Battle'
+        st.session_state.pop('battle_feedback', None)
+    st.rerun()
+
+
+def show_round_intro(mode, session_id):
+    if st.session_state.pop('pending_round_intro', None) == (mode, session_id):
+        stage = st.empty()
+        stage.html(countdown_overlay(mode))
+        time.sleep(INTRO_SECONDS)
+        stage.empty()
 
 
 def resume_study_session(session):
     st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together'
-    st.session_state.study_session=session['id'];st.rerun()
+    open_round('study', session['id'], fresh=False)
 
 
 def show_more_history():
@@ -2308,7 +2321,7 @@ def session_card(client,kind,session):
                 st.caption('Your answers are saved. Waiting for your opponent.')
             else:st.markdown(':violet-badge[Your turn]' if session.get('started') else ':blue-badge[Ready to start]')
             if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id'],use_container_width=True):
-                resume_battle_session(session['id'])
+                open_round('battle', session['id'], fresh=not session.get('started'))
             return
         st.markdown(':material/menu_book: **'+session['name']+'**')
         if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'home')
@@ -2371,7 +2384,7 @@ def ongoing_sessions(client):
                         else:st.markdown(item['mode'])
                     score.markdown(item['score']);xp.markdown(item['xp'])
                     if action.button('View Study session',key='history_study_'+item['id'],use_container_width=True):
-                        st.session_state.study_active=True;st.session_state.study_session=item['id'];st.rerun()
+                        st.session_state.study_active=True;open_round('study', item['id'], fresh=False)
             if len(rows)>limit:st.button('Show more',key='sessions_history_more',on_click=show_more_history,use_container_width=True)
     with side:
         with st.container(key='sessions_stat_study'):
@@ -2534,16 +2547,6 @@ def battle_round_screen(client,session_id):
     if progress is None:return
     answers=progress.get('answers',[])
     feedback=st.session_state.get('battle_feedback')
-    # The animated start countdown runs before the first question is requested,
-    # so the server question timer only starts afterwards. Resumed rounds skip it.
-    countdown_key=f'battle_countdown_{session_id}'
-    if not st.session_state.get(countdown_key):
-        st.session_state[countdown_key]=True
-        if not answers and not (feedback and feedback.get('id')==session_id):
-            st.html(countdown_overlay('battle'))
-            # The emblem beat runs from second 3 to 4; fetch the first question only after it.
-            time.sleep(4.5)
-            st.rerun()
     if feedback and feedback.get('id')==session_id:
         card=feedback['card'];response=feedback['feedback']
         streak=streak_length(answers)
@@ -2705,7 +2708,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                                 accept,decline=st.columns(2)
                                 if accept.button('Accept',key='battle_accept_'+invite['id'],type='primary',use_container_width=True):
                                     result=battle_request(client,'accept_invite',{'invite_id':invite['id']})
-                                    if result is not None:st.session_state.battle_session=result['session_id'];st.rerun()
+                                    if result is not None:open_round('battle', result['session_id'], fresh=True)
                                 if decline.button('Decline',key='battle_decline_'+invite['id'],use_container_width=True):
                                     if battle_request(client,'decline_invite',{'invite_id':invite['id']}) is not None:st.rerun()
                             elif st.button('Cancel invitation',key='battle_cancel_'+invite['id'],use_container_width=True):
@@ -2717,7 +2720,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                                 st.html(versus_markup(opponent)+deck_markup(session['deck_name']))
                                 st.markdown(':violet-badge[:material/schedule: Your turn]')
                                 if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary',use_container_width=True):
-                                    st.session_state.battle_session=session['id'];st.session_state.pop('battle_feedback',None);st.rerun()
+                                    open_round('battle', session['id'], fresh=not session.get('started'))
                             else:
                                 st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
                                  +f'<div class="bo-score"><b>{session["score"]}</b><i>/ 15</i><span class="bo-pill bo-xp-plus">your result</span></div>'
@@ -2859,7 +2862,7 @@ def battle_new_setup_screen(client,profile):
         if st.button('Find random player',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
             result=battle_request(client,'join',payload)
             if result is not None:
-                if result.get('session_id'):st.session_state.battle_session=result['session_id']
+                if result.get('session_id'):open_round('battle', result['session_id'], fresh=True)
                 else:
                     st.session_state.battle_notice='We are searching for a compatible opponent for up to 1 hour. Your request now appears under Pending.'
                     st.session_state.pop('battle_new_setup',None)
@@ -2887,6 +2890,7 @@ def battle_screen(client,profile):
     if rating_session:=st.session_state.get('battle_rating_session'):
         battle_rating_dialog(client,rating_session);return
     if st.session_state.get('battle_session'):
+        show_round_intro('battle',st.session_state.battle_session)
         battle_game_dialog(client,st.session_state.battle_session);return
     if st.session_state.get('battle_new_setup'):
         battle_new_setup_screen(client,profile);return
