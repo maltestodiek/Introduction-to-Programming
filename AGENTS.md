@@ -6,6 +6,10 @@ Keep the class structure: screens in app.py, business rules in logic.py, databas
 
 Commands: uv sync; uv run pytest -q; uv run streamlit run app.py. On this Mac use sh run-tests.sh and sh run-app.sh when the Desktop environment stalls. SQL checks use tests/*_database.mjs with isolated PGlite; Node is test tooling only. Never use real users, messages or production data in tests. Each persistence test must use a temporary/local database. Reset test data by rerunning the isolated test setup; do not reset production.
 
+Keep the UI in Python and Streamlit. Use CSS for themes and animation, and scoped JavaScript inside Streamlit components for browser interactions such as avatar swiping and copying invitation links. Keep shared multiplayer updates and access checks in PostgreSQL so they apply across player sessions.
+
+Maintain the two AI integrations as TypeScript Edge Functions on Supabase, running on Deno. The Python adapter in `db.py` calls `generate-questions` to create question drafts and `extract-image-text` to transcribe Anki card images. Keep `REQUESTY_API_KEY` in Supabase function secrets. From the repository root, run `deno test supabase/functions` for changes to either function and use simulated provider responses in tests.
+
 Use main as the stable shared baseline. Fetch and check team changes first. Work on a named branch: feature/<topic>, fix/<topic>, or docs/<topic>. The live Streamlit app deploys directly from main. After review and verification, merge into main to release; do not push releases to first-feature. Never force-push, delete team branches or replace a teammate's work. See docs/team-workflow.md.
 
 Every task spec uses Why, What, Out of scope, Done when. Group visual changes under Appearance and Navigation, social changes under Social Connections, and deck/subsection/calculator changes under Deck Authoring. Write behavioral tests first for new workflows, review expected outcomes, and preserve them during implementation. Do not weaken, skip or remove tests to get green output. Correct mistaken expectations explicitly against the approved spec.
