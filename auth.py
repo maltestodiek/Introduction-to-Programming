@@ -1,5 +1,6 @@
 """Per-browser-session Supabase authentication; no cached global clients."""
 from dataclasses import dataclass
+from supabase_auth.constants import STORAGE_KEY
 from logic import validate_email, validate_username
 
 @dataclass
@@ -107,13 +108,31 @@ class AuthService:
         except Exception:
             return Result("error","Could not send the reset email. Please try again shortly.")
 
+    def recovery_verifier(self):
+        # The pinned Supabase SDK marks reset verifiers separately from signup verifiers.
+        stored = self.client.options.storage.get_item(f"{STORAGE_KEY}-code-verifier")
+        if isinstance(stored, str) and stored.endswith("/PASSWORD_RECOVERY"):
+            return stored.removesuffix("/PASSWORD_RECOVERY")
+        return None
+
     def begin_recovery(self,data):
         self.user=None
         self.recovery_verified=False
         try:
-            if data.get("type")!="recovery" or not data.get("access_token") or not data.get("refresh_token"):
+            if data.get("type") != "recovery":
                 raise ValueError("Invalid recovery link")
-            self.client.auth.set_session(data["access_token"],data["refresh_token"])
+            if data.get("code"):
+                if not data.get("verifier"):
+                    return Result("error", "If you just confirmed your email, sign in below. To reset your password, request a fresh link and open it in the same browser.")
+                response = self.client.auth.exchange_code_for_session({
+                    "auth_code": data["code"], "code_verifier": data["verifier"]
+                })
+                if not response.session:
+                    raise ValueError("No recovery session")
+            elif data.get("access_token") and data.get("refresh_token"):
+                self.client.auth.set_session(data["access_token"], data["refresh_token"])
+            else:
+                raise ValueError("Invalid recovery link")
             user=self.client.auth.get_user().user
             if not user:raise ValueError("No verified identity")
             self.recovery_verified=True
