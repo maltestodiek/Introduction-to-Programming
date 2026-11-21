@@ -10,15 +10,15 @@
 [class*="st-key-study_plan_editor_courses"],[class*="st-key-study_plan_editor_goal"],[class*="st-key-study_plan_editor_week"]{margin-bottom:1rem}
 /* Goal cards: a colour bar per level, the whole card is the button. */
 [class*="st-key-study_plan_goal_card_"]{position:relative;min-height:132px!important;text-align:center;border-radius:16px!important;padding:22px 12px 14px!important;overflow:hidden;transition:border-color .16s ease,box-shadow .16s ease}
-[class*="st-key-study_plan_goal_card_"]::before{content:"";position:absolute;top:10px;left:14px;right:14px;height:7px;border-radius:999px;background:#fec66d}
-[class*="st-key-study_plan_goal_card_3"]::before{background:#94c651}
+[class*="st-key-study_plan_goal_card_"]::before{content:"";position:absolute;top:10px;left:14px;right:14px;height:7px;border-radius:999px;background:var(--goal-color)}
+[class*="st-key-study_plan_goal_card_"]{background:color-mix(in srgb,var(--goal-color) 9%,var(--sd-surface))!important}
 [class*="st-key-study_plan_goal_card_"] p{margin:0}
 [class*="st-key-study_plan_goal_card_"] [data-testid="stMarkdownContainer"],[class*="st-key-study_plan_goal_card_"] [data-testid="stCaptionContainer"]{text-align:center;width:100%}
 [class*="st-key-study_plan_goal_card_"] [data-testid="stElementContainer"]:has([data-testid="stButton"]){position:absolute!important;inset:0;margin:0!important;z-index:2}
 [class*="st-key-study_plan_goal_card_"] [data-testid="stButton"],[class*="st-key-study_plan_goal_card_"] [data-testid="stButton"] button{width:100%!important;height:100%!important;opacity:0;cursor:pointer}
 [class*="st-key-study_plan_goal_card_"]:hover{border-color:#818cf8!important;box-shadow:0 8px 20px var(--sd-shadow)}
 [class*="st-key-study_plan_goal_card_"]:has(button:focus-visible){outline:3px solid var(--sd-accent);outline-offset:2px}
-[class*="st-key-study_plan_goal_card_"][class*="_selected"]{border:3px solid var(--sd-accent)!important;background:var(--sd-study-end)!important}
+[class*="st-key-study_plan_goal_card_"][class*="_selected"]{border:3px solid var(--sd-accent)!important;background:color-mix(in srgb,var(--goal-color) 22%,var(--sd-surface))!important}
 /* Header actions and compact week controls. */
 [class*="st-key-plan_"] button p,.study-plan-actions button p{white-space:nowrap}
 /* Session actions include the course and question count, so give them room to wrap. */

@@ -1812,7 +1812,12 @@ def study_plan_close_editor():
 
 
 def study_plan_design():
-    st.html('<style>'+(Path(__file__).parent/'assets'/'study-plan.css').read_text()+'</style>')
+    css = (Path(__file__).parent / 'assets' / 'study-plan.css').read_text()
+    goal_colors = ''.join(
+        f'[class*="st-key-study_plan_goal_card_{level}"]{{--goal-color:{STUDY_LEVEL_COLORS[level]}}}'
+        for level in ('1', '2', '3')
+    )
+    st.html(f'<style>{css}{goal_colors}</style>')
 
 
 def study_plan_add_day_off(key):
@@ -1931,7 +1936,7 @@ def study_plan_editor(client,profile,decks,user_id=''):
                 st.write('**Your workload**')
                 for item in clean['courses']:st.write(study_plan_workload_text(rules,clean,item,levels[item['course']],today,schedule))
                 if len(clean['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
-            st.caption(':material/event: Add the sessions to Google Calendar after saving.')
+            st.caption(':material/event: Calendar export is available after saving.')
         else:st.info('Choose courses, decks and dates to see the live preview.')
     with actions:
         cancel=st.button('Cancel')
@@ -1945,7 +1950,6 @@ def study_plan_editor(client,profile,decks,user_id=''):
     if cancel:
         study_plan_close_editor();st.rerun()
     if draft.get('id'):
-        import google_calendar as google
         st.divider();st.write('**Calendar**')
         st.caption('These use the plan as it is saved now. Save your changes first to include them.')
         saved={k:v for k,v in draft.items() if k!='calendar_events'};recorded=draft.get('calendar_events') or [];saved_levels=study_plan_levels(client,saved,decks)
@@ -1956,10 +1960,9 @@ def study_plan_editor(client,profile,decks,user_id=''):
                 st.session_state[key+'delete']=True;st.rerun()
         else:
             st.warning(f"Delete the study plan “{draft['name']}”? Your learning progress is kept.")
-            client_id,secret,redirect=study_plan_google_settings()
-            if recorded and client_id and secret:
+            if recorded:
                 st.caption(f'{len(recorded)} entries of this plan are in your Google Calendar. Remove them first if you no longer want them.')
-                st.link_button('Remove from Google Calendar',google.authorization_url(client_id,redirect,google.sign_state(secret,'clear',draft['id'],user_id)))
+                study_plan_calendar_action('Remove from Google Calendar','clear',draft['id'],user_id)
             yes,no=st.columns(2)
             if yes.button('Confirm deletion',type='primary',key=key+'delete_yes',use_container_width=True):
                 if study_plan_request(client,'delete',{'id':draft['id']}) is not None:
@@ -2012,16 +2015,31 @@ def study_plan_google_answer(client,decks,user_id):
     except httpx.HTTPError:st.error('Google Calendar could not be reached. Choose Update Google Calendar to try again.')
 
 
+def study_plan_calendar_action(label,kind,plan_id,user_id):
+    import google_calendar as google
+    notice = 'Google Calendar sync is in testing. Only registered Google test accounts have access.'
+    client_id,secret,redirect=study_plan_google_settings()
+    with st.popover(label,icon=':material/event:',width='stretch',key=f'plan_google_{kind}_{plan_id}'):
+        st.markdown(notice)
+        if kind=='sync':
+            st.write('For any other account, download the calendar file and import it into your calendar.')
+        if client_id and secret:
+            state=google.sign_state(secret,kind,plan_id,user_id)
+            st.link_button('Continue with a registered test account',google.authorization_url(client_id,redirect,state))
+        else:
+            st.caption('Google sign-in is unavailable on this app instance.')
+    st.caption(notice)
+
+
 def study_plan_calendar_buttons(plan,recorded,levels,today,user_id):
     """Calendar file download and Google Calendar link for one saved plan."""
-    import google_calendar as google
     import study_plan as rules
-    client_id,secret,redirect=study_plan_google_settings();download,online=st.columns(2)
+    download,online=st.columns(2)
     download.download_button('Calendar file',rules.plan_ics(plan,rules.plan_sessions(plan,levels,today)),file_name='uniarena-'+plan['id'][:8]+'.ics',mime='text/calendar',key='plan_ics_'+plan['id'],icon=':material/download:',use_container_width=True,help='Download the planned sessions and import them into any calendar.')
-    if client_id and secret:
-        online.link_button('Update Google Calendar' if recorded else 'Add to Google Calendar',google.authorization_url(client_id,redirect,google.sign_state(secret,'sync',plan['id'],user_id)),icon=':material/event:',use_container_width=True)
-        st.caption((f'{len(recorded)} entries of this plan are in your Google Calendar. After changing the plan or missing a day, choose Update Google Calendar. ' if recorded else '')+'Google asks for permission each time; UniArena only changes the entries it created for this plan.')
-    else:st.caption('Google Calendar is not connected to this app yet. Use the calendar file instead.')
+    with online:
+        study_plan_calendar_action('Update Google Calendar' if recorded else 'Add to Google Calendar','sync',plan['id'],user_id)
+    if recorded:
+        st.caption(f'{len(recorded)} calendar entries were previously added for this plan.')
 
 
 def study_plan_finish(client,stored,decks,user_id):
@@ -2036,7 +2054,7 @@ def study_plan_finish(client,stored,decks,user_id):
     for item in plan['courses']:st.write(study_plan_workload_text(rules,plan,item,levels[item['course']],today,schedule))
     if len(plan['courses'])>1 and schedule:st.write(study_plan_total_text(schedule))
     st.write('**Add the sessions to your calendar**')
-    st.caption('Optional. Download a calendar file or add the sessions to Google Calendar, then finish to see your progress.')
+    st.caption('Download a calendar file for your sessions, or choose Finish to see your progress.')
     study_plan_calendar_buttons(plan,stored.get('calendar_events') or [],levels,today,user_id)
     if st.button('Finish',type='primary',use_container_width=True):
         st.session_state.pop('study_plan_finish',None);st.rerun()

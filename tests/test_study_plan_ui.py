@@ -138,7 +138,11 @@ def test_google_answer_replaces_only_this_plans_entries(monkeypatch):
     at,calls=setup(monkeypatch,[google_plan()])
     assert not any(b.label=='Update Google Calendar' for b in at.get('link_button'))
     button(at,'Edit').click().run()
-    assert any(b.label=='Update Google Calendar' for b in at.get('link_button')) and any(b.label=='Calendar file' for b in at.get('download_button'))
+    notice=next(item for item in at.get('popover') if item.proto.popover.label=='Update Google Calendar')
+    assert any('registered Google test accounts' in item.value for item in at.caption)
+    assert any('registered Google test accounts' in item.value for item in notice.markdown)
+    assert any(b.label=='Continue with a registered test account' for b in notice.get('link_button'))
+    assert any(b.label=='Calendar file' for b in at.get('download_button'))
     assert not any(a=='events' for a,_ in calls)
     at.query_params['state']=gc.sign_state('client-secret','sync','plan-1','a');at.query_params['code']='one-time-code';at.run()
     assert seen['code']=='one-time-code' and seen['redirect']=='http://localhost:8501' and seen['removed']==[{'uid':'old','event_id':'g-old'}]
