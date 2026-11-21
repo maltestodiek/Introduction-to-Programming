@@ -38,8 +38,11 @@
 .st-key-open_home button:focus-visible{outline:3px solid var(--sd-text)!important;outline-offset:3px}
 /* Desktop navigation is a full-height bar along the left edge; account actions live below the activity destinations. */
 .st-key-sidebar_navigation{position:fixed;z-index:100;top:0;left:0;bottom:0;width:14rem;box-sizing:border-box;padding:1.5rem .65rem .9rem;overflow-y:auto;border-right:1px solid var(--sd-border);background:var(--sd-surface)}
-/* Page content and Streamlit's top bar start to the right of the sidebar so it never covers them. */
-@media(min-width:761px){.stMain{padding-left:14rem}.stAppHeader{left:14rem!important;width:auto!important}}
+/* Reserve desktop space only on screens that render the navigation. */
+@media(min-width:761px){
+ .stMain:has(.st-key-sidebar_navigation){padding-left:14rem}
+ .stApp:has(.st-key-sidebar_navigation) .stAppHeader{left:14rem!important;width:auto!important}
+}
 .st-key-sidebar_navigation .st-key-top_brand{margin:0 0 1.8rem}
 .st-key-sidebar_navigation .st-key-top_brand .st-key-open_home {
  margin-inline: auto;
@@ -53,20 +56,23 @@
 @media(min-width:761px){.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats){width:calc(14rem - 1.3rem)!important}}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button{width:100%;min-height:46px;padding:.5rem .7rem;justify-content:flex-start;border-color:transparent!important;background:transparent!important;box-shadow:none!important;color:var(--sd-nav-text)!important;font-size:1rem}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button [data-testid="stMarkdownContainer"],.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button p{text-align:left!important;flex:1}
-/* Reserve the same icon column and selected-border width on every account row. */
-.st-key-sidebar_navigation .st-key-sidebar_account_actions button{
- display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:.5rem;
- padding-block:.35rem;border-left-width:4px!important;
-}
-/* Center the shared icon and label columns in the desktop rail. Leave room
-   after the label for the unread count without shifting the other rows. */
+/* Keep all seven desktop destinations on the same icon and label columns. */
 @media(min-width:761px){
- .st-key-sidebar_navigation .st-key-sidebar_account_actions button{
-  padding-inline-start:calc(50% - 3.15rem);
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button{
+  display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:.5rem;
+  border-left-width:4px!important;
  }
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button::before{justify-self:center}
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button>div{justify-self:stretch;justify-content:center}
 }
-.st-key-sidebar_navigation .st-key-sidebar_account_actions button::before{justify-self:center}
-.st-key-sidebar_navigation .st-key-sidebar_account_actions button>div{justify-content:flex-start}
+@media(max-width:760px){
+ .st-key-sidebar_navigation .st-key-sidebar_account_actions button{
+  display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:.5rem;
+  padding-block:.35rem;border-left-width:4px!important;
+ }
+ .st-key-sidebar_navigation .st-key-sidebar_account_actions button::before{justify-self:center}
+ .st-key-sidebar_navigation .st-key-sidebar_account_actions button>div{justify-content:flex-start}
+}
 .st-key-nav_play_invite_badge .st-key-nav_Play button{position:relative!important;padding-right:2.6rem!important}.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:"1";position:absolute;z-index:2;top:50%;right:.7rem;display:grid;place-items:center;min-width:1.25rem;height:1.25rem;padding:0 .28rem;border-radius:999px;background:#5142e5;color:#fff;font-size:.72rem;font-weight:800;line-height:1;box-shadow:0 1px 4px rgba(47,38,130,.28);transform:translateY(-50%);pointer-events:none}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button:hover{background:var(--sd-nav-hover)!important;box-shadow:none!important;transform:none}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button[kind="primary"]{border-left:4px solid var(--sd-accent)!important;background:linear-gradient(90deg,var(--sd-nav-selected-start),var(--sd-nav-selected-end))!important;color:var(--sd-nav-selected-text)!important;font-weight:800}
