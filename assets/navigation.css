@@ -48,7 +48,21 @@
 @media(min-width:761px){.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats){width:calc(14rem - 1.3rem)!important}}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button{width:100%;min-height:46px;padding:.5rem .7rem;justify-content:flex-start;border-color:transparent!important;background:transparent!important;box-shadow:none!important;color:var(--sd-nav-text)!important;font-size:1rem}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button [data-testid="stMarkdownContainer"],.st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button p{text-align:left!important;flex:1}
-.st-key-sidebar_navigation .st-key-open_chats button{position:relative!important;justify-content:flex-start!important;gap:8px!important}.st-key-sidebar_navigation .st-key-open_chats button [data-testid="stMarkdownContainer"]{position:absolute!important;left:57%!important;top:50%!important;width:auto!important;transform:translate(-50%,-50%)!important}.st-key-sidebar_navigation .st-key-open_chats button p{flex:none!important;text-align:center!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important}
+.st-key-sidebar_navigation .st-key-open_chats button {
+ position: relative;
+ padding-inline-start: calc(.7rem + 30px);
+}
+.st-key-sidebar_navigation .st-key-open_chats button [data-testid="stIconMaterial"] {
+ position: absolute;
+ inset-inline-start: .7rem;
+ top: 50%;
+ transform: translateY(-50%);
+ font-size: 1.2rem;
+}
+.st-key-sidebar_navigation .st-key-open_chats button:focus-visible {
+ outline: 3px solid var(--sd-text);
+ outline-offset: 3px;
+}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button:hover{background:var(--sd-nav-hover)!important;box-shadow:none!important;transform:none}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button[kind="primary"]{border-left:4px solid var(--sd-accent)!important;background:linear-gradient(90deg,var(--sd-nav-selected-start),var(--sd-nav-selected-end))!important;color:var(--sd-nav-selected-text)!important;font-weight:800}
 .st-key-sidebar_navigation [class*="st-key-nav_"] button::before,.st-key-sidebar_navigation .st-key-open_friends button::before{width:22px;height:22px}
