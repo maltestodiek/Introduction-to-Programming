@@ -91,3 +91,17 @@ def load_universities(client):
     for name in sorted(counts,key=lambda n:(-counts[n],n)):best.setdefault(name.lower(),name)
     return sorted(best.values(),key=str.lower)
 
+
+
+def courses_at_university(profile, university):
+    """The profile's active courses or a saved selection from an earlier campus."""
+    if university == profile.get("university"):
+        return profile.get("courses", [])
+    return profile.get("course_history", {}).get(university, [])
+
+
+def other_university_courses(profile, university):
+    selections = dict(profile.get("course_history", {}))
+    if profile.get("university"):
+        selections[profile["university"]] = profile.get("courses", [])
+    return {campus: courses for campus, courses in selections.items() if campus != university and courses}

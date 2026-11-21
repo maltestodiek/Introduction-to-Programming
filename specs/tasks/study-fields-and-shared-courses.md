@@ -26,9 +26,13 @@ The course selector on the profile form lists every course name that students at
 Names are matched without regard to letter case or repeated spaces. If a typed name matches a listed course, the listed spelling is saved, so students in the same course hold the identical name. When several spellings of one course already exist, the list shows the most used one.
 
 ### Adding courses from the profile
-The profile page has an Add courses button under Your courses, in place of the former Open friends button (Friends is reached from the header). It opens the same course selector as Edit profile, with Save courses and Cancel. Saving changes only the courses; username, university, languages, image and study details are saved back unchanged. At least one course must remain.
+The profile page has an Add courses button under Your courses, in place of the former Open friends button (Friends is reached from the header). It opens the same course selector as Edit profile, with Save courses and Cancel. Saving changes only the courses; username, university, languages, image and study details are saved back unchanged. At least one course must remain across the student’s universities.
 
-State and persistence: no new table. Supabase reads the names from the saved profiles through the `university_courses` function. It returns course names only for the requested university, never usernames, user ids or how many students take a course. Only signed-in students can call it.
+When the student changes university, the selector shows the courses they saved there previously. It starts empty at a new university. The private profile shows every saved course with its university in parentheses beside its name. A course from a former university explains how to make it eligible for matching again. A student may independently enrol in a same-named course at another university.
+
+The active course list feeds matchmaking and the current campus catalog. Switching campuses closes pending Battle and Study Together requests. Paired and solo sessions are preserved. Previously stored courses start with the university on the profile at rollout. The database has no earlier transfer history to reconstruct.
+
+Deployment requires the database migration `supabase/migrations/20261121180000_course_universities.sql`. Supabase reads the names from the saved profiles through the `university_courses` function. It returns course names only for the requested university, never usernames, user ids or how many students take a course. Only signed-in students can call it.
 
 Privacy note: a student's own course selection stays private, but the names in use at a university are visible to signed-in students. At a university with a single student, those names are that student's courses.
 
@@ -44,6 +48,6 @@ Moderating, renaming or merging course names; course codes; a course catalogue s
 4. Anonymous callers cannot read the course list; the result contains names only.
 5. If the course list cannot be loaded, the form still works with the student's own courses and typed entries.
 6. Typing in the university field shows matching universities in use and from the ROR directory; a picked suggestion is saved as shown, and a typed name is kept when no match is chosen.
-7. Add courses on the profile opens the same selector, saves only the courses, rejects an empty selection and can be cancelled.
+7. Add courses on the profile opens the same selector, saves only the courses, rejects removal of the last course across all universities and can be cancelled.
 
 Checks: `tests/test_course_catalog.py`, `tests/test_profile_summary.py`, `tests/university_courses_database.mjs`, `tests/test_ui.py`, plus manual checks: the live suggestions in a browser (they run in the browser and are not covered by the automated tests), and two accounts at one university.
