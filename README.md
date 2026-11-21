@@ -11,11 +11,19 @@ UniArena is a Python/Streamlit app for creating course decks, studying alone or 
 - [Deployment and storage](docs/deployment.md)
 - [Project instructions](AGENTS.md)
 
+## How the stack fits together
+
+- **Python and Streamlit** run the screens on Streamlit Community Cloud. CSS supplies the themes and session animations. Small JavaScript components handle interactions that need the browser, such as avatar swiping and copying a friend invitation link.
+- **Supabase** provides login, private file storage and a shared PostgreSQL database. Each player has a separate Streamlit session. SQL checks permissions and applies shared game updates, so a Battle result is available to both players.
+- **TypeScript and Deno** power two Supabase Edge Functions. When a student requests AI questions, `db.py` calls `generate-questions` with the selected source card IDs. The function reads the cards with the student's permissions, calls Requesty, validates the questions and saves drafts for review. The second function, `extract-image-text`, returns a transcription of an Anki card image for the student to review. Both functions read the Requesty API key from Supabase secrets. [Function source](supabase/functions) · [Supabase setup](docs/supabase-setup.md)
+
 ## Run and test
 
 Use `uv sync`, `uv run pytest -q` and `uv run streamlit run app.py`. Open http://localhost:8501.
 
 On this Mac, `sh run-app.sh` and `sh run-tests.sh` use the locked dependencies with an environment/cache under `~/Library/Caches/StudyDuel`, avoiding the stalled Desktop environment. Teammates copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and configure their approved Supabase URL and publishable key. Never commit the filled secrets file.
+
+From the repository root, run `deno test supabase/functions` to check the TypeScript AI functions with simulated provider responses.
 
 ## Lecture structure
 
@@ -32,7 +40,7 @@ Focused helpers remain at the root: `auth.py` and `recovery.py` for account acce
 
 ## What works now
 
-Accounts and profiles, friends and invitations, private chat, flexible reviewed decks with subsections/calculator permissions, solo and asynchronous Together Study, learning progress, fixed shared deck copies, session history and light/dark appearance. AI and Anki import, Leaderboard, Study Plan and the redesigned Battle Mode are placeholders. Saved classic duels can still be resumed/reviewed; they are distinct from the future Battle Pool design.
+Students can create decks manually or prepare AI question drafts from Anki cards and selectable PDF slide text. They can study alone or together, play Battles for XP, compare global, university and friends rankings, and schedule sessions with Study Plan. Profiles, friend invitations, private chat, chapter and calculator settings, learning progress, session history and light/dark themes are also available. Study Plan offers calendar-file export for everyone and Google Calendar sync for registered Google test accounts.
 
 ## Data and verification
 
