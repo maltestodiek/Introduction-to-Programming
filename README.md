@@ -4,13 +4,14 @@ UniArena is a Python/Streamlit app for creating course decks, studying alone or 
 
 ## Start here
 
+Open the root of your local clone or worktree of `maltestodiek/Introduction-to-Programming` in your coding tool. Look for `app.py` and the file headed **Working on UniArena**. Before editing, have your agent read that file. [AGENTS.md](AGENTS.md)
+
 - [Feature index and current status](docs/features.md)
 - [Topic-based specifications](specs/README.md)
 - [Current product brief](docs/product-brief.md)
 - [Team branch workflow](docs/team-workflow.md)
 - [Deployment and storage](docs/deployment.md)
 - [External APIs and what to do during an outage](docs/external-apis.md)
-- [Project instructions](AGENTS.md)
 
 ## How the stack fits together
 
