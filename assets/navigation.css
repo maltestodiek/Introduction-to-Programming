@@ -36,6 +36,9 @@
 /* Page content and Streamlit's top bar start to the right of the sidebar so it never covers them. */
 @media(min-width:761px){.stMain{padding-left:14rem}.stAppHeader{left:14rem!important;width:auto!important}}
 .st-key-sidebar_navigation .st-key-top_brand{margin:0 0 1.8rem}
+.st-key-sidebar_navigation .st-key-top_brand .st-key-open_home {
+ margin-inline: auto;
+}
 .st-key-sidebar_navigation .st-key-open_home button{min-height:48px}
 .st-key-sidebar_navigation .st-key-open_home button::before{width:58px;height:42px}
 .st-key-sidebar_navigation .st-key-open_home button p{font-size:24px}
