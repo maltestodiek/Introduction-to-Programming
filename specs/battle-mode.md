@@ -34,21 +34,21 @@ For a friend challenge, the initiating player chooses the source and, for Top De
 Before a Battle, the initiator chooses one source:
 
 - **Random Deck:** the server chooses one eligible published Battle Deck uniformly at random for the selected university, course and shared language.
-- **Top Decks:** the initiator sees the current daily top ten eligible Battle Decks for the selected university, course and shared language and chooses one.
+- **Top Decks:** the initiator sees the current top ten eligible Battle Decks by their lifetime rating score for the selected university, course and shared language and chooses one.
 
 A Battle Deck already contains its frozen 15-card snapshot. Both participants receive those same 15 questions. Existing 30-second per-question timing remains in force. Later source-deck edits, ratings or ranking changes cannot alter an active or completed Battle.
 
-### Daily Top Deck ranking
-Each completed Battle participant may rate its selected Battle Deck once, anonymously, using **good**, **neutral** or **bad**. Good contributes `+1`, neutral `0`, and bad `-1` to that Battle Deck's score for the current calendar day in the `Europe/Berlin` time zone (including the MEZ/MESZ changeover). Every eligible Battle Deck ranks immediately; a deck without a rating today has a score and rating count of zero. Ties are resolved by the larger number of ratings, then a stable server-side tie-breaker.
+### Lifetime Top Deck ranking
+Each completed Battle participant may rate its selected Battle Deck once, anonymously, using **good**, **neutral** or **bad**. Good contributes `+1`, neutral `0`, and bad `-1` to that Battle Deck's lifetime score. Every eligible Battle Deck ranks immediately; a deck without a rating has a score and rating count of zero. Ties are resolved by the larger number of lifetime ratings, then a stable server-side tie-breaker.
 
 Show up to ten ranked decks. If fewer than ten eligible decks exist, render the remaining positions as disabled **Outstanding** placeholders. Ratings are visible only as aggregates: the deck creator and other users cannot see which participant supplied a rating.
 
-A participant may submit at most one lifetime rating for a given Battle Deck. A participant who completes their Battle chooses the rating. If they abandon, time out, or otherwise fail to finish, the server automatically records that participant's one neutral rating. It changes neither the daily score nor XP and cannot later be replaced. A creator playing their own Battle Deck receives no rating control; the resulting non-scoring receipt affects neither ratings nor XP.
+A participant may submit at most one lifetime rating for a given Battle Deck. A participant who completes their Battle chooses the rating. If they abandon, time out, or otherwise fail to finish, the server automatically records that participant's one neutral rating. It changes neither the lifetime score nor XP and cannot later be replaced. A creator playing their own Battle Deck receives no rating control; the resulting non-scoring receipt affects neither ratings nor XP.
 
 ### Rewards and progress
 Battle uses the existing Battle XP, result and streak settlement rules. Battle XP is the only XP shown in the profile and is the sole value used by the leaderboard.
 
-Ratings affect only the daily Top Deck score. Good, neutral and bad ratings never award XP to a deck creator or participant, regardless of source origin.
+Ratings affect only the lifetime Top Deck score. Good, neutral and bad ratings never award XP to a deck creator or participant, regardless of source origin.
 
 Battle must not create or update Study-plan entries, Study progress, learning levels, earned copies, or Study feedback.
 
@@ -62,24 +62,24 @@ Battle must not create or update Study-plan entries, Study progress, learning le
 ## Done when
 1. A creator can form an immutable 15-question Battle Deck from an eligible published source deck only after accepting the public-play confirmation.
 2. Battle offers Random Deck and Top Decks after course selection while preserving the existing friend and random-opponent choices.
-3. The server selects only published, same-university, same-course, language-compatible Battle Decks. Random selection is uniform; Top Decks follows the daily scoring rule, uses `Europe/Berlin` day boundaries and shows disabled Outstanding placeholders when fewer than ten qualify.
+3. The server selects only published, same-university, same-course, language-compatible Battle Decks. Random selection is uniform; Top Decks follows the lifetime scoring rule and shows disabled Outstanding placeholders when fewer than ten qualify.
 4. Both participants receive the same 15-question snapshot with the existing 30-second question timer. No new 30-question duel can be created or started.
 5. Completion enables one anonymous good/neutral/bad rating per participant and Battle Deck. Abandonment, timeout or non-completion writes the one neutral rating automatically. Repeats, retries and reopening cannot create a second rating.
-6. Ratings change only daily Top Deck scoring and never award XP. Existing Battle XP and streak rules settle once; Battle XP appears correctly in the profile and leaderboard.
+6. Ratings change only lifetime Top Deck scoring and never award XP. Existing Battle XP and streak rules settle once; Battle XP appears correctly in the profile and leaderboard.
 7. Battle writes do not change Study-plan or Study-progress state. Unauthorized users cannot create/alter another user's Battle Deck, ratings, rewards or Battle.
-8. Behavioral Python/UI checks and isolated database checks cover allowed, rejected and restart scenarios, including public consent, snapshot immutability, daily ranking, rating idempotency, reward idempotency and Battle/Study separation. They also confirm that the active Play workflow creates only 15-question Battles.
+8. Behavioral Python/UI checks and isolated database checks cover allowed, rejected and restart scenarios, including public consent, snapshot immutability, lifetime ranking, rating idempotency, reward idempotency and Battle/Study separation. They also confirm that the active Play workflow creates only 15-question Battles.
 
 
 ## Implementation and verification basis
 Implement Battle in a dedicated feature branch. Keep Streamlit screens in `app.py`, selection/ranking validation in `logic.py`, and Supabase access in `db.py`. Use an additive database migration: do not delete existing legacy rows or rewrite applied SQL files.
 
-The durable state must include the public Battle Deck snapshot and its source/version, public-play consent, selected source (`random` or `top`), one rating receipt per participant and Battle Deck, daily `Europe/Berlin` aggregates, and idempotent Battle XP settlement.
+The durable state must include the public Battle Deck snapshot and its source/version, public-play consent, selected source (`random` or `top`), one rating receipt per participant and Battle Deck, lifetime rating aggregates, and idempotent Battle XP settlement.
 
 Before code is written, translate these required scenarios into behavioral Python/UI checks and isolated database checks:
 
 - A creator can choose exactly 15 questions from their own published source deck, accept public-play consent, and create an immutable Battle Deck.
-- A reviewed/published AI-/Chatbot source deck may create a Battle Deck and is rated by the same daily-ranking rules.
-- Random Deck selects uniformly from eligible Battle Decks; Top Decks ranks daily scores and renders Outstanding placeholders.
+- A reviewed/published AI-/Chatbot source deck may create a Battle Deck and is rated by the same lifetime-ranking rules.
+- Random Deck selects uniformly from eligible Battle Decks; Top Decks ranks lifetime scores and renders Outstanding placeholders.
 - Another user's source deck, a raw import, a private AI draft, fewer than 15 questions, missing consent, a different university/course, or an unsupported language is rejected without saved changes.
 - A participant cannot rate twice, alter another participant's rating, receive rating XP, or create Study progress through Battle.
 - Abandonment, timeout or other non-completion stores exactly one neutral receipt and no XP.

@@ -54,6 +54,7 @@ try{
   await db.exec(await fs.readFile(new URL('../supabase/battle-deck-availability.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-search-controls.sql',import.meta.url),'utf8'));
   await db.exec(await fs.readFile(new URL('../supabase/battle-top-decks-immediate.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/battle-top-decks-lifetime-ranking.sql',import.meta.url),'utf8'));
   const source=sourceDeck();const sourceId=randomUUID();
   await db.query('insert into public.study_decks(id,creator_id,snapshot) values($1,$2,$3::jsonb)',[sourceId,A,JSON.stringify(source)]);
 
@@ -95,10 +96,11 @@ try{
   const immediateTop=await ok(B,'top',{course:'Finance',language:'English'});
   assert.deepEqual(immediateTop.decks[0].id,created.id);
   assert.deepEqual([immediateTop.decks[0].score,immediateTop.decks[0].rating_count],[0,0]);
-  await db.query("insert into public.battle_daily_ratings values((now() at time zone 'Europe/Berlin')::date,$1,2,3,2,1,0,0)",[created.id]);
-  const top=await ok(B,'top',{course:'Finance',language:'English'});assert.equal(top.decks[0].id,created.id);
   await db.exec('reset role');
   await db.query("select battle_rate($1,$2,'good',false,false)",[created.id,B]);
+  const top=await ok(B,'top',{course:'Finance',language:'English'});
+  assert.deepEqual([top.decks[0].id,top.decks[0].score,top.decks[0].rating_count],[created.id,1,1]);
+  await db.exec('reset role');
   await db.query("select battle_rate($1,$2,'good',false,false)",[created.id,B]);
   assert.equal((await db.query('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,B])).rows[0].n,1);
   assert.deepEqual((await db.query('select game_xp,xp from public.profiles where id=$1',[A])).rows[0],{game_xp:0,xp:0});
