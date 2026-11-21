@@ -2225,6 +2225,8 @@ def study_screen(client,profile):
     together=choice=='Study together'
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
     if together:
+        st.caption('Before matching, your unfinished session expires after 48 hours of inactivity. Once you finish your half, the search stays open for 48 hours. Your practice progress is saved.')
+        st.caption('After matching, both players have 48 hours to finish. The match then moves to completed history. Each player who did not finish receives a loss.')
         if profile.get('course_history'):
             st.caption(f"Matching uses courses at {profile['university']}. Switch universities in Profile to use a course from another university.")
         active_courses={name.strip().casefold() for name in profile['courses']}
@@ -2269,8 +2271,7 @@ def study_screen(client,profile):
         valid=bool(eligible) and (count==0 or count<=len(eligible))
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
-        st.caption('Answer your own half first, then your partner’s. No timer per question. After matching, both players have 48 hours to finish. An unfinished player receives a loss.')
-        st.caption('Before matching, your session is removed after 48 hours of inactivity. Your practice progress is saved.')
+        st.caption('Answer your own half first, then your partner’s. No timer per question.')
         opponent=study_choice_cards('study_partner',[('Random player','random','Meet someone studying your course.'),('Friend','friend','Practise with someone you know.')],locked=bool(offer))
         mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
         if offer:
