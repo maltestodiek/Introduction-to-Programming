@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock
 
 from logic import battle_record, session_continue_pick, session_history_rows, time_left_text
 from test_deck_ui import button, deck_app
@@ -41,15 +42,17 @@ def test_history_rows_and_battle_record():
     assert battle_record(BATTLES)=={'wins':1,'losses':1,'draws':0}
 
 
-def test_play_landing_shows_only_mode_cards_and_does_not_load_sessions(monkeypatch):
-    calls=[]
-    monkeypatch.setattr('db.StudyRepository.action',lambda self,action,data=None:calls.append((action,data)) or {})
+def test_play_landing_checks_invitations_without_showing_the_sessions_dashboard(monkeypatch):
     at=deck_app(monkeypatch)
+    # The invitation list also returns saved sessions, even when there are no invites.
+    study_action=Mock(return_value={'invites': [], 'sessions': STUDY})
+    monkeypatch.setattr('db.StudyRepository.action', study_action)
     button(at,'Play').click().run()
+
+    study_action.assert_called_once_with('list', None)
     headings=[item.value for item in at.subheader]
-    assert headings.count('Battle Mode')==1 and headings.count('Study Mode')==1
-    assert not any(name in headings for name in ['Your study sessions','Ongoing study sessions','Study history'])
-    assert not calls
+    assert headings == ['Battle Mode', 'Study Mode']
+    assert not any(b.label in ('Resume', 'View Study session') for b in at.button)
     assert not at.exception
 
 
