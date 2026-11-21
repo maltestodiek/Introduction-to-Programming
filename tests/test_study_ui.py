@@ -134,6 +134,7 @@ def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
     assert not any(b.label in ('Study alone','Study together') for b in at.button)
     button(at,'Study Mode').click().run()
     assert button(at,'Study alone') and button(at,'Study together')
+    assert not any(b.label=='Change play mode' for b in at.button)
     button(at,'Play').click().run()
     assert button(at,'Study Mode')
     assert not any(b.label in ('Study alone','Study together') for b in at.button)
@@ -195,7 +196,7 @@ def test_main_creation_supports_more_than_fifteen_and_reuses_subsections(monkeyp
     assert not at.exception
 
 
-def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
+def test_play_landing_shows_only_the_two_mode_cards(monkeypatch):
     import db
     at,calls,d=setup(monkeypatch)
     original=db.StudyRepository.action
@@ -207,17 +208,12 @@ def test_play_lists_active_study_below_creation_and_resumes(monkeypatch):
     button(at,'Play').click().run()
     headings=[w.value for w in at.subheader]
     assert 'Create new session' not in headings
-    assert headings.index('Your study sessions') < headings.index('Ongoing study sessions')
-    assert any('Saved finance' in w.value for w in at.markdown)
-    assert any('Finished finance' in w.value for w in at.markdown)
-    assert headings.index('Ongoing study sessions') < headings.index('Study history')
-    assert button(at,'View Study session')
-    button(at,'Resume Study').click().run()
-    assert ('round',{'id':'active'}) in calls
-    assert at.session_state.study_session=='active'
+    assert headings.count('Battle Mode')==1 and headings.count('Study Mode')==1
+    assert not any(name in headings for name in ['Your study sessions','Ongoing study sessions','Study history'])
+    assert not any('Saved finance' in w.value or 'Finished finance' in w.value for w in at.markdown)
+    assert not any((item.key or '').startswith(('continue_session','home_study_','history_study_')) for item in at.button)
     button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
     assert button(at,'Start studying')
-    assert 'study_session' not in at.session_state
     assert not at.exception
 
 

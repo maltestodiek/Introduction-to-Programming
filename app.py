@@ -2372,7 +2372,7 @@ def session_card(client,kind,session):
 
 
 def ongoing_sessions(client):
-    """Play overview: continue banner, Study sessions, Study history and Study figures."""
+    """Study Mode dashboard: continuation, session history and Study Plan to-dos."""
     from logic import STUDY_ONGOING_STATES,session_continue_pick,session_history_rows,time_left_text
     study_data=study_request(client,'list')
     st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
@@ -2393,8 +2393,7 @@ def ongoing_sessions(client):
                     st.markdown('**'+session['name']+'**')
                     st.caption(('Study alone' if session['mode']=='solo' else 'Study together')+f" · {session['cursor']} / {session['count']} answered")
                     st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
-                if action.button('Resume',key='continue_session',icon=':material/play_arrow:',type='primary',use_container_width=True):
-                    resume_study_session(session)
+                if action.button('Resume',key='continue_session',icon=':material/play_arrow:',type='primary',use_container_width=True):resume_study_session(session)
         st.subheader('Ongoing study sessions')
         cards=[('study',session) for session in study_ongoing]
         if not cards:st.caption('No ongoing sessions. Start a new one above.')
@@ -3069,10 +3068,8 @@ def play_screen(client,profile):
                 with col:
                     if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
                         st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_session',None);st.session_state.pop('study_join',None);st.rerun()
-            if st.button('Change play mode',icon=':material/arrow_back:'):
-                st.session_state.pop('play_mode_preview',None);st.rerun()
-        st.divider()
-        ongoing_sessions(client)
+            st.divider()
+            ongoing_sessions(client)
 
 
 def config(key):
