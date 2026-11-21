@@ -2927,25 +2927,54 @@ def leaderboard_demo(profile):
     universities=['Nova SBE','University of Lisbon','University of Porto','Nova SBE','University of Coimbra']
     rows=[{'username':n,'xp':x,'image_path':None,'university':universities[i%len(universities)],'me':False} for i,(n,x) in enumerate(zip(names,points))]+[{'username':profile['username'],'xp':705,'image_path':profile.get('image_path'),'university':profile.get('university'),'me':True}]
     def ranked(items):return [{**item,'rank':1+sum(other['xp']>item['xp'] for other in items)} for item in sorted(items,key=lambda item:(-item['xp'],item['username']))]
-    world=ranked(rows);return {'top':world[:10],'me':next(item for item in world if item['me']),'friends':ranked([item for item in rows if item['me'] or item['username'] in ('tiago','ines','emma_w','hugo')])}
+    world=ranked(rows)
+    campus=profile.get('university')
+    return {
+        'top':world[:10], 'me':next(item for item in world if item['me']),
+        'university':ranked([item for item in rows if campus and item['university']==campus])[:10],
+        'friends':ranked([item for item in rows if item['me'] or item['username'] in ('tiago','ines','emma_w','hugo')]),
+    }
+
 
 def leaderboard_screen(client,repo,profile=None):
     from db import LeaderboardRepository
     st.title('Leaderboard')
-    if profile and os.getenv('LEADERBOARD_DEMO')=='1' and (os.getenv('APP_URL') or '').startswith('http://localhost'):
+    rankings=LeaderboardRepository(client)
+    demo=profile and os.getenv('LEADERBOARD_DEMO')=='1' and (os.getenv('APP_URL') or '').startswith('http://localhost')
+    if demo:
         st.warning('Preview with invented students and XP.');data=leaderboard_demo(profile)
     else:
-        try:data=LeaderboardRepository(client).load()
+        try:data=rankings.load()
         except ValueError as exc:st.error(str(exc));return
     st.caption('Ranks are based on Battle XP earned in Battle Mode. Study Mode does not affect them.')
-    global_tab,friends_tab=st.tabs(['Global top 10','Friends'])
-    for tab,rows in ((global_tab,data.get('top',[])),(friends_tab,data.get('friends',[]))):
-        with tab:
-            leaderboard_rows(rows,repo)
-            if tab is global_tab and data.get('me') and not any(row.get('me') for row in rows):
-                st.caption('Your place')
-                leaderboard_rows([data['me']],repo)
-            if tab is friends_tab and len(rows)<2:st.caption('Add friends to compare your Battle XP.')
+    global_tab,university_tab,friends_tab=st.tabs(['Global top 10','University top 10','Friends'])
+    with global_tab:
+        top=data.get('top',[])
+        leaderboard_rows(top,repo)
+        if data.get('me') and not any(row.get('me') for row in top):
+            st.caption('Your place')
+            leaderboard_rows([data['me']],repo)
+    with university_tab:
+        # Both sources describe the authenticated player. Earlier leaderboard
+        # responses omit university, so use the loaded profile in that case.
+        viewer={**(profile or {}), **(data.get('me') or {})}
+        if not (viewer.get('university') or '').strip():
+            st.caption('Add your university to your profile to see its ranking.')
+        else:
+            st.text(viewer['university'])
+            try:
+                campus_rows=data['university'] if demo else rankings.university_top(viewer)
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                if campus_rows:
+                    leaderboard_rows(campus_rows,repo)
+                else:
+                    st.caption('No students appear in your university ranking yet.')
+    with friends_tab:
+        friends=data.get('friends',[])
+        leaderboard_rows(friends,repo)
+        if len(friends)<2:st.caption('Add friends to compare your Battle XP.')
 
 
 def play_screen(client,profile):

@@ -317,6 +317,31 @@ class LeaderboardRepository:
         if result.get('error'):raise ValueError(result['error'])
         return result
 
+    def university_top(self, viewer):
+        """Read at most ten public ranking rows for the signed-in viewer's campus."""
+        university = viewer.get('university')
+        if not university or not university.strip():
+            return []
+        try:
+            rows = (self.client.table('profiles').select('username,image_path,game_xp')
+                    .eq('university', university).order('game_xp', desc=True)
+                    .order('username').limit(10).execute().data)
+        except Exception as exc:
+            raise ValueError('Your university ranking could not be loaded. Refresh to try again.') from exc
+        if not isinstance(rows,list):
+            raise ValueError('Your university ranking is temporarily unavailable.')
+        ranking = []
+        previous_xp = None
+        for position, row in enumerate(rows, start=1):
+            xp = row['game_xp']
+            if position == 1 or xp != previous_xp:
+                rank = position
+            ranking.append({'rank':rank, 'username':row['username'], 'xp':xp,
+                            'university':university, 'image_path':row['image_path'],
+                            'me':row['username'] == viewer['username']})
+            previous_xp = xp
+        return ranking
+
 
 class StudyRepository:
     """Authenticated, transactional Study operations. Never accepts a user ID."""

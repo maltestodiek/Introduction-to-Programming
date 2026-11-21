@@ -8,9 +8,10 @@ Students want to see how their Battle results compare with others. A small, fair
 
 ## What
 
-The Leaderboard tab shows two rankings. Both are built only from Battle XP, the XP earned from Battle results. Study Mode, study plans and learning progress never change them.
+The Leaderboard tab shows three rankings. All are built only from Battle XP, the XP earned from Battle results. Study Mode, study plans and learning progress never change them.
 
 - Global: the ten students with the most Battle XP. If the signed-in student is not among them, their own place is shown as an eleventh row below the ten, with its real place number.
+- University top 10: show up to ten students from the university saved on the signed-in student's profile. Rank within that university using the same Battle XP and tie rules. The student cannot select another university.
 - Friends: the signed-in student together with their accepted friends, ranked among themselves.
 
 Every row shows the place, the profile picture or avatar, the username, university and XP. The university is a muted second line below the username. The student's own row is marked. Students with the same XP share the same place; within a place the order is alphabetical by username.
@@ -23,7 +24,7 @@ State and persistence: nothing new is stored. The rankings are read from the exi
 
 ## Out of scope
 
-Any XP value other than Battle XP or Total XP in the ranking, rankings per course or university, weekly or seasonal rankings, rewards, more than ten global places, searching for a student, and any action on another student from the leaderboard.
+Any XP value other than Battle XP or Total XP in the ranking, rankings per course, weekly or seasonal rankings, rewards, more than ten global places, searching for a student, and any action on another student from the leaderboard.
 
 ## Done when
 
@@ -34,6 +35,7 @@ Any XP value other than Battle XP or Total XP in the ranking, rankings per cours
 5. Rejected: an anonymous caller gets nothing; a signed-in student without a profile gets an error and no data.
 6. Privacy: the response contains only place, username, university, picture path, XP and the own-row mark. It has no friend codes, emails, courses or invitation data, and the screen offers no invite or chat action.
 7. A Study session or study plan activity does not change any place; a settled Battle result does.
-8. Restart: the ranking is the same after a full restart, because it is read from stored XP.
+8. University top 10 appears between Global top 10 and Friends. It includes eligible classmates outside the global top ten, excludes students from other universities, and offers no university selector.
+9. Restart: the ranking is the same after a full restart, because it is read from stored XP.
 
 Checks: `tests/test_leaderboard_ui.py` and `tests/leaderboard_database.mjs`.

@@ -9,6 +9,7 @@ def row(rank,username,xp,me=False,university='Nova SBE'):return {'rank':rank,'us
 
 def setup(monkeypatch,data):
     monkeypatch.setattr('db.LeaderboardRepository.load',lambda self:data)
+    monkeypatch.setattr('db.LeaderboardRepository.university_top',lambda self,viewer:data.get('university',[]))
     at=deck_app(monkeypatch);button(at,'Leaderboard').click().run()
     return at
 
@@ -23,7 +24,7 @@ def test_global_top_ten_with_own_place_below_when_outside(monkeypatch):
     top=[row(i+1,f'player{i+1}',1000-i*50) for i in range(10)]
     at=setup(monkeypatch,{'top':top,'me':row(37,'student_a',15,True),'friends':[row(1,'student_a',15,True)]})
     world,own,friends=lists(at)
-    assert at.title[0].value=='Leaderboard' and [t.label for t in at.tabs]==['Global top 10','Friends']
+    assert at.title[0].value=='Leaderboard' and [t.label for t in at.tabs]==['Global top 10','University top 10','Friends']
     assert len(world)==10 and world[0]==(1,'player1','Nova SBE',1000,False) and world[9]==(10,'player10','Nova SBE',550,False)
     assert own==[(37,'student_a (you)','Nova SBE',15,True)] and friends==[(1,'student_a (you)','Nova SBE',15,True)]
     assert any(c.value=='Your place' for c in at.caption) and any('Add friends' in c.value for c in at.caption)
@@ -58,7 +59,8 @@ def test_local_preview_uses_invented_students_and_never_the_database(monkeypatch
     monkeypatch.setattr('db.LeaderboardRepository.load',forbidden)
     monkeypatch.setenv('LEADERBOARD_DEMO','1')
     at=deck_app(monkeypatch);button(at,'Leaderboard').click().run()
-    world,own,friends=lists(at)
+    world,own,campus,friends=lists(at)
+    assert campus==[(1,'student_a (you)','Example University',705,True)]
     assert any('invented students' in w.value for w in at.warning)
     assert world[0]==(1,'nora_k','Nova SBE',1840,False) and [place for place,*_ in world[:5]]==[1,2,3,3,5] and len(world)==10
     assert own==[(11,'student_a (you)','Example University',705,True)] and any(c.value=='Your place' for c in at.caption)
@@ -72,3 +74,40 @@ def test_preview_switch_is_ignored_outside_a_local_copy(monkeypatch):
     at=deck_app(monkeypatch);button(at,'Leaderboard').click().run()
     assert not at.warning and lists(at)[0]==[(1,'student_a (you)','Nova SBE',5,True)]
     assert not at.exception
+
+
+def test_university_middle_tab_shows_only_its_own_standings(monkeypatch):
+    at=setup(monkeypatch,{
+        'top':[row(1,'world_champion',900,university='Other University')],
+        'me':row(17,'student_a',80,True),
+        'university':[row(1,'classmate',90),row(2,'student_a',80,True)],
+        'friends':[row(1,'student_a',80,True)],
+    })
+    campus=at.tabs[1]
+    assert campus.label=='University top 10'
+    assert lists(campus)==[[(1,'classmate','Nova SBE',90,False),(2,'student_a (you)','Nova SBE',80,True)]]
+    assert not campus.selectbox and not campus.text_input
+
+
+def test_university_query_filters_before_limiting_and_ranks_ties():
+    from unittest.mock import Mock
+    from db import LeaderboardRepository
+    client=Mock()
+    query=client.table.return_value
+    for method in ('select','eq','order','limit'):
+        getattr(query,method).return_value=query
+    query.execute.return_value.data=[
+        {'username':name,'game_xp':xp,'image_path':None}
+        for name,xp in [('alice',100),('ben',100),('cleo',70)]
+    ]
+    repo=LeaderboardRepository(client)
+    result=repo.university_top({'username':'ben','university':'Nova SBE'})
+    client.table.assert_called_once_with('profiles')
+    assert [str(call) for call in query.method_calls]==[
+        "call.select('username,image_path,game_xp')", "call.eq('university', 'Nova SBE')",
+        "call.order('game_xp', desc=True)", "call.order('username')", "call.limit(10)", "call.execute()",
+    ]
+    assert [(r['username'],r['rank'],r['me']) for r in result]==[('alice',1,False),('ben',1,True),('cleo',3,False)]
+    client.reset_mock()
+    assert repo.university_top({'university':'', 'username':'ben'})==[]
+    client.table.assert_not_called()
