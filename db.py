@@ -236,7 +236,7 @@ class BattleRepository:
         except Exception as exc:raise ValueError(battle_error_message(exc)) from exc
         if not isinstance(result,dict):raise ValueError('Battle Mode returned an unexpected result.')
         if result.get('error'):raise ValueError(result['error'])
-        if action=='list':result['sessions']=self.sessions()
+        if action=='list' and not result.get('includes_unmatched'):result['sessions']=self.sessions()
         return result
 
     def availability(self,course,language):
@@ -299,6 +299,8 @@ def battle_error_message(error):
         'Choose an eligible Top Deck':'Not able to start this Battle: choose a currently eligible Top Deck.',
         'Choose one of your courses and languages':'Not able to start this Battle: choose a course and language from your profile.',
         'Complete your profile first':'Not able to use Battle Mode: complete your university, course, and language profile first.',
+        'You already have an active random search':'Finish or cancel your existing random search in Active battles before choosing different settings.',
+        'Battle unavailable':'This Battle is unavailable. Return to Active battles to see your current games.',
         'Battle invitation unavailable':'This Battle invitation is no longer available.',
         'Only the invited friend can respond':'Only the invited friend can accept or decline this invitation.',
         'Only the sender can cancel':'Only the sender can cancel this invitation.',

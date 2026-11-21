@@ -125,29 +125,36 @@ def test_random_battle_search_is_disabled_when_no_eligible_deck_exists(monkeypat
     monkeypatch.setattr('db.BattleRepository.availability',lambda self,course,language:{'available':False})
     at=deck_app(monkeypatch)
     button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'New Battle').click().run()
-    assert button(at,'Find random player').disabled
+    assert button(at,'Start random Battle').disabled
     assert any('No available Battle Decks yet' in warning.value for warning in at.warning)
     assert not at.exception
 
 
-def test_random_battle_search_confirms_and_appears_under_pending(monkeypatch):
+def test_random_battle_starts_before_matching_and_can_exit_and_resume(monkeypatch):
     state={'sessions':[],'invites':[],'search':None}
+    deadline='2099-01-01T16:30:00+00:00'
     def action(self,kind,data=None):
         if kind=='list':return state
-        if kind=='join':
-            state['search']={'course':'Finance','language':'English','expires_at':'2099-01-01T00:00:00Z'}
-            return {'message':'Searching for one hour.'}
-        if kind=='friend_options':return {'friends':[]}
-        return {}
+        if kind=='start_random':
+            assert data['request_id']
+            state['sessions']=[dict(id='first',status='ongoing',started=True,waiting_for_match=True,deck_name='Finance',finish_by=deadline)]
+            return {'session_id':'first'}
+        if kind=='clock':return {'finish_by':deadline,'matched':False}
+        if kind=='round':return dict(state='question',index=0,seconds=28,question='First question?',options=[dict(id='a',text='Answer A')])
+        raise AssertionError(kind)
     monkeypatch.setattr('db.BattleRepository.action',action)
+    monkeypatch.setattr('db.BattleRepository.progress',lambda self,session_id:{'answers':[]})
     monkeypatch.setattr('db.BattleRepository.availability',lambda self,course,language:{'available':True})
     at=deck_app(monkeypatch)
     button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'New Battle').click().run()
-    button(at,'Find random player').click().run()
-    assert any('Your request now appears under Pending.' in message.value for message in at.success)
-    assert any('Finding an opponent' in message.value for message in at.markdown)
-    assert any('Time remaining:' in message.value for message in at.markdown)
-    assert button(at,'Cancel search')
+    button(at,'Start random Battle').click().run()
+    assert button(at,'Answer A')
+    button(at,'Save and exit').click().run()
+    assert any('2099' in str(item.value) for item in at.get('html'))
+    button(at,'Save and exit Battle').click().run()
+    assert any('Finding an opponent' in str(item.value) for item in at.get('html'))
+    button(at,'Resume Battle').click().run()
+    assert button(at,'Answer A')
     assert not at.exception
 
 
@@ -164,7 +171,7 @@ def test_pending_random_battle_search_can_be_cancelled(monkeypatch):
     at=deck_app(monkeypatch)
     button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'Cancel search').click().run()
     assert any('Battle search cancelled.' in message.value for message in at.success)
-    assert any('No pending Battles.' in str(item.value) for item in at.get('html'))
+    assert any('No battle invitations.' in str(item.value) for item in at.get('html'))
     assert not at.exception
 
 

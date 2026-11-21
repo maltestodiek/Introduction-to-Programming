@@ -2510,7 +2510,8 @@ def session_card(client,kind,session):
             st.caption(f"Battle · {session['course']} · {session['language']} · 15 questions")
             if session['status']=='pending':
                 st.progress(1.0);st.markdown(":orange-badge[:material/hourglass_top: Opponent's turn]")
-                st.caption('Your answers are saved. Waiting for your opponent.')
+                st.caption('Round saved. Finding an opponent.' if session.get('waiting_for_match') else 'Round saved. Waiting for their score.')
+                return
             else:st.markdown(':violet-badge[Your turn]' if session.get('started') else ':blue-badge[Ready to start]')
             if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id'],use_container_width=True):
                 open_round('battle', session['id'], fresh=not session.get('started'))
@@ -2626,6 +2627,8 @@ def battle_timer(client,session_id,index,server_seconds):
     if seconds==0 and not timer['expired']:
         timer['expired']=True
         result=battle_request(client,'round',{'id':session_id})
+        if result and result.get('state')=='completed':
+            return_to_battle_menu('This Battle has ended. See Recent results.')
         if result and result.get('state')=='feedback':
             st.session_state.battle_feedback={**result,'id':session_id}
             st.session_state[f'battle_timeout_notice_{session_id}']=True
@@ -2642,25 +2645,30 @@ def return_to_battle_menu(message=None):
     st.rerun()
 
 
-def battle_leave_control(client,session_id):
-    """An explicit abandon action; the server records the resulting loss.
+def battle_deadline(value):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    timestamp=datetime.fromisoformat(value.replace('Z','+00:00'))
+    return timestamp.astimezone(ZoneInfo(deck_studio_timezone())).strftime('%d %b %Y at %H:%M %Z')
 
-    The confirmation is a centred modal over a dimmed round, not a dropdown."""
-    if st.button('Leave',icon=':material/swords:',key=f'battle_exit_{session_id}',use_container_width=True):
+
+def battle_leave_control(client,session_id):
+    """Leaving the screen preserves the server's timer and saved answers."""
+    if st.button('Save and exit',icon=':material/logout:',key=f'battle_exit_{session_id}',use_container_width=True):
         st.session_state.round_leave_prompt=session_id;st.rerun()
     if st.session_state.get('round_leave_prompt')==session_id:
+        clock=battle_request(client,'clock',{'id':session_id})
         st.html('<div class="round-modal-backdrop"></div>')
         with st.container(key=f'round_leave_modal_{session_id}'):
-            st.html('<p class="round-modal-title">Leave the Battle?</p><p class="round-modal-text">Leaving counts as a loss and your opponent wins. Your question timer keeps running while you decide.</p>')
+            deadline='Resume from Active battles by '+battle_deadline(clock['finish_by'])+'.' if clock and clock.get('finish_by') else 'Check your deadline in Active battles.'
+            st.html('<p class="round-modal-title">Save and exit?</p><p class="round-modal-text">Your answers are saved. '+escape(deadline)+' The current question timer keeps running. Missing your finish deadline counts as a loss only if you have an opponent.</p>')
             stay,leave=st.columns(2)
             if stay.button('Keep fighting',key=f'round_leave_stay_{session_id}',use_container_width=True):
                 st.session_state.pop('round_leave_prompt',None);st.rerun()
-            if leave.button('Leave Battle',key=f'round_leave_confirm_{session_id}',use_container_width=True):
-                if battle_request(client,'abandon',{'id':session_id,'confirmed':True}) is not None:
-                    st.session_state.pop('round_leave_prompt',None)
-                    st.session_state.pop(f'battle_timer_{session_id}',None)
-                    st.session_state.pop(f'battle_timeout_notice_{session_id}',None)
-                    return_to_battle_menu('You left the Battle. It was recorded as a loss.')
+            if leave.button('Save and exit Battle',key=f'round_leave_confirm_{session_id}',use_container_width=True):
+                st.session_state.pop('round_leave_prompt',None)
+                st.session_state.pop(f'battle_timer_{session_id}',None)
+                return_to_battle_menu('Your answers are saved.')
 
 
 @st.dialog('Battle review',width='large')
@@ -2724,7 +2732,9 @@ def battle_question_report_form(client,session_id,card_index):
 def battle_round_screen(client,session_id):
     st.html('<style>'+ (Path(__file__).parent/'assets'/'battle-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     progress=battle_progress(client,session_id)
-    if progress is None:return
+    if progress is None:
+        if st.button('Back to Active battles'):return_to_battle_menu()
+        return
     answers=progress.get('answers',[])
     feedback=st.session_state.get('battle_feedback')
     if feedback and feedback.get('id')==session_id:
@@ -2742,7 +2752,7 @@ def battle_round_screen(client,session_id):
             for answer in display_options(card['answers'],session_id,response['index']):
                 text=escape(answer['text'])
                 if answer['id']==card['correct_answer_id'] and response['correct']:
-                    parts.append('<div class="battle-answer-card round-burst is-correct is-correct-animated">'+text+burst+'<span class="round-xp">+XP</span></div>')
+                    parts.append('<div class="battle-answer-card round-burst is-correct is-correct-animated">'+text+burst+'<span class="round-xp">Correct</span></div>')
                 elif answer['id']==card['correct_answer_id']:
                     parts.append('<div class="battle-answer-card is-correct is-correct-reveal">'+text+'</div>')
                 elif answer['id']==response.get('answer_id'):
@@ -2761,7 +2771,9 @@ def battle_round_screen(client,session_id):
             st.toast('Time has passed',icon=':material/timer_off:')
         return
     result=battle_request(client,'round',{'id':session_id})
-    if result is None:return
+    if result is None:
+        if st.button('Back to Active battles'):return_to_battle_menu()
+        return
     state=result['state']
     if state=='feedback':
         st.session_state.battle_feedback={**result,'id':session_id};st.rerun()
@@ -2776,7 +2788,9 @@ def battle_round_screen(client,session_id):
             for i,answer in enumerate(display_options(result['options'],session_id,result['index'])):
                 if columns[i%2].button(answer['text'],key=f'battle_answer_{session_id}_{result["index"]}_{answer["id"]}',use_container_width=True):
                     response=battle_request(client,'answer',{'id':session_id,'index':result['index'],'answer_id':answer['id']})
-                    if response is not None:
+                    if response and response.get('state')=='completed':
+                        return_to_battle_menu('This Battle has ended. See Recent results.')
+                    if response and response.get('state')=='feedback':
                         st.session_state.battle_feedback={**response,'id':session_id};st.rerun()
             battle_timer(client,session_id,result['index'],result['seconds'])
         with overview:
@@ -2834,7 +2848,7 @@ def battle_pending_search(client,search):
         st.session_state.battle_search_status_checked_at=time.monotonic()
         if refreshed is not None and not refreshed.get('search'):
             st.rerun()
-        st.caption('No pending Battles.')
+        st.caption('Search closed.')
         return
     if time.monotonic()-last_check>=10:
         refreshed=battle_request(client,'list')
@@ -2852,7 +2866,7 @@ def battle_pending_search(client,search):
 
 
 def battle_session_overview(client,sessions,search=None,invites=(),username=None):
-    """Battle dashboard: Ongoing and Pending side by side, Recently completed below."""
+    """Group actionable rounds, incoming/outgoing invitations and settled results."""
     from logic import recent_completed_battles
     me=escape(str(username or 'You')[:1].upper())
     def versus_markup(opponent):
@@ -2863,17 +2877,17 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
         return '<p class="bo-deck" title="'+safe+'">'+safe+'</p>'
     with st.container(border=True,key='battle_game_overview'):
         st.subheader('Game Overview')
-        for column,(label,icon,status) in zip(st.columns(2,gap='medium'),(('Ongoing','swords','ongoing'),('Pending','hourglass','pending'))):
-            rows=[session for session in sessions if session['status']==status]
+        for column,(label,icon,status) in zip(st.columns(2,gap='medium'),(('Active battles','swords','ongoing'),('Battle invitations','hourglass','pending'))):
+            rows=[session for session in sessions if session['status'] in ('ongoing','pending')] if status=='ongoing' else []
             pending_invites=list(invites) if status=='pending' else []
-            count=len(rows)+(1 if status=='pending' and search else 0)+len(pending_invites)
+            count=len(rows)+(1 if status=='ongoing' and search else 0)+len(pending_invites)
             with column:
                 with st.container(key=f'battle_overview_group_{status}'):
                     st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{inline_icon(icon)}</span>{label}<b>{count}</b></p>')
                     if not count:
                         empty_icon='shield' if status=='ongoing' else icon
-                        st.html(f'<div class="bo-empty">{inline_icon(empty_icon)}<div>No {status} Battles.</div></div>')
-                    if status=='pending' and search:battle_pending_search(client,search)
+                        st.html(f'<div class="bo-empty">{inline_icon(empty_icon)}<div>No {label.lower()}.</div></div>')
+                    if status=='ongoing' and search:battle_pending_search(client,search)
                     for invite in pending_invites:
                         invite_key='battle_overview_invite_received_' if invite['incoming'] else 'battle_overview_invite_sent_'
                         with st.container(border=True,key=invite_key+invite['id']):
@@ -2894,20 +2908,30 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                             elif st.button('Cancel invitation',key='battle_cancel_'+invite['id'],use_container_width=True):
                                 if battle_request(client,'cancel_invite',{'invite_id':invite['id']}) is not None:st.rerun()
                     for session in rows:
-                        opponent=session.get('opponent_username','Unknown opponent')
+                        opponent=session.get('opponent_username') or 'Finding an opponent'
                         with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
-                            if status=='ongoing':
-                                st.html(versus_markup(opponent)+deck_markup(session['deck_name']))
+                            waiting=session.get('waiting_for_match')
+                            match_label='<div class="bo-wait"><span></span>Finding an opponent</div>' if waiting else versus_markup(opponent)
+                            st.html(match_label+deck_markup(session['deck_name']))
+                            if session['status']=='ongoing':
+                                if session.get('finish_by'):
+                                    st.caption('Finish by '+battle_deadline(session['finish_by']))
                                 st.markdown(':violet-badge[:material/schedule: Your turn]')
                                 if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='overview_battle_'+session['id'],type='primary',use_container_width=True):
                                     open_round('battle', session['id'], fresh=not session.get('started'))
                             else:
-                                st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
-                                 +f'<div class="bo-score"><b>{session["score"]}</b><i>/ 15</i><span class="bo-pill bo-xp-plus">your result</span></div>'
-                                 +'<div class="bo-wait"><span></span>Waiting for '+escape(str(opponent))+'…</div>')
+                                if waiting and session.get('search_until'):
+                                    st.caption('Round saved. Searching until '+battle_deadline(session['search_until'])+'.')
+                                elif not waiting:
+                                    st.html('<div class="bo-wait"><span></span>Waiting for '+escape(str(opponent))+' to finish.</div>')
+                            if waiting and st.button('Cancel search',key='cancel_unmatched_'+session['id']):
+                                result=battle_request(client,'cancel_unmatched',{'id':session['id']})
+                                if result is not None:
+                                    st.session_state.battle_notice='Search cancelled. No XP change.' if result.get('cancelled') else 'The search has already ended.'
+                                    st.rerun()
         completed=recent_completed_battles(sessions)
         with st.container(key='battle_overview_group_completed'):
-            st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{inline_icon("flag")}</span>Recently completed<b>{len(completed)}</b></p>')
+            st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{inline_icon("flag")}</span>Recent results<b>{len(completed)}</b></p>')
             if not completed:st.html('<div class="bo-empty">'+inline_icon('flag')+'No completed Battles yet.</div>')
             columns=st.columns(3,gap='medium')
             for index,session in enumerate(completed):
@@ -3044,14 +3068,15 @@ def battle_new_setup_screen(client,profile):
     if selected:payload['deck_id']=selected
     can_start=not (source=='Random Deck' and (availability is None or not availability['available']))
     if opponent=='Random player':
-        if st.button('Find random player',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
-            result=battle_request(client,'join',payload)
-            if result is not None:
-                if result.get('session_id'):open_round('battle', result['session_id'], fresh=True)
-                else:
-                    st.session_state.battle_notice='We are searching for a compatible opponent for up to 1 hour. Your request now appears under Pending.'
-                    st.session_state.pop('battle_new_setup',None)
-                st.rerun()
+        from uuid import uuid4
+        st.caption('Start your 15 questions now. You have one hour from the first question. If nobody is waiting, we look for an opponent for up to 48 hours. An unmatched Battle expires without affecting XP.')
+        if st.button('Start random Battle',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
+            request_id=st.session_state.setdefault('battle_start_request',str(uuid4()))
+            result=battle_request(client,'start_random',{**payload,'request_id':request_id})
+            if result and result.get('session_id'):
+                st.session_state.pop('battle_start_request',None)
+                st.session_state.pop('battle_new_setup',None)
+                open_round('battle',result['session_id'],fresh=not result.get('resumed'))
     else:
         friend_options=battle_request(client,'friend_options',{'course':course,'language':language})
         friends=(friend_options or {}).get('friends',[])
@@ -3071,6 +3096,16 @@ def battle_new_setup_screen(client,profile):
                     st.success(result.get('message','Battle invitation sent.'))
 
 
+@st.fragment(run_every='15s')
+def battle_status_updates(client,initial):
+    # The page already loaded its first snapshot. Refresh the whole overview only on change.
+    now=time.monotonic()
+    if now-st.session_state.get('battle_overview_checked_at',now)<14:return
+    st.session_state.battle_overview_checked_at=now
+    latest=battle_request(client,'list')
+    if latest is not None and latest!=initial:st.rerun()
+
+
 def battle_screen(client,profile):
     if rating_session:=st.session_state.get('battle_rating_session'):
         battle_rating_dialog(client,rating_session);return
@@ -3082,6 +3117,9 @@ def battle_screen(client,profile):
     state=battle_request(client,'list')
     if state is None:return
     st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
+    if any(row.get('status')!='completed' for row in state.get('sessions',[])) or state.get('invites'):
+        st.session_state.battle_overview_checked_at=time.monotonic()
+        battle_status_updates(client,state)
     battle_dashboard_hero(client,profile,state.get('sessions',[]))
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
     battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile.get('username'))

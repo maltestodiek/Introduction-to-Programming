@@ -6,7 +6,7 @@ Offer short, competitive course quizzes separately from non-rewarded Study sessi
 ## What
 Battle Mode replaces the former 30-question duel workflow. There must be no user-facing route to create or start a new 30-question duel: every new Battle uses exactly one 15-question Battle Deck. Existing legacy rows are not deleted or retroactively changed by this feature, but they are not selectable for new Play sessions.
 
-The redesigned Battle workflow keeps the existing friend-challenge and mutual random-opponent choices, server-owned timing, 24-hour deadline, answer validation and settlement safeguards unless this specification explicitly changes them. An unfinished Battle may be resumed only while the player remains in it; explicitly leaving requires confirmation, immediately forfeits the Battle as a loss, and cannot be reversed by reopening it.
+Random opponents play asynchronously. The server persists the deck, answers, search deadline and each player's finish deadline. Leaving saves progress, and reopening the app offers Resume in Active battles. The 30-second question clock continues while away.
 
 ### Creating a Battle Deck
 A Battle Deck is a separate, immutable 15-question snapshot created from one of the creator's own published UniArena decks. It is not a second manual authoring form.
@@ -26,9 +26,9 @@ Every Battle Deck has exactly 15 valid questions. A source deck with fewer than 
 ### Eligibility and matching
 A Battle uses published Battle Decks from the signed-in player's own university. The player chooses one of their enrolled courses; the deck must match that course and a language supported by both participants. A deck creator may participate in a Battle using their own Battle Deck if it is selected, but receives no rating control for that deck.
 
-Before a Random Deck search or invitation is created, the server confirms that at least one eligible public Battle Deck already exists for the selected university, course and language. If none exists, matchmaking is unavailable and the player receives clear feedback instead of a pending search. A successful unmatched Random Deck search lasts up to one hour and is shown under Pending after a restart.
+Before a Random Deck search or invitation is created, the server confirms that at least one eligible public Battle Deck already exists for the selected university, course and language. If none exists, matchmaking is unavailable and the player receives clear feedback instead of a pending search. A random opponent search opens the first question immediately. The server pairs the oldest compatible opt-in immediately or freezes an eligible deck and searches for up to 48 hours from entry. A requested Top Deck must match the frozen deck. Both players answer the same questions. Each has one hour from opening their own first question. An unopened random entry is released after one hour. An accepted friend invitation retains its 24-hour window to open the first question.
 
-For a friend challenge, the initiating player chooses the source and, for Top Decks, the specific Battle Deck; the invitee accepts that selection. For a mutual random-opponent match, the initiating selection is authoritative: Random Deck is selected by the server after a compatible match is found, while a chosen Top Deck is shown as the proposed shared deck.
+An unfinished, unmatched entry expires without a loss or XP. A finished, unmatched round stays eligible for the rest of the original 48 hours. If a matched participant misses their deadline, that player forfeits. Settle scores and XP exactly once when both finish or a matched deadline decides the outcome. Identical missed deadlines leave both participants with a loss. The dashboard groups accepted and random rounds under **Active battles**, unanswered friend invitations under **Battle invitations**, and settled scores and XP under **Recent results**.
 
 ### Battle deck sources
 Before a Battle, the initiator chooses one source:
