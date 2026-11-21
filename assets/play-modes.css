@@ -39,8 +39,45 @@
  :is(.st-key-battle_mode_card,.st-key-study_mode_card),:is(.st-key-battle_mode_card,.st-key-study_mode_card) *{animation:none!important;transition:none!important}
  :is(.st-key-battle_mode_card,.st-key-study_mode_card):is(:hover,:focus-within){transform:none}
 }
-@media(max-width:700px){
- :is(.st-key-battle_mode_card,.st-key-study_mode_card){min-height:0}
+/* Keep the original title position and leave breathing room below the choices. */
+.block-container:has(.st-key-play_mode_choices){padding-bottom:1.5rem}
+.st-key-play_mode_choices{container-type:inline-size}
+.st-key-play_mode_choices :is(.st-key-battle_mode_card,.st-key-study_mode_card){
+ display:grid;
+ grid-template-columns:auto minmax(0,1fr) minmax(8rem,10rem);
+ grid-template-areas:"icon title action" "icon description action";
+ align-content:center;align-items:center;gap:.25rem 1.25rem;
+ min-height:clamp(8rem,calc(50svh - 10.8rem),16rem);
+ padding:1rem 1.5rem!important;
+}
+.st-key-play_mode_choices [data-testid="stElementContainer"]:has(.mode-emblem){grid-area:icon}
+.st-key-play_mode_choices [data-testid="stElementContainer"]:has(h3){grid-area:title;align-self:end}
+.st-key-play_mode_choices [data-testid="stElementContainer"]:has([data-testid="stCaptionContainer"]){grid-area:description;align-self:start}
+.st-key-play_mode_choices :is(.st-key-choose_battle_mode,.st-key-choose_study_mode){grid-area:action}
+@container (max-width:36rem){
+ .st-key-play_mode_choices :is(.st-key-battle_mode_card,.st-key-study_mode_card){
+  grid-template-columns:auto minmax(0,1fr);
+  grid-template-areas:"icon title" "icon description" "icon action";
+  min-height:0;gap:.25rem .75rem;padding:.625rem 1rem!important;
+ }
+}
+@media(max-width:760px){
+ .block-container:has(.st-key-play_mode_choices)>[data-testid="stVerticalBlock"]{gap:.25rem}
+ .st-key-play_mode_choices .mode-emblem{width:clamp(4rem,18vw,7.25rem);height:auto}
+ .st-key-play_mode_choices button{min-height:44px}
+}
+
+/* On short touch screens keep the navigation and both actions in view. */
+@media(max-width:760px) and (max-height:800px){
+ .block-container:has(.st-key-play_mode_choices){padding-block:1rem}
+ .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_navigation{gap:.25rem;margin-bottom:.25rem}
+ .block-container:has(.st-key-play_mode_choices) .st-key-top_brand{margin-bottom:0}
+ .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_navigation hr{margin:.25rem .2rem!important}
+ .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_account_actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .st-key-play_mode_choices :is(.st-key-battle_mode_card,.st-key-study_mode_card){min-height:0;padding-block:.5rem!important}
+}
+@media(min-width:520px) and (max-width:760px) and (max-height:800px){
+ .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_main_actions{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
 
 .battle-emblem>circle:first-of-type{fill:var(--sd-icon-battle)}
