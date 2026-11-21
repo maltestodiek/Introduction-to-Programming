@@ -1,13 +1,9 @@
-/* Play sessions overview: continue banner, ongoing cards, history table and figures. */
+/* Play sessions overview: ongoing cards, history table and figures. */
 .st-key-sessions_filter{display:flex;justify-content:flex-end}
 .st-key-sessions_filter [data-testid="stSegmentedControl"]{margin-left:auto;display:flex;justify-content:flex-end;gap:.45rem!important;background:transparent!important;border:0!important;box-shadow:none!important}
 .st-key-sessions_filter [data-testid="stSegmentedControl"] button{min-height:52px;border-radius:14px!important;padding:.65rem 1.1rem!important;border:1.5px solid #4f46e5!important;background:var(--sd-surface)!important;color:#4f46e5!important;font-weight:700!important;box-shadow:none!important}
 .st-key-sessions_filter [data-testid="stSegmentedControl"] button:is([aria-checked="true"],[data-active="true"]){background:#4f46e5!important;border-color:#4f46e5!important;color:white!important}
 .st-key-sessions_filter [data-testid="stSegmentedControl"] button:hover{background:#4338ca!important;border-color:#4338ca!important;color:white!important}
-.st-key-sessions_continue{border-radius:20px!important;padding:18px 22px!important;border-color:transparent!important;background:color-mix(in srgb,var(--sd-accent) 11%,var(--sd-surface))!important}
-.st-key-sessions_continue [data-testid="stCaptionContainer"] p{color:var(--sd-accent)!important;font-weight:600}
-.st-key-sessions_continue strong{font-size:1.2rem;color:var(--sd-text)}
-.st-key-sessions_continue button{min-height:50px;border-radius:12px;font-weight:700}
 [class*="st-key-session_card_"]{border-radius:16px!important;padding:16px!important;background:var(--sd-surface)!important;transition:border-color .2s ease,box-shadow .2s ease}
 [class*="st-key-session_card_"]:is(:hover,:focus-within){border-color:#818cf8!important;box-shadow:0 8px 20px var(--sd-shadow)}
 [class*="st-key-session_card_"] button{border-radius:10px}
@@ -15,6 +11,10 @@
 [class*="st-key-history_row_"] p{margin:0}
 :is(.st-key-sessions_stat_record,.st-key-sessions_stat_xp,.st-key-sessions_stat_study,.st-key-sessions_stat_streak){border-radius:16px;padding:14px 16px;margin-bottom:.6rem;background:color-mix(in srgb,var(--sd-text) 4%,var(--sd-surface))}
 :is(.st-key-sessions_stat_record,.st-key-sessions_stat_xp,.st-key-sessions_stat_study,.st-key-sessions_stat_streak) h3{margin:.1rem 0 .3rem;padding:0;font-size:1.75rem}
+.st-key-sessions_stat_study {
+    background: light-dark(var(--sd-surface), color-mix(in srgb, var(--sd-text) 4%, var(--sd-surface)));
+    box-shadow: inset 0 0 0 1px light-dark(#888b90, transparent);
+}
 .st-key-sessions_stat_record [data-testid="stProgress"] div[role="progressbar"]>div{background:#f7c1c1}
 .st-key-sessions_stat_streak{background:color-mix(in srgb,#ef9f27 18%,var(--sd-surface))}
 @media(prefers-reduced-motion:reduce){[class*="st-key-session_card_"]{transition:none!important}}

@@ -38,7 +38,7 @@ def test_profile_explains_matching_for_a_former_university(monkeypatch):
     from test_profile_summary import courses_profile
     at, _ = courses_profile(monkeypatch)
     profile = ProfileRepository(None, None).load()
-    profile["course_history"] = {"North": ["Law"]}
+    profile["course_history"] = {"North": ["Law", "Physics"], "West": ["Art"]}
     at.session_state["profile_changed"] = True
     at.run()
     assert not at.exception
@@ -46,7 +46,8 @@ def test_profile_explains_matching_for_a_former_university(monkeypatch):
     rows = [item.value for item in at.markdown]
     assert ":material/school: Private Equity (Example University)" in rows
     assert ":material/school: Law (North)" in rows
-    assert any("Switch back" in value for value in captions)
+    assert ":material/school: Art (West)" in rows
+    assert sum("Switch back" in value for value in captions) == 1
 
 
 def test_switching_in_editor_restores_only_the_selected_campus(monkeypatch):
