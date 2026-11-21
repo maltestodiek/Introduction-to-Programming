@@ -1,5 +1,11 @@
 # Team Git workflow
 
+## Switching coding agents
+
+1. Open your UniArena clone or worktree in the coding tool. If you are unsure which folder is open, run `git rev-parse --show-toplevel` and open the folder it prints. The instructions at its root should be headed **Working on UniArena**. Have the incoming agent read them before editing. [AGENTS.md](../AGENTS.md)
+2. Keep one active coding agent per working folder. To work in parallel, use separate clones or Git worktrees, each on its own branch.
+3. When handing over the same folder, stop the outgoing agent, inspect `git diff` and the staged changes, and commit the reviewed work. Give the incoming agent the branch, commit, last test results and any unfinished work.
+
 ## What a branch means
 A feature is a product capability; a branch is a temporary working copy of the entire repository. Every branch contains the whole app at that point in history, not just one feature. A feature can have several small implementation/fix branches. Naming a branch first-feature does not mean the app only has one feature.
 
