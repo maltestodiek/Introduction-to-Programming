@@ -15,6 +15,13 @@ async function asUser(id){
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);
   await db.exec('set role authenticated');
 }
+// Inspect or change the isolated fixture as its owner for this statement only.
+async function fixtureQuery(sql, params) {
+  return db.transaction(async tx => {
+    await tx.exec('set local role none');
+    return tx.query(sql, params);
+  });
+}
 async function action(id,name,data={}){
   await asUser(id);
   return (await db.query('select battle_action($1,$2::jsonb) result',[name,JSON.stringify(data)])).rows[0].result;
@@ -67,7 +74,7 @@ try{
   await fail(A,'create_deck',{source_deck_id:sourceId,card_ids:source.cards.slice(0,15).map(card=>card.id),consent:false});
   await fail(A,'create_deck',{source_deck_id:sourceId,card_ids:source.cards.slice(0,14).map(card=>card.id),consent:true});
   const created=await ok(A,'create_deck',{source_deck_id:sourceId,card_ids:source.cards.slice(0,15).map(card=>card.id),consent:true,name:'Battle snapshot'});
-  const stored=(await db.query('select cards,public_consent_at from public.battle_decks where id=$1',[created.id])).rows[0];
+  const stored=(await fixtureQuery('select cards,public_consent_at from public.battle_decks where id=$1',[created.id])).rows[0];
   assert.equal(stored.cards.length,15);assert.ok(stored.public_consent_at);
   const timeoutSessionId=randomUUID();
   await db.exec('reset role');
@@ -91,8 +98,8 @@ try{
   assert.equal((await db.query('select expire_battle_searches() result')).rows[0].result.expired,1);
   assert.equal((await ok(B,'list')).search,null);
   source.cards[0].question='Changed source';
-  await db.query('update public.study_decks set snapshot=$2::jsonb where id=$1',[sourceId,JSON.stringify(source)]);
-  assert.notEqual((await db.query('select cards from public.battle_decks where id=$1',[created.id])).rows[0].cards[0].question,'Changed source');
+  await fixtureQuery('update public.study_decks set snapshot=$2::jsonb where id=$1',[sourceId,JSON.stringify(source)]);
+  assert.notEqual((await fixtureQuery('select cards from public.battle_decks where id=$1',[created.id])).rows[0].cards[0].question,'Changed source');
   const immediateTop=await ok(B,'top',{course:'Finance',language:'English'});
   assert.deepEqual(immediateTop.decks[0].id,created.id);
   assert.deepEqual([immediateTop.decks[0].score,immediateTop.decks[0].rating_count],[0,0]);
@@ -102,7 +109,7 @@ try{
   assert.deepEqual([top.decks[0].id,top.decks[0].score,top.decks[0].rating_count],[created.id,1,1]);
   await db.exec('reset role');
   await db.query("select battle_rate($1,$2,'good',false,false)",[created.id,B]);
-  assert.equal((await db.query('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,B])).rows[0].n,1);
+  assert.equal((await fixtureQuery('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,B])).rows[0].n,1);
   assert.deepEqual((await db.query('select game_xp,xp from public.profiles where id=$1',[A])).rows[0],{game_xp:0,xp:0});
   assert.equal((await db.query("select count(*)::int n from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='creator_xp'")).rows[0].n,0);
   const abandonedSessionId=randomUUID();
@@ -114,7 +121,7 @@ try{
   assert.equal((await ok(A,'round',{id:abandonedSessionId})).state,'completed','an abandoned Battle cannot be resumed');
   const abandoned=(await ok(A,'list')).sessions.find(session=>session.id===abandonedSessionId);
   assert.deepEqual([abandoned.status,abandoned.result],['completed','loss']);
-  assert.equal((await db.query('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,A])).rows[0].n,1);
+  assert.equal((await fixtureQuery('select count(*)::int n from public.battle_ratings where battle_deck_id=$1 and reviewer_id=$2',[created.id,A])).rows[0].n,1);
   const sessionId=randomUUID();
   await db.exec('reset role');
   await db.query('insert into public.battle_sessions(id,p1,p2,battle_deck_id,source_kind,cards,course,language) values($1,$2,$3,$4,$5,$6::jsonb,$7,$8)',[sessionId,A,B,created.id,'random',JSON.stringify(stored.cards),'Finance','English']);
@@ -130,7 +137,7 @@ try{
   assert.equal(report.reported,true);
   const duplicate=(await db.query("select report_battle_question($1,0,'unclear_question','Needs context') result",[sessionId])).rows[0].result;
   assert.equal(duplicate.reported,false);
-  assert.equal((await db.query('select count(*)::int n from public.battle_question_reports where session_id=$1',[sessionId])).rows[0].n,1);
+  assert.equal((await fixtureQuery('select count(*)::int n from public.battle_question_reports where session_id=$1',[sessionId])).rows[0].n,1);
   await asUser(B);const secondParticipant=(await db.query("select report_battle_question($1,0,'incorrect_answer','Wrong solution') result",[sessionId])).rows[0].result;
   assert.equal(secondParticipant.reported,true);
   await asUser(C);await assert.rejects(()=>db.query('select battle_round_progress($1)',[sessionId]));

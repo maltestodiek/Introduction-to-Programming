@@ -99,7 +99,7 @@ end $$;
 
 create or replace function public.battle_action(p_action text,p_data jsonb default '{}') returns jsonb language plpgsql security definer set search_path='' as $$
 #variable_conflict use_column
-declare me uuid:=auth.uid(); campus text; langs text[]; profile_courses text[]; d jsonb; source public.study_decks; deck public.battle_decks; s public.battle_sessions; round_state public.battle_rounds; peer record; invite record; chosen uuid; card jsonb; idx integer; correct boolean; origin text; ids text[]:='{}';
+declare me uuid:=auth.uid(); campus text; langs text[]; profile_courses text[]; d jsonb; source public.study_decks; deck public.battle_decks; s public.battle_sessions; r public.battle_rounds; peer record; invite record; chosen uuid; card jsonb; idx integer; correct boolean; origin text; ids text[]:='{}';
 begin
  if me is null then raise exception 'Sign in first'; end if; perform pg_advisory_xact_lock(791146221);
  select university,languages into campus,langs from public.profiles where id=me; select pp.courses into profile_courses from public.profile_private pp where pp.user_id=me;
