@@ -3131,7 +3131,19 @@ def incoming_battle_invite_count(client):
     return sum(1 for invite in state.get('invites',[]) if invite.get('incoming'))
 
 
-LEADERBOARD_STYLE='<style>.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}.sd-lb-place{width:44px}.sd-lb-identity{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.sd-lb-name{font-weight:600}.sd-lb-university{color:var(--sd-muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-lb-xp{white-space:nowrap}.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}</style>'
+LEADERBOARD_STYLE = """<style>
+.sd-lb-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--sd-border)}
+.sd-lb-row img{width:40px;height:40px;border-radius:50%;object-fit:cover}
+.sd-lb-place{width:44px}
+.sd-lb-identity{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sd-lb-name{font-weight:600}
+.sd-lb-university{color:var(--sd-muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-lb-xp{white-space:nowrap}
+.sd-lb-me{background:var(--sd-hover);border-radius:12px;font-weight:700}
+/* Give the highlighted row ownership of both curved dividers inside a list. */
+.sd-lb-me:has(+ .sd-lb-row){border-bottom:1px solid var(--sd-border)}
+.sd-lb-me + .sd-lb-row{border-top:0}
+</style>"""
 
 def leaderboard_rows(rows,repo):
     lines='';cache=st.session_state.setdefault('leaderboard_pictures',{})
