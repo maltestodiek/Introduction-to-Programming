@@ -21,6 +21,12 @@
 [class*="st-key-study_plan_goal_card_"][class*="_selected"]{border:3px solid var(--sd-accent)!important;background:var(--sd-study-end)!important}
 /* Header actions and compact week controls. */
 [class*="st-key-plan_"] button p,.study-plan-actions button p{white-space:nowrap}
+/* Session actions include the course and question count, so give them room to wrap. */
+[class*="st-key-study_plan_today_"] button [data-testid="stMarkdownContainer"],
+[class*="st-key-study_plan_today_"] button p {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 [class*="st-key-plan_"][class*="_course_"]{border-top:1px solid var(--sd-border);padding-top:.5rem}
 [class*="st-key-plan_"][class*="_course_"] [data-testid="stExpander"] details{border:0!important;background:transparent!important}
 [class*="st-key-plan_"][class*="_course_"] [data-testid="stExpander"] summary{padding-left:0;font-size:.85rem;color:var(--sd-muted)}

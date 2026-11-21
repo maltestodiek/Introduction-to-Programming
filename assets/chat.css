@@ -365,13 +365,8 @@
     height: 16px;
   }
 
-  .stMain:has(.st-key-chat_workspace) .st-key-open_chats button span:has(> [data-testid="stIconMaterial"]) {
-    position: static;
-    transform: none;
-  }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-open_chats button [data-testid="stIconMaterial"] {
-    font-size: 1rem;
+  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_account_actions button {
+    grid-template-columns: 16px minmax(0, 1fr);
   }
 
   .stMain:has(.st-key-chat_workspace) .st-key-sidebar_navigation hr {

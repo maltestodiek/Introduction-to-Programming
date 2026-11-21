@@ -109,7 +109,7 @@ def test_decks_page_shows_a_large_deck_studio_entry_between_creation_and_courses
     monkeypatch.setattr('db.BattleRepository.catalog',lambda self:[])
     at=deck_app(monkeypatch)
     blocks=[item.value for item in at.markdown]+[item.value for item in at.caption]+[item.value for item in at.subheader]
-    studio=blocks.index('#### Deck studio')
+    studio=blocks.index('#### :material/edit: Deck studio')
     assert any(text.startswith('Edit, publish and track') for text in blocks)
     assert [item.label for item in at.button].count('Open Deck studio')==1
     assert 'Deck studio' not in [item.label for item in at.button]
