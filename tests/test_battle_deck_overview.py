@@ -25,34 +25,38 @@ def overview(monkeypatch,study_decks=None):
     return at
 
 
-def test_course_search_filters_study_decks_within_each_course(monkeypatch):
+def test_each_course_search_filters_only_its_own_study_decks(monkeypatch):
     at=overview(monkeypatch,[
         {'id':'study-wacc','name':'WACC basics','course':'Corporate Finance','language':'English','author':'student_a','count':20,'owned':True},
         {'id':'study-bond','name':'Bond pricing','course':'Corporate Finance','language':'English','author':'student_b','count':12,'owned':False},
+        {'id':'study-investments','name':'Bond portfolio','course':'Investments','language':'English','author':'student_c','count':15,'owned':False},
     ])
-    at.text_input(key='course_study_search').set_value('bond').run()
-    finance=next(item for item in at.expander if item.label=='Study decks in this course (1)')
-    names=[item.value for item in finance.markdown]
+    at.text_input(key='course_study_search_0').set_value('bond').run()
+    # The matching Finance result is shown directly below its search field;
+    # only the untouched Investments course retains its dropdown.
+    assert len(at.expander)==1
+    names=[item.value for item in at.markdown]
     assert any('Bond pricing' in name for name in names)
     assert not any('WACC basics' in name for name in names)
+    assert "if query:" in APP and "course_list_results_" in APP
     assert not at.exception
 
 
 def test_course_search_shows_an_empty_message_without_changing_study_count(monkeypatch):
     at=overview(monkeypatch)
-    at.text_input(key='course_study_search').set_value('missing').run()
-    finance=next(item for item in at.expander if item.label=='Study decks in this course (0)')
-    assert any('No Study decks in Corporate Finance match your search.' in item.value for item in finance.caption)
-    counts=[item.value for item in at.markdown if 'course-list-count' in item.value]
-    assert '<strong>1</strong><span>Study decks</span>' in counts[0]
+    at.text_input(key='course_study_search_0').set_value('missing').run()
+    assert len(at.expander)==1
+    assert any('No Study decks in Corporate Finance match your search.' in item.value for item in at.caption)
+    # The filter changes the expanded results, not the course's total deck count.
+    assert "str(study_count)+' Deck'" in APP
 
 
 def test_course_card_shows_only_study_deck_counts(monkeypatch):
     at=overview(monkeypatch)
-    counts=[item.value for item in at.markdown if 'course-list-count' in item.value]
-    assert '<strong>1</strong><span>Study decks</span>' in counts[0]
-    assert '<strong>0</strong><span>Study decks</span>' in counts[1]
-    assert all('Battle decks' not in count for count in counts)
+    labels=[item.label for item in at.expander]
+    assert labels.count('View all study decks')==2
+    course_section=APP[APP.index("st.subheader('Your courses')"):APP.index('def deck_studio_timezone')]
+    assert 'Battle decks' not in course_section
 
 
 def test_decks_screen_hides_browse_and_battle_deck_actions(monkeypatch):

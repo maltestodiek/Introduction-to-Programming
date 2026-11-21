@@ -53,10 +53,10 @@ def test_decks_show_a_vertical_course_list_and_filtered_deck_section(monkeypatch
     at.session_state['auth']=auth;at.session_state['main_page']='Decks';at.run()
     headings=[item.value for item in at.subheader]
     assert headings.count('Your courses')==1 and 'Browse decks' not in headings
-    assert next(field for field in at.text_input if field.label=='Search your Study decks')
-    labels=[item.value for item in at.markdown]
-    assert any('Corporate Finance' in label for label in labels)
-    assert any('Statistics' in label for label in labels)
+    assert next(field for field in at.text_input if field.label=='Search Corporate Finance Study decks')
+    assert next(field for field in at.text_input if field.label=='Search Statistics Study decks')
+    expander_labels=[item.label for item in at.expander]
+    assert expander_labels.count('View all study decks')==2
     assert not any(field.label=='Browse course' for field in at.selectbox)
     assert len([item for item in at.button if item.label=='Study'])==1
     assert not any(item.label in ('Battle','Start Battle') for item in at.button)

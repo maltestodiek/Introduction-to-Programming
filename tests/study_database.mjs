@@ -28,6 +28,7 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-visibility.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-course-variable.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-sort-time.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-session-progress.sql',import.meta.url),'utf8'));
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
@@ -54,6 +55,7 @@ try{
   await publicationOk(A,'publish',{id:da.id});
   const authorList=await publicationOk(A,'list');
   assert.equal(authorList.decks.find(deck=>deck.id===da.id).owned,true);
+  assert.ok(authorList.decks.find(deck=>deck.id===da.id).published_at);
   assert.equal((await publicationOk(B,'list')).decks.some(deck=>deck.id===da.id),true);
   assert.equal((await publicationOk(C,'list')).decks.some(deck=>deck.id===da.id),false);
   const visible=await publicationOk(B,'deck',{id:da.id});

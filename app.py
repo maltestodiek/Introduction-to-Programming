@@ -859,30 +859,43 @@ def decks_screen(client,profile):
     study_by_course={course.strip().casefold():[] for course in course_names}
     for deck in study_decks:study_by_course.setdefault(deck.get('course','').strip().casefold(),[]).append(deck)
 
+    def study_deck_rows(decks,index):
+        for deck in decks:
+            with st.container(key=f'course_list_deck_{index}_{deck["id"]}'):
+                info,count,action=st.columns([4,1,1],vertical_alignment='center')
+                with info:st.markdown(':material/menu_book: **'+deck['name']+'**')
+                with count:st.caption(f'{deck["count"]} questions')
+                with action:
+                    if st.button('Study',key=f'course_study_{index}_{deck["id"]}',icon=':material/menu_book:',use_container_width=True):
+                        open_course_study_deck(client,deck)
+
+    def sorted_study_decks(decks,sort_order):
+        if sort_order=='A–Z':return sorted(decks,key=lambda deck:deck['name'].casefold())
+        return sorted(decks,key=lambda deck:deck.get('published_at') or '',reverse=True)
+
     st.subheader('Your courses')
-    query=st.text_input('Search your Study decks',placeholder='Search by deck name',key='course_study_search').strip().casefold()
     for index,course in enumerate(course_names):
         course_key=course.strip().casefold()
         course_study_decks=study_by_course.get(course_key,[])
         study_count=len(course_study_decks)
-        visible_study_decks=[deck for deck in course_study_decks if not query or query in deck.get('name','').casefold()]
         with st.container(border=True,key='course_list_'+str(index)):
-            summary,availability=st.columns([2.2,1.5],vertical_alignment='center')
-            with summary:
-                st.markdown('#### '+course)
-                st.caption(f"{study_count} Study deck{'s' if study_count!=1 else ''} available")
-            with availability:
-                st.markdown(f'<div class="course-list-count"><strong>{study_count}</strong><span>Study decks</span></div>',unsafe_allow_html=True)
-            with st.expander(f'Study decks in this course ({len(visible_study_decks)})'):
-                if not course_study_decks:st.caption(f'No Study decks in {course} yet. Create the first one above.')
-                elif not visible_study_decks:st.caption(f'No Study decks in {course} match your search.')
-                for deck in visible_study_decks:
-                    info,action=st.columns([3,1],vertical_alignment='center')
-                    info.markdown(':material/menu_book: **'+deck['name']+'**')
-                    info.caption(course_deck_meta('study',deck))
-                    with action:
-                        if st.button('Study',key=f'course_study_{index}_{deck["id"]}',icon=':material/menu_book:',use_container_width=True):
-                            open_course_study_deck(client,deck)
+            initials=''.join(part[:1] for part in course.split()[:2]).upper() or 'C'
+            status=f'<p>{study_count} Study deck{"s" if study_count!=1 else ""} available</p>' if study_count else ''
+            st.html('<div class="course-list-hero"><span class="course-list-initials">'+escape(initials)+'</span><div><h3>'+escape(course)+'</h3>'+status+'</div><b>'+str(study_count)+' Deck'+('s' if study_count!=1 else '')+'</b></div>')
+            with st.container(key=f'course_list_search_{index}'):
+                query=st.text_input(f'Search {course} Study decks',placeholder=f'Search {course} Study decks',key=f'course_study_search_{index}',label_visibility='collapsed').strip().casefold()
+            visible_study_decks=[deck for deck in course_study_decks if not query or query in deck.get('name','').casefold()]
+            if query:
+                with st.container(border=True,key=f'course_list_results_{index}'):
+                    if not visible_study_decks:st.caption(f'No Study decks in {course} match your search.')
+                    else:study_deck_rows(visible_study_decks,index)
+            else:
+                with st.expander('View all study decks'):
+                    if not course_study_decks:st.caption(f'No Study decks in {course} yet.')
+                    else:
+                        with st.container(key=f'course_list_sort_{index}'):
+                            sort_order=st.radio('Sort Study decks',['Recently added','A–Z'],key=f'course_study_sort_{index}',horizontal=True,label_visibility='collapsed')
+                        study_deck_rows(sorted_study_decks(course_study_decks,sort_order),index)
 
 def deck_studio_timezone():
     from zoneinfo import ZoneInfo

@@ -31,6 +31,8 @@ The Edge Function `supabase/functions/extract-image-text` reads the text on Anki
 
 Apply `supabase/deck-studio.sql` after `battle-deck-catalog.sql`. It adds `study_decks.created_at` (backfilled from each deck's first review, otherwise left empty) and the read-only `deck_studio()` function that returns the caller's own Study and Battle decks with their times and no questions. Verify with `tests/deck_studio_database.mjs`.
 
+Apply `supabase/study-deck-publication-sort-time.sql` after `study-deck-publication-course-variable.sql`. It adds the public publication timestamp to the already-authorized Study deck listing so the Decks page can sort a course's published Study decks by **Recently added**. It does not expose cards or alter deck visibility. Verify with `tests/study_database.mjs`.
+
 Apply `supabase/ai-question-generation-schema.sql` in the Supabase SQL Editor after `anki-import-schema.sql`. The SQL creates private AI drafts, validates every save atomically, and adds a per-user generation lock.
 
 Deploy the Edge Function from the repository root:

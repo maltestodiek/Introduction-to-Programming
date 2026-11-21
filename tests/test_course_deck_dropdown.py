@@ -13,8 +13,8 @@ def course_app(monkeypatch,copies=None):
     monkeypatch.setattr('db.ProfileRepository.load',lambda self:profile)
     def publication(self,action,data=None):
         if action=='list':return {'decks':[
-            {'id':'study-own','name':'WACC basics','course':'Corporate Finance','language':'English','author':'student_a','count':20,'owned':True},
-            {'id':'study-other','name':'Bond pricing','course':'corporate finance ','language':'English','author':'Student B','count':12,'owned':False},
+            {'id':'study-own','name':'WACC basics','course':'Corporate Finance','language':'English','author':'student_a','count':20,'owned':True,'published_at':'2026-11-21T12:00:00+00:00'},
+            {'id':'study-other','name':'Bond pricing','course':'corporate finance ','language':'English','author':'Student B','count':12,'owned':False,'published_at':'2026-11-20T12:00:00+00:00'},
         ]}
         if action=='copy':
             (copies if copies is not None else []).append(data['id']);return {'id':'copy-1'}
@@ -32,16 +32,29 @@ def course_app(monkeypatch,copies=None):
 
 def test_each_course_card_lists_only_its_study_decks(monkeypatch):
     at=course_app(monkeypatch)
-    labels=[item.label for item in at.expander if item.label.startswith('Study decks in this course')]
-    assert labels==['Study decks in this course (2)','Study decks in this course (0)']
-    finance=next(item for item in at.expander if item.label=='Study decks in this course (2)')
+    labels=[item.label for item in at.expander if item.label=='View all study decks']
+    assert labels==['View all study decks','View all study decks']
+    finance=at.expander[0]
     names=[item.value for item in finance.markdown]
     assert any('WACC basics' in name for name in names)
     assert any('Bond pricing' in name for name in names)
     assert not any('Capital structure' in name for name in names)
-    empty=next(item for item in at.expander if item.label=='Study decks in this course (0)')
+    empty=at.expander[1]
     assert any('No Study decks in Investments yet' in item.value for item in empty.caption)
     assert not at.exception
+
+
+def test_course_deck_list_can_sort_by_recent_publication_or_name(monkeypatch):
+    at=course_app(monkeypatch)
+    sort=at.radio(key='course_study_sort_0')
+    assert sort.value=='Recently added'
+    finance=at.expander[0]
+    names=[item.value for item in finance.markdown]
+    assert names.index(':material/menu_book: **WACC basics**')<names.index(':material/menu_book: **Bond pricing**')
+    sort.set_value('A–Z').run()
+    finance=at.expander[0]
+    names=[item.value for item in finance.markdown]
+    assert names.index(':material/menu_book: **Bond pricing**')<names.index(':material/menu_book: **WACC basics**')
 
 
 def test_study_buttons_open_study_mode_with_the_selected_deck(monkeypatch):
