@@ -74,10 +74,10 @@ def test_decks_screen_does_not_query_the_battle_catalogue(monkeypatch):
 
 
 def test_battle_dashboard_uses_distinct_ongoing_pending_and_completed_columns():
-    assert '.st-key-battle_overview_group_ongoing{background:#f0ecff!important}' in BATTLE_OVERVIEW_CSS
-    assert '.st-key-battle_overview_group_pending{background:#f7f6fb!important}' in BATTLE_OVERVIEW_CSS
-    assert '.st-key-battle_overview_group_completed{background:#e8f8f5!important}' in BATTLE_OVERVIEW_CSS
-    assert '.st-key-battle_game_overview{margin-top:1rem;border:1px solid #e1ddf3!important' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_overview_group_ongoing{background:var(--sd-battle-end)!important}' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_overview_group_pending{background:var(--sd-surface-muted)!important}' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_overview_group_completed{background:var(--sd-study-end)!important}' in BATTLE_OVERVIEW_CSS
+    assert '.st-key-battle_game_overview{margin-top:1rem;border:1px solid var(--sd-border)!important' in BATTLE_OVERVIEW_CSS
     assert '.st-key-battle_dashboard_hero{overflow:hidden' in BATTLE_OVERVIEW_CSS
     assert '.st-key-battle_session_history{margin-top:1rem' in BATTLE_OVERVIEW_CSS
 
@@ -102,6 +102,7 @@ def test_overview_lanes_put_ongoing_beside_pending_and_completed_below():
     assert section.index("st.columns(2,gap='medium')")<section.index("battle_overview_group_completed")
     assert "columns=st.columns(3,gap='medium')" in section
     assert '.st-key-battle_overview_group_completed{margin-top:1.1rem' in BATTLE_OVERVIEW_CSS
+    assert ':is(.st-key-battle_overview_group_ongoing,.st-key-battle_overview_group_pending) .bo-empty{min-height:9rem' in BATTLE_OVERVIEW_CSS
 
 
 def test_overview_cards_present_battles_as_versus_duels():
@@ -109,8 +110,8 @@ def test_overview_cards_present_battles_as_versus_duels():
     assert 'bo-av bo-av-me' in section and 'bo-av bo-av-op' in section
     assert 'Waiting for ' in section and 'bo-wait' in section
     assert '{trophy}{result}' in section and '{xp:+d} XP' in section
-    assert '[class*="st-key-battle_overview_card_completed_"]:has(.bo-win){border-left:5px solid #16a34a!important}' in BATTLE_OVERVIEW_CSS
-    assert '[class*="st-key-battle_overview_card_completed_"]:has(.bo-loss){border-left:5px solid #dc2626!important}' in BATTLE_OVERVIEW_CSS
+    assert '[class*="st-key-battle_overview_card_completed_"]:has(.bo-win){border-left:5px solid var(--sd-success-border)!important}' in BATTLE_OVERVIEW_CSS
+    assert '[class*="st-key-battle_overview_card_completed_"]:has(.bo-loss){border-left:5px solid var(--sd-danger-border)!important}' in BATTLE_OVERVIEW_CSS
     assert '[class*="st-key-battle_overview_card_ongoing_"]{border:2px solid var(--sd-accent)!important;animation:bo-live' in BATTLE_OVERVIEW_CSS
     assert '.bo-empty' in BATTLE_OVERVIEW_CSS
 
@@ -128,4 +129,4 @@ def test_incoming_battle_invitation_is_marked_as_new_and_has_a_primary_accept_ac
     assert "accept.button('Accept',key='battle_accept_'+invite['id'],type='primary'" in APP
     assert '[class*="st-key-battle_overview_invite_received_"]' in BATTLE_OVERVIEW_CSS
     assert '.battle-invite-new{position:absolute' in BATTLE_OVERVIEW_CSS
-    assert 'background:#c9f5e7' in BATTLE_OVERVIEW_CSS
+    assert 'background:var(--sd-badge);color:var(--sd-badge-text)' in BATTLE_OVERVIEW_CSS

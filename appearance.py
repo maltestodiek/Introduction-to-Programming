@@ -10,22 +10,30 @@ PALETTES={
              'avatar':'#F2F3FF','icon-battle':'#E0E7FF','icon-study':'#D1FAE5','badge':'#D9F8EB','badge-text':'#174E3B',
              'battle-button':'#6EE7B7','battle-button-hover':'#34D399','battle-button-text':'#064E3B','shadow':'#4F46E51A',
              'nav-text':'#6D6A90','nav-hover':'#F4F2FC','nav-selected-text':'#4338CA',
-             'nav-selected-start':'#EEEAFF','nav-selected-end':'#EFFAF8',},
+             'nav-selected-start':'#EEEAFF','nav-selected-end':'#EFFAF8',
+             'surface-muted':'#F7F6FB','action':'#4338CA','action-hover':'#312E81',
+             'success-surface':'#DCFCE7','success-text':'#166534','success-border':'#16A34A',
+             'danger-surface':'#FEE2E2','danger-text':'#991B1B','danger-border':'#DC2626',
+             'warning-surface':'#FFF7ED','warning-text':'#92400E',},
     'dark':{'text':'#EEF2FF','muted':'#B4BFD6','surface':'#182237','border':'#384560',
             'accent':'#B8B1FF','accent-hover':'#DDD9FF','battle-end':'#252346','study-end':'#143635',
             'battle-border':'#514B7B','study-border':'#30675B','hover':'#302B53',
             'avatar':'#273149','icon-battle':'#302E50','icon-study':'#163E35','badge':'#163C32','badge-text':'#9DF0CE',
             'battle-button':'#5EEAD4','battle-button-hover':'#2DD4BF','battle-button-text':'#042F2E','shadow':'#00000040',
             'nav-text':'#EEF2FF','nav-hover':'#302B53','nav-selected-text':'#FFFFFF',
-            'nav-selected-start':'#6042B5','nav-selected-end':'#523598',},
+            'nav-selected-start':'#6042B5','nav-selected-end':'#523598',
+            'surface-muted':'#202B42','action':'#6042B5','action-hover':'#6E52C8',
+            'success-surface':'#17382C','success-text':'#A7F3D0','success-border':'#4ADE80',
+            'danger-surface':'#422432','danger-text':'#FECACA','danger-border':'#F87171',
+            'warning-surface':'#3C2E20','warning-text':'#FCE0A3',},
 }
 
 def theme_variables(mode):
     palette=PALETTES.get(mode,PALETTES['light'])
     fallback=':root{'+''.join(f'--sd-{key}:{value};' for key,value in palette.items())+'}'
-    # Native Streamlit containers update color-scheme immediately in the browser.
-    # light-dark() follows that scheme without waiting for a Python rerun.
-    adaptive=':root{'+''.join(f'--sd-{key}:light-dark({PALETTES["light"][key]},{PALETTES["dark"][key]});' for key in palette)+'}'
+    # Streamlit updates color-scheme inside .stApp. Dialogs outside that
+    # container inherit the reported theme from :root.
+    adaptive='.stApp{'+''.join(f'--sd-{key}:light-dark({PALETTES["light"][key]},{PALETTES["dark"][key]});' for key in palette)+'}'
     return fallback+'@supports(color:light-dark(white,black)){'+adaptive+'}'
 
 def apply_appearance():

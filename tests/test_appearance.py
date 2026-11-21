@@ -23,11 +23,27 @@ def test_battle_mode_mint_button_text_remains_readable():
         assert contrast(palette['battle-button-text'],palette['battle-button'])>=4.5
         assert contrast(palette['battle-button-text'],palette['battle-button-hover'])>=4.5
 
+def test_battle_feedback_and_friends_actions_have_contrast_in_both_themes():
+    for palette in PALETTES.values():
+        for status in ('success', 'danger', 'warning'):
+            assert contrast(palette[f'{status}-text'], palette[f'{status}-surface']) >= 4.5
+        for fill in ('action', 'action-hover'):
+            assert contrast('#FFFFFF', palette[fill]) >= 4.5
+        assert contrast(palette['muted'], palette['surface-muted']) >= 4.5
+        assert contrast(palette['badge-text'], palette['study-end']) >= 4.5
+
+
 def test_native_controls_have_light_and_dark_configuration():
     config=tomllib.loads((Path(__file__).parents[1]/'.streamlit/config.toml').read_text())['theme']
     for mode in ('light','dark'):
         for surface in ('backgroundColor','secondaryBackgroundColor'):
             assert contrast(config[mode]['textColor'],config[mode][surface])>=4.5
+
+def test_dialogs_inherit_the_reported_theme_from_the_document_root():
+    css = theme_variables('dark')
+    assert css.startswith(':root{--sd-text:#EEF2FF;')
+    assert '.stApp{--sd-text:light-dark(#17223B,#EEF2FF);' in css
+
 
 def test_unknown_theme_falls_back_to_light_without_injecting_input():
     assert theme_variables('unexpected')==theme_variables('light')

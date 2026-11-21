@@ -23,6 +23,7 @@ def fresh_module(name):
 fresh_module("course_catalog")
 from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
+from ui_icons import inline_icon
 from answer_order import display_options
 from round_effects import accuracy_chip, combo_markup, countdown_overlay, streak_badge, streak_length, streak_milestone
 from logic import normalize_friend_code, invitation_url, invitation_token
@@ -107,7 +108,7 @@ def chat_navigation(client, active):
         if data is not None:
             unread = sum(thread['unread'] for thread in data['threads'])
     label = f'Chats ({unread})' if unread else 'Chats'
-    if st.button(label, key='open_chats', icon=':material/chat:', type='primary' if active else 'secondary', width='stretch'):
+    if st.button(label, key='open_chats', type='primary' if active else 'secondary', width='stretch'):
         navigate('Chats')
 
 
@@ -818,7 +819,7 @@ def decks_screen(client,profile):
     manual,anki,ai=st.columns(3)
     with manual:
         with st.container(border=True,key='deck_create_manual'):
-            st.markdown('<div class="deck-create-icon">+</div>',unsafe_allow_html=True)
+            st.html('<div class="deck-create-icon">'+inline_icon('add')+'</div>')
             st.markdown('#### Manual deck')
             st.caption('Write questions from scratch and organise them into lectures.')
             with st.popover('Create deck',type='primary',use_container_width=True):
@@ -832,21 +833,21 @@ def decks_screen(client,profile):
                     st.session_state.battle_deck_creator=True;st.rerun()
     with anki:
         with st.container(border=True,key='deck_create_anki'):
-            st.markdown('<div class="deck-create-icon">▤</div>',unsafe_allow_html=True)
+            st.html('<div class="deck-create-icon">'+inline_icon('file')+'</div>')
             st.markdown('#### AI Anki import')
             st.caption('Import Anki cards, then review AI-generated questions.')
             if st.button('Import Anki deck',use_container_width=True):
                 st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
     with ai:
         with st.container(border=True,key='deck_create_slides'):
-            st.markdown('<div class="deck-create-icon">✦</div>',unsafe_allow_html=True)
+            st.html('<div class="deck-create-icon">'+inline_icon('sparkles')+'</div>')
             st.markdown('#### AI from lecture slides')
             st.caption('Upload text-based PDF slides, then review generated questions.')
             if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     with st.container(border=True,key='deck_studio_entry'):
         studio_text,studio_open=st.columns([5,2],vertical_alignment='center')
         with studio_text:
-            st.markdown('#### Deck studio')
+            st.markdown('#### :material/edit: Deck studio')
             st.caption('Edit, publish and track every deck you created: private drafts, published Study decks and Battle decks, with their dates.')
         if studio_open.button('Open Deck studio',key='open_deck_studio',icon=':material/design_services:',type='primary',use_container_width=True):
             st.session_state.deck_studio=True;st.rerun()
@@ -1824,10 +1825,10 @@ def study_plan_editor(client,profile,decks,user_id=''):
     from datetime import date,time,timedelta
     import study_plan as rules
     draft=st.session_state.plan_draft;today=date.today();key='plan_'+str(draft.get('id','new'))+'_'
-    heading,actions=st.columns([2.1,1.4],vertical_alignment='center')
-    with heading:
+    with st.container(horizontal=True,vertical_alignment='center'):
         label='Edit plan' if draft.get('id') else 'New plan'
         st.markdown(f'<p class="study-plan-breadcrumb">Study plan › <strong>{label}</strong></p>',unsafe_allow_html=True)
+        actions=st.container(horizontal=True,width='content',vertical_alignment='center')
     configuration,preview=st.columns([1.28,.82],vertical_alignment='top')
     with configuration:
         with st.container(border=True,key='study_plan_editor_courses'):
@@ -1933,9 +1934,8 @@ def study_plan_editor(client,profile,decks,user_id=''):
             st.caption(':material/event: Add the sessions to Google Calendar after saving.')
         else:st.info('Choose courses, decks and dates to see the live preview.')
     with actions:
-        cancel_action,save_action=st.columns(2)
-        cancel=cancel_action.button('Cancel',use_container_width=True)
-        save=save_action.button('Save study plan',type='primary',disabled=clean is None,use_container_width=True)
+        cancel=st.button('Cancel')
+        save=st.button('Save study plan',type='primary',disabled=clean is None)
     if save:
         payload={'plan':clean}
         if draft.get('id'):payload['id']=draft['id']
@@ -2056,9 +2056,9 @@ def study_plan_screen(client,profile,user_id=''):
     if data is None:return
     saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
     if saved:return study_plan_finish(client,saved,decks,user_id)
-    heading,action=st.columns([4,1],vertical_alignment='bottom')
-    with heading:st.markdown('<p class="study-plan-intro">Plan your Study Mode sessions until your exams and follow your progress.</p>',unsafe_allow_html=True)
-    with action:create=st.button('Create study plan',type='primary',icon=':material/add:',use_container_width=True)
+    with st.container(horizontal=True,vertical_alignment='bottom'):
+        st.markdown('<p class="study-plan-intro">Plan your Study Mode sessions until your exams and follow your progress.</p>',unsafe_allow_html=True)
+        create=st.button('Create study plan',type='primary',icon=':material/add:')
     if create:
         st.session_state.plan_draft={'name':'','target':2,'sessions':1,'times':rules.DEFAULT_TIMES[:1],'weekdays_off':[],'dates_off':[],'courses':[]};st.rerun()
     if not data['plans']:
@@ -2084,17 +2084,14 @@ def study_plan_screen(client,profile,user_id=''):
                     st.session_state.plan_draft={**plan,'calendar_events':stored.get('calendar_events') or []};st.rerun()
             by_deck={};levels=study_plan_levels(client,plan,decks,by_deck)
             if levels is None:continue
-            progress,today_card=st.columns([1.35,.85],vertical_alignment='top')
-            with progress:
-                st.write('**Progress towards your exams**')
-                if len(plan['courses'])>1:
-                    everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
-                    st.progress(overall,text=f"Overall progress {overall:.0%}")
-                for item in plan['courses']:
-                    share=rules.plan_progress(levels[item['course']],plan['target']);st.progress(share,text=f"{item['course']} {share:.0%} · finish by {date.fromisoformat(item['end']):%d %b}")
-            with today_card:
-                with st.container(border=True,key='study_plan_today_'+plan['id']):
-                    study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
+            with st.container(border=True,key='study_plan_today_'+plan['id']):
+                study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
+            st.write('**Progress towards your exams**')
+            if len(plan['courses'])>1:
+                everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
+                st.progress(overall,text=f"Overall progress {overall:.0%}")
+            for item in plan['courses']:
+                share=rules.plan_progress(levels[item['course']],plan['target']);st.progress(share,text=f"{item['course']} {share:.0%} · finish by {date.fromisoformat(item['end']):%d %b}")
 
 
 def study_design():
@@ -2397,7 +2394,7 @@ def battle_progress(client,session_id):
 
 def battle_overview(answers,current_index,flash_index=None,streak=0):
     from battle_ui import battle_progress_tiles
-    symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
+    symbols={'correct':inline_icon('check'),'incorrect':inline_icon('close'),'current':'•','open':''}
     tiles=battle_progress_tiles(answers,current_index)
     markup=''.join(f'<span class="battle-tile battle-tile-{tile["state"]}{" round-tile-flash" if flash_index==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
     badge=streak_badge(streak)
@@ -2472,8 +2469,8 @@ def battle_review_dialog(client,session_id):
     for index in range(total):
         answer=answers.get(index)
         state='correct' if answer and answer.get('correct') else 'incorrect'
-        label='✓' if state=='correct' else '✗'
-        if columns[index%5].button(label,key=f'review_tile_{state}_{session_id}_{index}',type='primary' if selected==index else 'secondary',use_container_width=True,help=f'Question {index+1}'):
+        icon=':material/check:' if state=='correct' else ':material/close:'
+        if columns[index%5].button(str(index+1),key=f'review_tile_{state}_{session_id}_{index}',icon=icon,type='primary' if selected==index else 'secondary',use_container_width=True,help=f'Question {index+1}'):
             st.session_state.battle_review_selected=index;st.rerun(scope='fragment')
     if 0<=selected<total:
         card=result['cards'][selected];answer=answers.get(selected)
@@ -2560,7 +2557,7 @@ def battle_round_screen(client,session_id):
             battle_leave_control(client,session_id)
             battle_overview(answers,response['index']+1,flash_index=response['index'],streak=streak)
         if response.get('timed_out') and st.session_state.pop(f'battle_timeout_notice_{session_id}',False):
-            st.toast('Time has passed',icon='⏱️')
+            st.toast('Time has passed',icon=':material/timer_off:')
         return
     result=battle_request(client,'round',{'id':session_id})
     if result is None:return
@@ -2665,16 +2662,16 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
         return '<p class="bo-deck" title="'+safe+'">'+safe+'</p>'
     with st.container(border=True,key='battle_game_overview'):
         st.subheader('Game Overview')
-        for column,(label,icon,status) in zip(st.columns(2,gap='medium'),(('Ongoing','⚔️','ongoing'),('Pending','⏳','pending'))):
+        for column,(label,icon,status) in zip(st.columns(2,gap='medium'),(('Ongoing','swords','ongoing'),('Pending','hourglass','pending'))):
             rows=[session for session in sessions if session['status']==status]
             pending_invites=list(invites) if status=='pending' else []
             count=len(rows)+(1 if status=='pending' and search else 0)+len(pending_invites)
             with column:
                 with st.container(key=f'battle_overview_group_{status}'):
-                    st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{icon}</span>{label}<b>{count}</b></p>')
-                    if not rows and not (status=='pending' and (search or pending_invites)):
-                        if status=='ongoing':st.html('<div class="bo-empty"><span>🛡️</span>No ongoing Battles.<br>Ready for another one?</div>')
-                        else:st.html('<div class="bo-empty"><span>⏳</span>No pending Battles.</div>')
+                    st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{inline_icon(icon)}</span>{label}<b>{count}</b></p>')
+                    if not count:
+                        empty_icon='shield' if status=='ongoing' else icon
+                        st.html(f'<div class="bo-empty">{inline_icon(empty_icon)}<div>No {status} Battles.</div></div>')
                     if status=='pending' and search:battle_pending_search(client,search)
                     for invite in pending_invites:
                         invite_key='battle_overview_invite_received_' if invite['incoming'] else 'battle_overview_invite_sent_'
@@ -2683,7 +2680,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                             deck_name=str(invite.get('deck_name') or 'Random Deck')
                             safe_deck=escape(deck_name,quote=True)
                             if invite['incoming']:
-                                st.html('<div class="battle-overview-card-copy battle-invite-received"><span class="battle-invite-new">✦ New</span><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="battle-invite-sender">'+escape(str(invite['username']))+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                                st.html('<div class="battle-overview-card-copy battle-invite-received"><span class="battle-invite-new">'+inline_icon('sparkles')+' New</span><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="battle-invite-sender">'+escape(str(invite['username']))+'</p><p>'+escape(str(invite['course']))+'</p></div>')
                             else:
                                 st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p>'+escape(direction.upper()+' · '+invite['username'])+'</p><p>'+escape(str(invite['course']))+'</p></div>')
                             if invite['incoming']:
@@ -2709,8 +2706,8 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                                  +'<div class="bo-wait"><span></span>Waiting for '+escape(str(opponent))+'…</div>')
         completed=recent_completed_battles(sessions)
         with st.container(key='battle_overview_group_completed'):
-            st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">🏁</span>Recently completed<b>{len(completed)}</b></p>')
-            if not completed:st.html('<div class="bo-empty"><span>🏁</span>No completed Battles yet.</div>')
+            st.html(f'<p class="battle-overview-column-heading"><span class="bo-ic">{inline_icon("flag")}</span>Recently completed<b>{len(completed)}</b></p>')
+            if not completed:st.html('<div class="bo-empty">'+inline_icon('flag')+'No completed Battles yet.</div>')
             columns=st.columns(3,gap='medium')
             for index,session in enumerate(completed):
                 opponent=session.get('opponent_username','Unknown opponent')
@@ -2721,7 +2718,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                         result=str(session.get('result') or 'completed').title()
                         xp=session.get('game_xp_delta',0)
                         xp_class='bo-xp-plus' if xp>0 else 'bo-xp-minus'
-                        trophy='🏆 ' if result=='Win' else ''
+                        trophy=inline_icon('trophy') if result=='Win' else ''
                         st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
                          +f'<div class="bo-score"><b>{score}</b><span class="bo-pill bo-{result.lower()}">{trophy}{result}</span><span class="bo-pill {xp_class}">{xp:+d} XP</span></div>')
                         if st.button('Review questions',key='overview_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
@@ -2795,10 +2792,10 @@ def battle_new_setup_screen(client,profile):
         random_source,top_source=st.columns(2)
         source=st.session_state.get('battle_deck_source','Random Deck')
         with random_source:
-            if st.button('🎲\nRandom Deck',key='battle_source_random',use_container_width=True,type='primary' if source=='Random Deck' else 'secondary'):
+            if st.button('Random Deck',key='battle_source_random',icon=':material/casino:',use_container_width=True,type='primary' if source=='Random Deck' else 'secondary'):
                 st.session_state.battle_deck_source='Random Deck';st.session_state.pop('battle_top_deck',None);st.rerun()
         with top_source:
-            if st.button('☆\nTop Decks',key='battle_source_top',use_container_width=True,type='primary' if source=='Top Decks' else 'secondary'):
+            if st.button('Top Decks',key='battle_source_top',icon=':material/star:',use_container_width=True,type='primary' if source=='Top Decks' else 'secondary'):
                 st.session_state.battle_deck_source='Top Decks';st.rerun()
     selected=None
     availability=None
@@ -2814,11 +2811,11 @@ def battle_new_setup_screen(client,profile):
             for position in range(1,11):
                 if position<=len(ranked):
                     item=ranked[position-1]
-                    medal=('🏆','🥈','🥉')[position-1] if position<=3 else str(position)
+                    medal_icon=':material/military_tech:' if position<=3 else None
                     with st.container(key='battle_top_deck_row_'+item['id']):
                         deck_name,rating=st.columns([8,1],vertical_alignment='center')
                         with deck_name:
-                            if st.button(f'{medal}  {item["name"]}',key='battle_top_deck_'+item['id'],use_container_width=True,type='primary' if selected==item['id'] else 'secondary'):
+                            if st.button(f'{position}. {item["name"]}',key='battle_top_deck_'+item['id'],icon=medal_icon,use_container_width=True,type='primary' if selected==item['id'] else 'secondary'):
                                 st.session_state.battle_top_deck=item['id'];st.rerun()
                         with rating:
                             st.html(f'<span class="battle-top-deck-rating">{item["rating_count"]} ratings</span>')

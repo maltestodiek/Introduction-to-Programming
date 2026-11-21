@@ -80,6 +80,7 @@ def test_accuracy_is_computed_from_answered_questions_only():
 
 def test_streak_badge_and_combo_meter_sit_below_the_tile_grid():
     assert streak_badge(1)=='' and '2 in a row' in streak_badge(2)
+    assert 'class="sd-icon"' in streak_badge(2)
     assert APP.count('round-overview-foot')==2
     assert combo_markup(0).count('round-combo-seg"')==5 and 'round-combo-seg on' not in combo_markup(0)
     assert combo_markup(3).count('round-combo-seg on')==3
@@ -94,8 +95,8 @@ def test_battle_review_opens_questions_from_clickable_tiles():
     assert "review_tile_{state}_{session_id}_{index}" in section
     assert "st.rerun(scope='fragment')" in section
     assert 'round-review-q' in section and 'Report this question' in section
-    assert '[class*="st-key-review_tile_correct"] button{background:#dcfce7' in EFFECTS_CSS
-    assert '[class*="st-key-review_tile_incorrect"] button{background:#fee2e2' in EFFECTS_CSS
+    assert '[class*="st-key-review_tile_correct"] button{background:var(--sd-success-surface)' in EFFECTS_CSS
+    assert '[class*="st-key-review_tile_incorrect"] button{background:var(--sd-danger-surface)' in EFFECTS_CSS
     assert '.round-acc' in EFFECTS_CSS
 
 

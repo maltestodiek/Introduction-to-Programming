@@ -53,11 +53,16 @@ def test_header_friends_button_opens_the_friends_page(monkeypatch):
     assert not at.exception
 
 
-def test_friends_button_shares_profile_button_styling_and_keeps_its_icon():
+def test_sidebar_account_buttons_share_layout_and_chat_icon_animation():
     assert '.st-key-nav_Friends' not in NAVIGATION_CSS
     shared=re.findall(r':is\(([^)]*)\) button\{',NAVIGATION_CSS)
-    assert shared and all('.st-key-open_profile' in s and '.st-key-open_friends' in s for s in shared)
+    selectors=('.st-key-open_friends', '.st-key-open_chats', '.st-key-open_profile')
+    assert shared and all(all(selector in group for selector in selectors) for group in shared)
     assert re.search(r'\.st-key-open_friends button::before\{mask-image:url\("data:image/svg\+xml',NAVIGATION_CSS)
+    assert 'grid-template-columns:30px minmax(0,1fr);align-items:center' in NAVIGATION_CSS
+    assert '.st-key-open_chats button:is(:hover,:focus-visible)::before{animation:nav-bounce' in NAVIGATION_CSS
+    reduced_motion=NAVIGATION_CSS.split('@media(prefers-reduced-motion:reduce)',1)[1]
+    assert '.st-key-open_chats) button::before{animation:none!important}' in reduced_motion
 
 
 def test_sidebar_has_consistent_vertical_actions_and_reserves_main_content_space():
@@ -70,7 +75,7 @@ def test_sidebar_has_consistent_vertical_actions_and_reserves_main_content_space
     assert 'margin-left:auto!important;margin-right:auto!important' in NAVIGATION_CSS
     assert 'text-align:left!important' in NAVIGATION_CSS
     assert 'justify-content:flex-start' in NAVIGATION_CSS
-    assert '.st-key-open_chats button:focus-visible' in NAVIGATION_CSS
+    assert '.st-key-open_chats) button:focus-visible{outline:' in NAVIGATION_CSS
     assert '.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:"1"' in NAVIGATION_CSS
 
 

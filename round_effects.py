@@ -6,6 +6,8 @@ changes scoring, timing or persistence.
 
 from pathlib import Path
 
+from ui_icons import inline_icon
+
 ASSETS=Path(__file__).parent/'assets'
 
 MILESTONES={3:'On fire!',5:'Unstoppable!',10:'Legendary!'}
@@ -42,7 +44,7 @@ def accuracy_chip(answers):
 def streak_badge(streak):
     """The flame badge for the overview panel; empty below two in a row."""
     if streak<2:return ''
-    return '<span class="round-streak" role="status"><span class="flame">🔥</span>'+str(streak)+' in a row</span>'
+    return f'<span class="round-streak" role="status">{inline_icon("flame")}{streak} in a row</span>'
 
 
 def combo_markup(streak,pulse=True):

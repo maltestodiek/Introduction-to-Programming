@@ -3,22 +3,23 @@
 .friends-heading-inline strong{color:var(--sd-accent);font-size:1rem;font-weight:800}
 .friends-card-title{margin:.15rem 0 .25rem!important;color:var(--sd-text)!important;font-size:1.5rem!important;font-weight:700!important;letter-spacing:-.035em!important;line-height:1.15!important}
 [class*="st-key-friends_incoming_"],.st-key-friends_list,[class*="st-key-friends_university_"],.st-key-friends_invite_card,.st-key-friends_code_preview{
-  border-color:#dcd6f7!important;border-radius:22px!important;background:var(--sd-surface)!important;
+  border-color:var(--sd-border)!important;border-radius:22px!important;background:var(--sd-surface)!important;
 }
-[class*="st-key-friends_incoming_"]{border-color:#c9b9ff!important;background:#fbfaff!important}
+[class*="st-key-friends_incoming_"]{border-color:var(--sd-battle-border)!important;background:var(--sd-battle-end)!important}
 .st-key-friends_invite_card{--friends-control-height:42px;position:sticky;top:1rem;padding:1.15rem 1.2rem!important}
-.friends-invite-intro{margin:0 0 1rem!important;color:#68738b!important;font-size:.86rem!important;line-height:1.35!important}
-.friends-invite-label{margin:.15rem 0 .45rem!important;color:#747d96!important;font-size:.67rem!important;font-weight:800!important;letter-spacing:.035em!important;line-height:1.25!important}
-.friends-invite-active{margin:-.2rem 0 .55rem!important;color:#078d80!important;font-size:.72rem!important;font-weight:700!important;text-align:right!important}.friends-invite-active span{display:inline-block;width:.48rem;height:.48rem;margin-right:.27rem;border-radius:50%;background:#12a994}
-.st-key-friends_invite_card pre{display:flex;align-items:center;height:var(--friends-control-height);min-height:var(--friends-control-height);box-sizing:border-box;background:#eee8ff!important;color:var(--sd-accent)!important;border-radius:14px!important;border:0!important;font-size:1.2rem!important;font-weight:800!important}
+.friends-invite-intro{margin:0 0 1rem!important;color:var(--sd-muted)!important;font-size:.86rem!important;line-height:1.35!important}
+.friends-invite-label{margin:.15rem 0 .45rem!important;color:var(--sd-muted)!important;font-size:.67rem!important;font-weight:800!important;letter-spacing:.035em!important;line-height:1.25!important}
+.friends-invite-active{margin:-.2rem 0 .55rem!important;color:var(--sd-badge-text)!important;font-size:.72rem!important;font-weight:700!important;text-align:right!important}.friends-invite-active span{display:inline-block;width:.48rem;height:.48rem;margin-right:.27rem;border-radius:50%;background:var(--sd-success-border)}
+.st-key-friends_invite_card pre{display:flex;align-items:center;height:var(--friends-control-height);min-height:var(--friends-control-height);box-sizing:border-box;background:var(--sd-hover)!important;color:var(--sd-accent)!important;border-radius:14px!important;border:0!important;font-size:1.2rem!important;font-weight:800!important}
 .st-key-friends_invite_card [data-testid="stTextInput"] input,.st-key-friends_invite_card .stButton button{height:var(--friends-control-height)!important;min-height:var(--friends-control-height)!important;box-sizing:border-box}
 .st-key-friends_invite_card hr{margin:.7rem 0!important}
 .st-key-friends_invite_card [data-testid="stLinkButton"] a{height:36px!important;min-height:36px!important;padding:.35rem .4rem!important;border-radius:10px!important;font-size:.75rem!important;white-space:nowrap!important}
 .st-key-friends_invite_card [data-testid="stLinkButton"] a p{font-size:.75rem!important}
 .st-key-friends_list{padding:1.15rem 1.2rem!important}
-.st-key-friends_list > div > [data-testid="stHorizontalBlock"] + [data-testid="stHorizontalBlock"]{border-top:1px solid #e4e0f2;margin-top:.8rem;padding-top:.8rem}
-[class*="st-key-friend_battle_"] button{background:var(--sd-accent)!important;color:#fff!important;border-color:var(--sd-accent)!important}
-[class*="st-key-friend_study_"] button{background:#e2f7f3!important;color:#087f73!important;border-color:#c2ece5!important}
+.st-key-friends_list > div > [data-testid="stHorizontalBlock"] + [data-testid="stHorizontalBlock"]{border-top:1px solid var(--sd-border);margin-top:.8rem;padding-top:.8rem}
+[class*="st-key-friend_battle_"] button{background:var(--sd-action)!important;color:#fff!important;border-color:var(--sd-action)!important}
+[class*="st-key-friend_battle_"] button:hover{background:var(--sd-action-hover)!important;border-color:var(--sd-action-hover)!important}
+[class*="st-key-friend_study_"] button{background:var(--sd-study-end)!important;color:var(--sd-badge-text)!important;border-color:var(--sd-study-border)!important}
 [class*="st-key-friend_chat_"] button,[class*="st-key-friend_battle_"] button,[class*="st-key-friend_study_"] button,[class*="st-key-remove_friend_"] button{height:42px!important;min-height:42px!important;white-space:nowrap;padding:.35rem .55rem}
 [class*="st-key-friend_chat_"] button,[class*="st-key-remove_friend_"] button{width:42px!important;min-width:42px!important;padding:.35rem!important;justify-content:center}
 [class*="st-key-friend_chat_"] button p,[class*="st-key-remove_friend_"] button p{font-size:0!important}

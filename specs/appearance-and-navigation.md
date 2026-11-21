@@ -6,13 +6,13 @@ Keep UniArena readable, recognizable and consistent across screens, themes and d
 ## What
 Group branding, light/dark/system themes, backgrounds, icon design, hover animations, layout and navigation in this feature. Use the facing-flashcards logo, indigo primary actions and mint highlights; mint surfaces use dark text. See [brand assets](../docs/branding.md).
 
-Native Streamlit appearance settings control the browser's theme preference. Custom cards, avatar backgrounds, university search, dialogs and controls must adapt. Uploaded photos are not recoloured. Maintain readable text, labels and focus indicators in both themes.
+Native Streamlit appearance settings control the browser's theme preference. Custom cards, avatar backgrounds, university search, dialogs and controls must adapt. Uploaded photos are not recoloured. Maintain readable text, labels and focus indicators in both themes. Battle setup, session cards and answer feedback follow the current theme, as do Friends requests, friend codes and invitation sharing controls.
 
 Use consistent vector/Material icons instead of emoji. Book and crossed-swords mode cards and navigation use hover/focus effects, disabled for reduced-motion preferences. The welcome screen shows the animated logo and Start; authentication/session restoration is owned by [Authentication and Profiles](authentication-and-profiles.md).
 
-Top navigation: Decks, Play, Leaderboard and Study Plan; Profile, Friends and Chats appear in the header (see [Friends header button](tasks/friends-header-button.md)), and the Profile button carries the user's picture (see [Profile button avatar](tasks/profile-button-avatar.md)). Leaderboard and Study Plan remain placeholders. Clicking Study Mode reveals Study alone and Study together within the mode card before settings open.
+Top navigation: Decks, Play, Leaderboard and Study Plan; Profile, Friends and Chats appear in the header (see [Friends header button](tasks/friends-header-button.md)), and the Profile button carries the user's picture (see [Profile button avatar](tasks/profile-button-avatar.md)). Leaderboard and Study Plan remain placeholders. Friends, Chats and Profile form a horizontally centered group in the desktop sidebar, with aligned icons and labels even when Chats shows an unread count. Clicking Study Mode reveals Study alone and Study together within the mode card before settings open.
 
-Play displays Create new session, Ongoing sessions, then Session history. Separate Battle and Study cards; solo cards have no partner actions. Show completed/expired/cancelled Study history and completed Battle history with actions to reopen/review. Partner menus link to Social Connections.
+Play displays Create new session, Ongoing sessions, then Session history. The empty Ongoing and Pending Battle panels have equal dimensions. Separate Battle and Study cards; solo cards have no partner actions. Show completed/expired/cancelled Study history and completed Battle history with actions to reopen/review. Partner menus link to Social Connections.
 
 Learning-level selections use real colour swatches and readable names, with an info-only legend control. Show question preferences below What do you want to focus on? Keep the calculator beside the quiz on desktop. Keep the chat composer visible and only its message area scrollable.
 
