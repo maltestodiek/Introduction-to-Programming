@@ -55,11 +55,16 @@ def test_header_friends_button_opens_the_friends_page(monkeypatch):
 
 def test_sidebar_account_buttons_share_layout_and_chat_icon_animation():
     assert '.st-key-nav_Friends' not in NAVIGATION_CSS
-    shared=re.findall(r':is\(([^)]*)\) button\{',NAVIGATION_CSS)
+    shared=re.findall(r':is\((\[class\*="st-key-nav_[^)]*)\) button\{',NAVIGATION_CSS)
     selectors=('.st-key-open_friends', '.st-key-open_chats', '.st-key-open_profile')
     assert shared and all(all(selector in group for selector in selectors) for group in shared)
     assert re.search(r'\.st-key-open_friends button::before\{mask-image:url\("data:image/svg\+xml',NAVIGATION_CSS)
-    assert 'grid-template-columns:30px minmax(0,1fr);align-items:center' in NAVIGATION_CSS
+    rows = '.st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button'
+    layout = re.search(re.escape(rows) + r'\{([^}]*)\}', NAVIGATION_CSS).group(1)
+    assert 'grid-template-columns:30px minmax(0,1fr);align-items:center' in layout
+    assert 'border-left-width:4px' in layout
+    assert rows + '::before{justify-self:center}' in NAVIGATION_CSS
+    assert rows + '>div{justify-self:stretch;justify-content:center}' in NAVIGATION_CSS
     assert '.st-key-open_chats button:is(:hover,:focus-visible)::before{animation:nav-bounce' in NAVIGATION_CSS
     reduced_motion=NAVIGATION_CSS.split('@media(prefers-reduced-motion:reduce)',1)[1]
     assert '.st-key-open_chats) button::before{animation:none!important}' in reduced_motion
@@ -108,9 +113,12 @@ def test_desktop_sidebar_is_a_full_height_bar_along_the_left_edge():
     assert 'border-right:1px solid' in rule
 
 
-def test_main_content_is_laid_out_beside_the_full_height_sidebar():
-    desktop=re.search(r'@media\(min-width:761px\)\{\.stMain\{([^}]*)\}',NAVIGATION_CSS)
-    assert desktop and 'padding-left:14rem' in desktop.group(1)
+def test_desktop_offsets_require_a_visible_sidebar():
+    main = '.stMain:has(.st-key-sidebar_navigation){padding-left:14rem}'
+    header = '.stApp:has(.st-key-sidebar_navigation) .stAppHeader{left:14rem!important'
+    assert main in NAVIGATION_CSS and header in NAVIGATION_CSS
+    assert '.stMain{padding-left:14rem' not in NAVIGATION_CSS
+    assert not re.search(r'(?:^|[{}])\s*\.stAppHeader\{left:14rem', NAVIGATION_CSS)
 
 
 def test_narrow_screens_keep_the_sidebar_in_normal_document_flow():

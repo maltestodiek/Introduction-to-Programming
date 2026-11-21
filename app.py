@@ -3417,7 +3417,20 @@ if not editing:
         with edit:
             if st.button("Edit profile",use_container_width=True):st.session_state.editing=True;st.rerun()
         with sign_out:
-            st.html('<style>.st-key-profile_sign_out button{background:#fff1f2!important;color:#b42318!important;border-color:#fda4af!important}.st-key-profile_sign_out button:hover{background:#ffe4e6!important;border-color:#fb7185!important}</style>')
+            st.html('''<style>
+                .st-key-profile_sign_out button {
+                    background:var(--sd-danger-surface)!important;
+                    color:var(--sd-danger-text)!important;
+                    border-color:var(--sd-danger-border)!important;
+                }
+                .st-key-profile_sign_out button:hover {
+                    background:color-mix(in srgb,var(--sd-danger-surface) 92%,var(--sd-danger-text))!important;
+                }
+                .st-key-profile_sign_out button:focus-visible {
+                    outline:2px solid var(--sd-danger-border);
+                    outline-offset:2px;
+                }
+            </style>''')
             if st.button("Sign out",key="profile_sign_out",use_container_width=True):
                 message=auth.sign_out().message
                 for k in list(st.session_state):del st.session_state[k]
