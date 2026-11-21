@@ -21,7 +21,7 @@ def fresh_module(name):
     if getattr(module,"_file_stamp",None)!=Path(module.__file__).stat().st_mtime:module=importlib.reload(module)
     return module
 fresh_module("course_catalog")
-from course_catalog import course_options,field_options,load_universities,load_university_courses,match_courses
+from course_catalog import courses_at_university,other_university_courses,course_options,field_options,load_universities,load_university_courses,match_courses
 from sharing import share_invitation
 from ui_icons import inline_icon
 from answer_order import display_options
@@ -763,6 +763,8 @@ def decks_screen(client,profile):
         st.caption('Decks › Create New Deck › Manual')
         st.info('Your draft stays while you navigate in this session. Publish it before closing or refreshing the page.')
         courses=profile['courses']
+        if not courses:
+            st.info('Add a course for your current university in Profile to edit this draft.');return
         course_key='deck_course_'+draft['id'];name_key='deck_name_'+draft['id']
         st.selectbox('Course',courses,index=courses.index(draft['course']) if draft['course'] in courses else 0,key=course_key,on_change=deck_input_changed,args=(None,'course',course_key))
         if draft['course'] not in courses:draft['course']=courses[0]
@@ -816,6 +818,8 @@ def decks_screen(client,profile):
     st.html('<style>'+''.join((assets/name).read_text() for name in ('deck-creation.css','course-list.css'))+'</style>')
     st.subheader('Create a deck')
     st.caption('Choose how you want to create your next set of questions.')
+    if not profile['courses']:
+        st.info('Add a course for your current university in Profile to create a deck.')
     manual,anki,ai=st.columns(3)
     with manual:
         with st.container(border=True,key='deck_create_manual'):
@@ -823,12 +827,12 @@ def decks_screen(client,profile):
             st.markdown('#### Manual deck')
             st.caption('Write questions from scratch and organise them into lectures.')
             with st.popover('Create deck',type='primary',use_container_width=True):
-                if st.button('Create Study Deck',use_container_width=True):
+                if st.button('Create Study Deck',disabled=not profile['courses'],use_container_width=True):
                     st.session_state.study_library=True
                     if not st.session_state.get('study_draft'):
                         st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
                     st.session_state.pop('study_deck_open',None);st.rerun()
-                if st.button('Create Battle Mode Deck',use_container_width=True):
+                if st.button('Create Battle Mode Deck',disabled=not profile['courses'],use_container_width=True):
                     st.session_state.pop('battle_source_id',None);st.session_state.pop('battle_return_study',None)
                     st.session_state.battle_deck_creator=True;st.rerun()
     with anki:
@@ -836,14 +840,14 @@ def decks_screen(client,profile):
             st.html('<div class="deck-create-icon">'+inline_icon('file')+'</div>')
             st.markdown('#### AI Anki import')
             st.caption('Import Anki cards, then review AI-generated questions.')
-            if st.button('Import Anki deck',use_container_width=True):
+            if st.button('Import Anki deck',disabled=not profile['courses'],use_container_width=True):
                 st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
     with ai:
         with st.container(border=True,key='deck_create_slides'):
             st.html('<div class="deck-create-icon">'+inline_icon('sparkles')+'</div>')
             st.markdown('#### AI from lecture slides')
             st.caption('Upload text-based PDF slides, then review generated questions.')
-            if st.button('Generate with AI',use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
+            if st.button('Generate with AI',disabled=not profile['courses'],use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
     with st.container(border=True,key='deck_studio_entry'):
         studio_text,studio_open=st.columns([5,2],vertical_alignment='center')
         with studio_text:
@@ -882,6 +886,7 @@ def decks_screen(client,profile):
             initials=''.join(part[:1] for part in course.split()[:2]).upper() or 'C'
             status=f'<p>{study_count} Study deck{"s" if study_count!=1 else ""} available</p>' if study_count else ''
             st.html('<div class="course-list-hero"><span class="course-list-initials">'+escape(initials)+'</span><div><h3>'+escape(course)+'</h3>'+status+'</div><b>'+str(study_count)+' Deck'+('s' if study_count!=1 else '')+'</b></div>')
+            st.caption(profile['university'])
             with st.container(key=f'course_list_search_{index}'):
                 query=st.text_input(f'Search {course} Study decks',placeholder=f'Search {course} Study decks',key=f'course_study_search_{index}',label_visibility='collapsed').strip().casefold()
             visible_study_decks=[deck for deck in course_study_decks if not query or query in deck.get('name','').casefold()]
@@ -1556,7 +1561,7 @@ def study_library(client,profile):
     public=study_public_request(client,'list')
     if public is None:return
     published_ids=set(public.get('published_ids',[]))
-    if st.button('Create Study deck',type='primary'):
+    if st.button('Create Study deck',type='primary',disabled=not profile['courses']):
         st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0;st.rerun()
     st.caption('Study decks have flexible question counts and chapters. Existing published decks remain available below.')
     for title,key in [('Your decks','decks'),('Shared with me','shared')]:
@@ -2211,7 +2216,16 @@ def study_screen(client,profile):
     choice=st.session_state.get('study_choice','Study alone')
     together=choice=='Study together'
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
-    if not together:decks.extend(dict(d,shared=True) for d in data['shared'])
+    if together:
+        if profile.get('course_history'):
+            st.caption(f"Matching uses courses at {profile['university']}. Switch universities in Profile to use a course from another university.")
+        active_courses={name.strip().casefold() for name in profile['courses']}
+        decks=[deck for deck in decks if deck['course'].strip().casefold() in active_courses]
+        if not decks:
+            st.info('To find a study partner, choose a course at your current university in Profile and create a deck for it.')
+            return
+    else:
+        decks.extend(dict(d,shared=True) for d in data['shared'])
     if not decks:
         st.info('Create a Study deck in Decks, or set the language of an existing deck first.');return
     offer=next((o for o in data['invites']+data['open'] if o['id']==st.session_state.get('study_join')),None) if together else None
@@ -2838,6 +2852,11 @@ def battle_new_setup_screen(client,profile):
     st.subheader('Start a new Battle')
     if st.button('Back to Game Overview',key='close_new_battle',icon=':material/arrow_back:'):
         st.session_state.pop('battle_new_setup',None);st.session_state.pop('battle_invite_friend',None);st.rerun()
+    if profile.get('course_history'):
+        st.caption(f"Matching uses courses at {profile['university']}. Switch universities in Profile to use a course from another university.")
+    if not profile['courses']:
+        st.info('Add a course at your current university in Profile to find a Battle opponent.')
+        return
     with st.container(key='battle_new_setup'):
         st.html('<p class="battle-setup-step">1 · Course &amp; language</p>')
         course_column,language_column=st.columns([2,1])
@@ -3446,7 +3465,12 @@ if not editing:
                 st.session_state.notice=message;st.rerun()
     st.subheader("Your courses")
     st.caption("Only you can see your course selections.")
-    for course in profile["courses"]:st.write(":material/school: "+course)
+    for course in profile["courses"]:
+        st.write(f":material/school: {course} ({profile['university']})")
+    for campus, saved_courses in other_university_courses(profile, profile["university"]).items():
+        for course in saved_courses:
+            st.write(f":material/school: {course} ({campus})")
+            st.caption("Switch back to this university to find players for this course.")
     if st.session_state.get("pending_invite"):
         st.info("You have a friend invitation. Open Friends to review and accept it.")
     if st.session_state.get("adding_courses"):
@@ -3465,7 +3489,7 @@ if not editing:
             try:
                 repo.save(dict(username=profile["username"],university=profile["university"],courses=chosen_courses,languages=profile["languages"],avatar=profile.get("avatar") or DEFAULT_AVATAR,
                                degree=profile.get("degree","Not specified"),area=profile.get("area",""),graduation_year=profile.get("graduation_year")),
-                          profile.get("image_mode","Avatar"),None,profile.get("image_path"))
+                          profile.get("image_mode","Avatar"),None,profile.get("image_path"),previous=profile)
                 st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.session_state.pop("shared_courses_for",None)
                 st.session_state.profile_changed=True;st.session_state.notice="Your courses are saved.";st.rerun()
             except ValueError as exc:st.error(str(exc))
@@ -3490,7 +3514,7 @@ university=st.session_state.chosen_university
 # Type-ahead field: suggestions from universities already in use and, live, from the ROR directory.
 if "known_universities" not in st.session_state:
     st.session_state.known_universities=load_universities(auth.client)
-known_universities=st.session_state.known_universities
+known_universities=list(dict.fromkeys([*profile.get("course_history", {}), *st.session_state.known_universities]))
 picked,picked_from=fresh_module("university_picker").university_picker(known_universities,university,key="university_picker_"+str(st.session_state.get("university_pick",0)))
 if picked!=university:
     st.session_state.chosen_university=university=picked
@@ -3530,10 +3554,14 @@ if st.session_state.get("shared_courses_for")!=university:
     st.session_state.shared_courses_for=university
 shared_courses=st.session_state.get("shared_courses",[])
 listed_courses=[*CATALOG.get(university,[]),*shared_courses]
-own_courses=match_courses(profile.get("courses",[]),listed_courses)
-courses=st.multiselect("Your courses",course_options(listed_courses,own_courses),default=own_courses,accept_new_options=True,placeholder="Choose courses or type a new one")
+own_courses=match_courses(courses_at_university(profile,university),listed_courses)
+courses=st.multiselect("Your courses",course_options(listed_courses,own_courses),default=own_courses,accept_new_options=True,placeholder="Choose courses or type a new one",key="edit_courses_"+university)
 courses=match_courses(courses,listed_courses)
-st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too. If you change university, review your courses before saving.")
+st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too. Course selections are saved separately for each university.")
+if profile and university != profile["university"]:
+    st.caption("Switching universities closes pending match searches and invitations. You can still finish matches that already have a partner.")
+    for campus, saved_courses in other_university_courses(profile, university).items():
+        st.caption(f"{campus} · {', '.join(saved_courses)} · Switch back to find players for these courses.")
 languages=st.multiselect("Languages",LANGUAGES,default=profile.get("languages",[]))
 st.caption("University and languages are visible to signed-in students. Which courses you take stays private; only the course names in use at a university are shared.")
 st.subheader("Your look")
@@ -3566,7 +3594,7 @@ else:
 if st.button("Save profile",type="primary",disabled=not image_valid,use_container_width=True):
     try:
         repo.save(dict(username=name,university=university,courses=courses,languages=languages,avatar=avatar,degree=degree,area=area,graduation_year=graduation_year),
-                  mode,image,profile.get("image_path"))
+                  mode,image,profile.get("image_path"),previous=profile)
         st.session_state.editing=False
         st.session_state.profile_changed=True;st.session_state.notice="Your profile is saved."
         st.rerun()
@@ -3576,5 +3604,7 @@ if st.button("Save profile",type="primary",disabled=not image_valid,use_containe
             st.markdown("<style>.st-key-profile_username input{border:2px solid #D84550!important}</style>",unsafe_allow_html=True)
         else:st.error(str(exc))
 if profile and st.button("Cancel changes"):
+    st.session_state.chosen_university=profile["university"]
+    st.session_state.university_pick=st.session_state.get("university_pick",0)+1
     st.session_state.editing=False
     st.rerun()

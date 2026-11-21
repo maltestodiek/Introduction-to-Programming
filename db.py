@@ -18,8 +18,14 @@ class ProfileRepository:
         if not path:return None
         return self.client.storage.from_("profile-images").download(path)
 
-    def save(self,data,mode,image,old_path):
-        data=validate_profile(**data)
+    def save(self,data,mode,image,old_path, *, previous=None):
+        from course_catalog import other_university_courses
+        previous = previous or {}
+        university = " ".join(data["university"].split())
+        supports_history = "course_history" in previous
+        if previous and university != previous["university"] and not supports_history:
+            raise ValueError("Switching universities requires the course history database update. Your profile is unchanged.")
+        data=validate_profile(**data, has_other_courses=bool(other_university_courses(previous, university)))
         if mode not in ("Avatar","Photo"): raise ValueError("Choose an image mode.")
         path=old_path
         uploaded=False
@@ -29,13 +35,16 @@ class ProfileRepository:
                 self.client.storage.from_("profile-images").upload(
                     path,image,{"content-type":"image/png","upsert":"false"})
                 uploaded=True
-            self.client.rpc("save_profile_v3",{
+            params = {
                 "p_username":data["username"],"p_university":data["university"],
                 "p_languages":data["languages"],"p_courses":data["courses"],
                 "p_graduation_year":data["graduation_year"],
                 "p_degree":data["degree"],"p_area":data["area"],
                 "p_avatar":data["avatar"],"p_image_mode":mode,"p_image_path":path,
-            }).execute()
+            }
+            if supports_history:
+                params["p_expected_university"] = previous["university"]
+            self.client.rpc("save_profile_v4" if supports_history else "save_profile_v3", params).execute()
         except Exception as exc:
             # A timed-out response may follow a successful transaction. Retain the
             # uploaded object rather than deleting an image that may now be active.

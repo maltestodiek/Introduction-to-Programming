@@ -41,13 +41,13 @@ def validate_username(username):
 
 DEGREES = ["Not specified", "Bachelor's", "Master's", "Doctorate", "Associate", "Diploma / certificate", "Other"]
 
-def validate_profile(username,university,courses,languages,avatar,degree="Not specified",area="",graduation_year=None):
+def validate_profile(username,university,courses,languages,avatar,degree="Not specified",area="",graduation_year=None, *, has_other_courses=False):
     if graduation_year is not None and (type(graduation_year) is not int or not 2000<=graduation_year<=2100):
         raise ValueError("Enter an expected graduation year between 2000 and 2100.")
     username=validate_username(username)
     university=" ".join(university.split())
     if not 2<=len(university)<=160: raise ValueError("Enter a university name between 2 and 160 characters.")
-    if not courses or len(courses)>50 or any(not isinstance(c,str) or not c.strip() or len(c.strip())>120 for c in courses):
+    if courses is None or (not courses and not has_other_courses) or len(courses)>50 or any(not isinstance(c,str) or not c.strip() or len(c.strip())>120 for c in courses):
         raise ValueError("Choose or enter at least one course (up to 120 characters each).")
     courses=list({c.strip().casefold():c.strip() for c in courses}.values())
     if degree not in DEGREES: raise ValueError("Choose a degree level.")
