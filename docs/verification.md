@@ -37,3 +37,12 @@ On 21 November 2026, two demo players at the same university used separate brows
 Supabase PostgreSQL stores messages, matchmaking searches, sessions, answers and scores. Each browser has its own Streamlit session. On the screens above, a timed Streamlit fragment or a button click reads the saved state again. The measured delays show one two-player run. Network time and the point in the polling cycle can change the delay. [Refresh logic in the app](../app.py)
 
 The database also decides what happens when actions overlap. Resending the same chat request returns the saved message once. Battle processes competing searches in sequence and removes a matched search from the queue, so another player cannot claim it. Study likewise processes partner claims in sequence. These rules were checked in the implementation. The live run did not simulate simultaneous claims, a class-sized load or random Study Together matching. [Chat rules](../supabase/chat-schema.sql) · [Battle rules](../supabase/battle-mode-schema.sql) · [Study rules](../supabase/study-schema.sql)
+
+### Matchmaking after switching universities
+
+On 21 November 2026, a demo player switched from NOVA School of Business and Economics — Portugal to UniArena Demo University and saved the profile with no courses selected at the new university. Corporate Finance and Data Visualisation remained listed under NOVA on the profile. Both checks passed on the [public UniArena app](https://uniarena.streamlit.app/).
+
+- **Play → Battle Mode → New Battle.** Neither NOVA course was available to select. The screen stopped before opponent search and showed “Add a course at your current university in Profile to find a Battle opponent.”
+- **Play → Study Mode → Study together.** Neither NOVA course was available for a partner session. The screen stopped before partner selection and showed “To find a study partner, choose a course at your current university in Profile and create a deck for it.”
+
+The check ended before any search or invitation was sent. Switching back to NOVA automatically selected both original courses again. After saving, the profile showed both courses with NOVA in parentheses. [University and course changes (PR #115)](https://github.com/maltestodiek/Introduction-to-Programming/pull/115)
