@@ -3200,11 +3200,11 @@ if profile:
                     navigate(label)
         st.divider()
         with st.container(key='sidebar_account_actions'):
-            if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',help='Friends',use_container_width=True):
+            if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',use_container_width=True):
                 navigate('Friends')
             chat_navigation(auth.client, page == 'Chats')
             st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
-            if st.button('Profile',key='open_profile',help='Profile',use_container_width=True):
+            if st.button('Profile',key='open_profile',use_container_width=True):
                 navigate('Profile')
 if profile:
     if st.session_state.get('play_exit_to'):
