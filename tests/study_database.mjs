@@ -30,6 +30,7 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-course-variable.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-sort-time.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-session-progress.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261121210000_study_timeouts.sql',import.meta.url),'utf8'));
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
   assert.equal((await ok(A,'deck',{id:d.id})).cards[0].allow_calculator,true);
@@ -77,6 +78,17 @@ try{
   await who(A);const progress=(await db.query('select study_session_progress($1) r',[solo.id])).rows[0].r;assert.deepEqual(progress.answers,[{index:0,correct:true}]);await who(B);await assert.rejects(()=>db.query('select study_session_progress($1)',[solo.id]));
   assert.equal((await ok(A,'round',{id:solo.id})).state,'feedback');await ok(A,'annotate',{id:solo.id,index:0,note:'Private thought',feedback:'Explain please'});assert.equal((await admin('select count(*)::int n from study_answers where session_id=$1',[solo.id])).rows[0].n,1);await ok(A,'next',{id:solo.id,index:0});assert.equal((await ok(A,'round',{id:solo.id})).state,'completed');
  });
+ await test('unmatched first half expires after 48 hours of inactivity and keeps learning progress',async()=>{
+  const session=await start(A,da,'friend',{friend_id:B});
+  await admin("update study_sessions set expires_at=now()+interval '1 minute' where id=$1",[session.id]);
+  await half(A,session.id,1);
+  const remaining=(await admin("select extract(epoch from expires_at-now())/3600 hours from study_sessions where id=$1",[session.id])).rows[0].hours;
+  assert.ok(remaining>47.99 && remaining<=48);
+  const before=(await admin("select count(*)::int n from study_progress where user_id=$1",[A])).rows[0].n;
+  await admin("update study_sessions set expires_at=now() where id=$1",[session.id]);
+  assert.ok(!(await ok(A,'list')).sessions.some(s=>s.id===session.id));
+  assert.equal((await admin("select count(*)::int n from study_progress where user_id=$1",[A])).rows[0].n,before);
+ });
  await test('size requires enough distinct questions and consent',async()=>{const small=draft(10);await save(A,small);await bad(A,'start',{request_id:randomUUID(),deck_id:small.id,mode:'random',count:100,consent:true});await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'random',count:20,consent:false});});
  let sa,sb;
  await test('mutual queue starts only after own half and enforces university',async()=>{
@@ -85,18 +97,34 @@ try{
  });
  await test('same questions, hidden full decks, completion grants only finisher immutable copy',async()=>{
   const rows=(await admin('select cards from study_sessions where id in ($1,$2)',[sa.id,sb.id])).rows;assert.deepEqual(rows[0].cards.map(x=>x.id).sort(),rows[1].cards.map(x=>x.id).sort());assert.equal((await ok(A,'list')).shared.length,0);
+  const timing=(await admin("select bool_and(deadline between now()+interval '47 hours 59 minutes' and now()+interval '48 hours' and expires_at is null) valid from study_sessions where id in ($1,$2)",[sa.id,sb.id])).rows[0];
+  assert.ok(timing.valid);
   await half(A,sa.id);assert.equal((await ok(A,'list')).shared.length,1);assert.equal((await ok(B,'list')).shared.length,0);assert.equal((await ok(A,'round',{id:sa.id})).result,'Waiting for your study partner');
   const changed=structuredClone(dbb);changed.cards[0].question='New content';await save(B,changed,1);const shared=(await ok(A,'list')).shared[0];const received=await ok(A,'deck',{id:shared.id,shared:true});assert.equal(received.cards[0].question,dbb.cards[0].question);
   await half(B,sb.id,10,true);assert.equal((await ok(A,'round',{id:sa.id})).result,'Win');assert.equal((await ok(B,'round',{id:sb.id})).result,'Loss');assert.equal((await admin('select xp from profiles where id=$1',[A])).rows[0].xp,123);
  });
  await test('open sessions reserve once and expiry awards no unearned copy',async()=>{
-  const a=await start(A,da,'random');await half(A,a.id);const b=await start(B,dbb,'random',{join_id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'question');await bad(C,'start',{request_id:randomUUID(),deck_id:dc.id,mode:'random',count:20,consent:true,join_id:a.id});await half(A,a.id);await admin("update study_sessions set deadline=now()-interval '1 second' where id in ($1,$2)",[a.id,b.id]);assert.equal((await ok(A,'round',{id:a.id})).result,'Partner did not finish');await bad(B,'answer',{id:b.id,index:0,answer_id:dbb.cards[0].correct_answer_id});
+  const a=await start(A,da,'random');await half(A,a.id);const b=await start(B,dbb,'random',{join_id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'question');await bad(C,'start',{request_id:randomUUID(),deck_id:dc.id,mode:'random',count:20,consent:true,join_id:a.id});await half(A,a.id);await admin("update study_sessions set deadline=now()-interval '1 second' where id in ($1,$2)",[a.id,b.id]);assert.equal((await ok(A,'round',{id:a.id})).result,'Win');
+  const loss=await ok(B,'round',{id:b.id});assert.equal(loss.result,'Loss');assert.equal(loss.shared,false);
+  assert.equal((await ok(B,'list')).sessions.find(s=>s.id===b.id).state,'completed');await bad(B,'answer',{id:b.id,index:0,answer_id:dbb.cards[0].correct_answer_id});
  });
  await test('friend recipient accepts or declines, no unsolicited random invite',async()=>{
   const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);assert.equal((await ok(B,'list')).invites.length,1);await bad(C,'decline',{id:a.id});await ok(B,'decline',{id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'cancelled');
   const a2=await start(A,da,'friend',{friend_id:B});await half(A,a2.id);const b=await start(B,dbb,'friend',{join_id:a2.id});assert.ok(b.id);
  });
- await test('expired search cannot be joined and cancellation preserves progress',async()=>{await admin("update study_sessions set deadline=now()-interval '1 second' where deadline is not null");const a=await start(A,da,'random');await half(A,a.id);await admin("update study_sessions set expires_at=now()-interval '1 second' where id=$1",[a.id]);await bad(B,'start',{request_id:randomUUID(),deck_id:dbb.id,mode:'random',count:20,consent:true,join_id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'expired');});
+ await test('expired search cannot be joined and cancellation preserves progress',async()=>{await admin("update study_sessions set deadline=now()-interval '1 second' where deadline is not null");const a=await start(A,da,'random');await half(A,a.id);await admin("update study_sessions set expires_at=now()-interval '1 second' where id=$1",[a.id]);await bad(B,'start',{request_id:randomUUID(),deck_id:dbb.id,mode:'random',count:20,consent:true,join_id:a.id});assert.ok(!(await ok(A,'list')).sessions.some(s=>s.id===a.id));await bad(A,'round',{id:a.id});});
+ await test('both unfinished friends receive completed losses',async()=>{
+  const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);
+  const b=await start(B,dbb,'friend',{join_id:a.id});
+  await admin("update study_sessions set deadline=now() where id in ($1,$2)",[a.id,b.id]);
+  for(const [user,id] of [[A,a.id],[B,b.id]]){
+   const row=(await ok(user,'list')).sessions.find(s=>s.id===id);
+   assert.equal(row.state,'completed');assert.equal(row.result,'Loss');
+   const round=await ok(user,'round',{id});
+   assert.equal(round.result,'Loss');assert.equal(round.shared,false);
+   await bad(user,'next',{id,index:0});
+  }
+ });
  await test('together prefers learning levels, fills shortages, and matches different preferences',async()=>{
   const freshA=draft(30),freshB=draft(30);await save(A,freshA);await save(B,freshB);
   for(const card of freshA.cards.slice(15))await admin('insert into study_progress values($1,$2,$3,study_version($4::jsonb),1)',[A,freshA.id,card.id,JSON.stringify(card)]);

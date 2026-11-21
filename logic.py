@@ -470,7 +470,8 @@ def session_history_rows(battle_completed,study_finished):
            'deck':b['deck_name'],'mode':'vs '+(b.get('opponent_username') or 'Unknown opponent'),'score':f"{b.get('score',0)}/15",'xp':f"{b.get('game_xp_delta',0) or 0:+d}"} for b in battle_completed or []]
     for s in study_finished or []:
         state=s.get('state')
-        rows.append({'kind':'study','id':s['id'],'session':s,'result':'Done' if state=='completed' else str(state).capitalize(),'tone':'green' if state=='completed' else 'gray',
+        result=s.get('result') or ('Done' if state=='completed' else str(state).capitalize())
+        rows.append({'kind':'study','id':s['id'],'session':s,'result':result,'tone':tones.get(result.lower(),'green' if state=='completed' else 'gray'),
                      'deck':s['name'],'mode':'Solo' if s.get('mode')=='solo' else 'Together','score':f"{s.get('cursor',0)}/{s.get('count',0)}",'xp':'–'})
     return rows
 
