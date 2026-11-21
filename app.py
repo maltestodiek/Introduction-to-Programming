@@ -2699,29 +2699,61 @@ def battle_dashboard_hero(client,profile,sessions):
 
 
 def battle_new_setup_screen(client,profile):
+    st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
     st.subheader('Start a new Battle')
     if st.button('Back to Game Overview',key='close_new_battle',icon=':material/arrow_back:'):
         st.session_state.pop('battle_new_setup',None);st.session_state.pop('battle_invite_friend',None);st.rerun()
-    course=st.selectbox('Course',profile['courses'],key='battle_course')
-    language=st.selectbox('Language',profile['languages'],key='battle_language')
-    source=st.radio('Battle Deck source',('Random Deck','Top Decks'),horizontal=True)
+    with st.container(key='battle_new_setup'):
+        st.html('<p class="battle-setup-step">1 · Course &amp; language</p>')
+        course_column,language_column=st.columns([2,1])
+        with course_column:course=st.selectbox('Course',profile['courses'],key='battle_course')
+        with language_column:language=st.selectbox('Language',profile['languages'],key='battle_language')
+        st.html('<p class="battle-setup-step">2 · Deck</p>')
+        random_source,top_source=st.columns(2)
+        source=st.session_state.get('battle_deck_source','Random Deck')
+        with random_source:
+            if st.button('🎲\nRandom Deck',key='battle_source_random',use_container_width=True,type='primary' if source=='Random Deck' else 'secondary'):
+                st.session_state.battle_deck_source='Random Deck';st.session_state.pop('battle_top_deck',None);st.rerun()
+        with top_source:
+            if st.button('☆\nTop Decks',key='battle_source_top',use_container_width=True,type='primary' if source=='Top Decks' else 'secondary'):
+                st.session_state.battle_deck_source='Top Decks';st.rerun()
     selected=None
     availability=None
     if source=='Top Decks':
         top=battle_request(client,'top',{'course':course,'language':language})
         ranked=(top or {}).get('decks',[])
         if ranked:
-            labels={item['id']:f"{item['name']} · {item['score']:+d} today · {item['rating_count']} ratings" for item in ranked}
-            selected=st.selectbox('Top Deck',list(labels),format_func=labels.get)
+            ranked=ranked[:10]
+            selected=st.session_state.get('battle_top_deck')
+            if selected not in {item['id'] for item in ranked}:
+                selected=ranked[0]['id'];st.session_state.battle_top_deck=selected
+            st.html('<p class="battle-top-decks-label">Top Decks</p>')
+            for position in range(1,11):
+                if position<=len(ranked):
+                    item=ranked[position-1]
+                    medal=('🏆','🥈','🥉')[position-1] if position<=3 else str(position)
+                    with st.container(key='battle_top_deck_row_'+item['id']):
+                        deck_name,rating=st.columns([8,1],vertical_alignment='center')
+                        with deck_name:
+                            if st.button(f'{medal}  {item["name"]}',key='battle_top_deck_'+item['id'],use_container_width=True,type='primary' if selected==item['id'] else 'secondary'):
+                                st.session_state.battle_top_deck=item['id'];st.rerun()
+                        with rating:
+                            st.html(f'<span class="battle-top-deck-rating">{item["rating_count"]} ratings</span>')
         else:st.info('No eligible Battle Deck is available for the selected course and language.')
         for position in range(len(ranked)+1,11):st.button(f'{position}. Outstanding',disabled=True,key='battle_outstanding_'+str(position),use_container_width=True)
     else:
         availability=battle_deck_availability(client,course,language)
         if availability is not None and not availability['available']:
             st.warning('No available Battle Decks yet for the selected course and language. Create a Battle Deck first or choose different criteria.')
-        elif availability is not None:
-            st.caption('The server will choose an eligible public 15-question Battle Deck uniformly after it finds a compatible opponent.')
-    opponent=st.radio('Opponent',('Random player','Friend'),horizontal=True)
+    st.html('<p class="battle-setup-step">3 · Opponent</p>')
+    random_opponent,friend_opponent=st.columns(2)
+    opponent=st.session_state.get('battle_opponent','Random player')
+    with random_opponent:
+        if st.button('Random player',key='battle_opponent_random',icon=':material/public:',use_container_width=True,type='primary' if opponent=='Random player' else 'secondary'):
+            st.session_state.battle_opponent='Random player';st.rerun()
+    with friend_opponent:
+        if st.button('Friend',key='battle_opponent_friend',icon=':material/groups:',use_container_width=True,type='primary' if opponent=='Friend' else 'secondary'):
+            st.session_state.battle_opponent='Friend';st.rerun()
     payload={'course':course,'language':language,'source_kind':'random' if source=='Random Deck' else 'top'}
     if selected:payload['deck_id']=selected
     can_start=not (source=='Random Deck' and (availability is None or not availability['available']))
