@@ -44,6 +44,8 @@ Students can create decks manually or prepare AI question drafts from Anki cards
 
 ## Data and verification
 
+**Database administrator:** Jan-Malte Stodiek coordinates and reviews changes to the UniArena database structure.
+
 Supabase stores durable user data; Streamlit's local disk is not the shared production database. SQLite was the lecture starting point, but the group chose Supabase for shared accounts and multiplayer. Browser storage retains verified session tokens and minimal navigation state, never passwords. See [restoration](docs/launch-and-resume.md) and [profile privacy](docs/profile-requirements.md).
 
 Python tests use temporary files/databases or fake providers. The `tests/*_database.mjs` scripts run actual SQL in isolated PGlite instances, with `PGLITE_MODULE` pointing to an installation of `@electric-sql/pglite@0.5.16`. Node is test tooling only. Never run acceptance tests against real students or production conversations. For features that store data, check an allowed action, a rejected action and a full process restart; browser refresh alone is insufficient.
