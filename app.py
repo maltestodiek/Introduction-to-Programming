@@ -3242,15 +3242,13 @@ def play_screen(client,profile):
         selected=st.session_state.get('play_mode_preview')
         if not selected:
             st.title('Play')
-            battle,study=st.columns(2)
-            with battle:
+            with st.container(key='play_mode_choices'):
                 with st.container(border=True,key='battle_mode_card'):
                     st.markdown((assets/'battle-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
                     st.subheader('Battle Mode')
                     st.caption('Compete, test your knowledge and earn XP · 15 questions.')
                     if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
                         st.session_state.play_mode_preview='Battle';st.rerun()
-            with study:
                 with st.container(border=True,key='study_mode_card'):
                     st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
                     st.subheader('Study Mode')
