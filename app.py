@@ -76,7 +76,7 @@ def chat_call(client,action,data=None,quiet=False):
 def open_private_chat(client,user_id):
     result=chat_call(client,'open',{'user_id':user_id})
     if result is not None:
-        st.session_state.chat_open=result['id'];st.rerun()
+        select_chat(result['id'])
 
 
 def session_partner_chat(client,kind,session_id,location='round'):
@@ -92,42 +92,159 @@ def session_partner_chat(client,kind,session_id,location='round'):
             open_private_chat(client,person['id'])
 
 
+def select_chat(thread_id):
+    st.session_state.chat_open = thread_id
+    st.session_state.pop('chat_choosing_friend', None)
+    navigate('Chats')
+
+
 @st.fragment(run_every='15s')
-def chat_dropdown(client,compact=False):
-    # Unmount the inbox popover so its portal cannot cover the conversation.
-    if st.session_state.get('chat_open'):
-        st.button('\u200b' if compact else 'Chats',key='open_chats',icon=':material/chat:',disabled=True,use_container_width=True)
+def chat_navigation(client, active):
+    # The inbox owns the unread count while the Chats page is open.
+    unread = 0
+    if not active:
+        data = chat_call(client, 'list', quiet=True)
+        if data is not None:
+            unread = sum(thread['unread'] for thread in data['threads'])
+    label = f'Chats ({unread})' if unread else 'Chats'
+    if st.button(label, key='open_chats', icon=':material/chat:', type='primary' if active else 'secondary', width='stretch'):
+        navigate('Chats')
+
+
+def chat_avatar_url(picture):
+    default = page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))) if not picture else picture
+    thumbnail = page_speed.thumbnail(default, 84)
+    return 'data:image/png;base64,' + base64.b64encode(thumbnail).decode()
+
+
+def chat_person_avatar(image_repo, person):
+    path = person.get('image_path')
+    if path:
+        photos = st.session_state.setdefault('chat_portraits', {})
+        if path in photos:
+            return photos[path]
+        try:
+            picture = image_repo.image(path)
+        except Exception:
+            picture = None
+        if picture:
+            if len(photos) >= 64:
+                photos.pop(next(iter(photos)))
+            photos[path] = chat_avatar_url(picture)
+            return photos[path]
+    return chat_avatar_url(None)
+
+
+def chat_list_item(image_repo, person, label, key, *, preview='', unread=0, selected=False):
+    username = escape(person['username'])
+    avatar = chat_person_avatar(image_repo, person)
+    row_class = 'sd-chat-row is-selected' if selected else 'sd-chat-row'
+    preview_html = f'<span class="sd-chat-preview">{escape(preview)}</span>' if preview else ''
+    unread_html = f'<span class="sd-chat-unread" aria-label="{unread} unread">{unread}</span>' if unread else ''
+    with st.container(key='chat_list_item_' + key):
+        st.html(
+            f'<div class="{row_class}"><img src="{avatar}" alt="">'
+            f'<span class="sd-chat-row-text"><strong>{username}</strong>{preview_html}</span>'
+            f'{unread_html}</div>'
+        )
+        return st.button(label, key=key, width='stretch')
+
+
+def start_chat_with_friend(client, threads):
+    try:
+        relationships = FriendsRepository(client).action('list')
+    except ValueError as exc:
+        st.error(str(exc))
         return
-    data=chat_call(client,'list',quiet=True)
-    threads=data['threads'] if data else []
-    unread=sum(t['unread'] for t in threads)
-    label='\u200b' if compact else 'Chats'+(f' ({unread})' if unread else '')
-    with st.popover(label,key='open_chats',icon=':material/chat:',use_container_width=True):
-        if data is None:st.caption('Chats are temporarily unavailable. Please try again.')
-        elif not threads:st.caption('No conversations yet. Click a Battle or Study partner’s name to send a message.')
+    friends = [entry['person'] for entry in relationships.get('friends', [])]
+    if not friends:
+        st.caption('Add friends on the Friends page to start a conversation.')
+        return
+
+    existing_peers = {thread.get('user_id') for thread in threads}
+    candidates = sorted(
+        (person for person in friends if person['id'] not in existing_peers),
+        key=lambda person: person['username'].casefold(),
+    )
+    if not candidates:
+        st.caption('You already have a conversation with each of your friends.')
+        return
+
+    image_repo = ProfileRepository(client, st.session_state.auth.user.id)
+    with st.container(height=390, border=False, key='chat_friend_list'):
+        for person in candidates:
+            if chat_list_item(image_repo, person, 'Chat with ' + person['username'], 'chat_start_friend_' + person['id']):
+                open_private_chat(client, person['id'])
+
+
+@st.fragment(run_every='15s')
+def chat_inbox(client):
+    data = chat_call(client, 'list', quiet=True)
+    choosing = st.session_state.get('chat_choosing_friend', False)
+    if choosing:
+        st.subheader('Choose a friend')
+        if st.button('Back to conversations', key='chat_cancel_start', icon=':material/arrow_back:', width='stretch'):
+            st.session_state.pop('chat_choosing_friend', None)
+            st.rerun()
+    else:
+        st.subheader('Conversations')
+        if st.button('Start conversation', key='chat_start', icon=':material/add_comment:', type='primary',
+                     width='stretch', disabled=data is None):
+            st.session_state.chat_choosing_friend = True
+            st.rerun()
+
+    if data is None:
+        st.error('Could not load conversations. Try again.')
+        if st.button('Retry', key='chat_retry_inbox'):
+            st.rerun()
+        return
+
+    threads = data['threads']
+    if choosing:
+        start_chat_with_friend(client, threads)
+        return
+    if not threads:
+        st.caption('No conversations yet.')
+        return
+
+    image_repo = ProfileRepository(client, st.session_state.auth.user.id)
+    active = st.session_state.get('chat_open')
+    with st.container(height=390, border=False, key='chat_list'):
         for thread in threads:
-            with st.container(border=True):
-                pic,details=st.columns([1,5])
-                with pic:
-                    try:photo=ProfileRepository(client,st.session_state.auth.user.id).image(thread.get('image_path'))
-                    except Exception:photo=None
-                    portrait(photo or render_avatar(DEFAULT_AVATAR),40)
-                with details:
-                    st.text(thread['username'])
-                    st.text(('You: ' if thread.get('from_me') else '')+thread['preview'])
-                    if thread['unread']:st.caption(f"{thread['unread']} unread")
-                if st.button('Open chat with '+thread['username'],key='chat_open_'+thread['id'],icon=':material/forum:'):
-                    st.session_state.chat_open=thread['id'];st.rerun()
+            prefix = 'You: ' if thread.get('from_me') else ''
+            unread = thread['unread']
+            username = thread['username']
+            label = 'Open chat with ' + username
+            if unread:
+                label += f' ({unread} unread)'
+            if chat_list_item(
+                image_repo, thread, label, 'chat_open_' + thread['id'],
+                preview=prefix + thread['preview'], unread=unread, selected=thread['id'] == active,
+            ):
+                select_chat(thread['id'])
 
 
-def dismiss_chat():
-    st.session_state.pop('chat_open',None)
+def chats_screen(client, own_picture):
+    st.html('<style>' + (Path(__file__).parent / 'assets' / 'chat.css').read_text() + '</style>')
+    with st.container(key='chat_workspace'):
+        st.title('Chats')
+        inbox = st.container(border=True, key='chat_inbox')
+        conversation = st.container(border=True, key='chat_detail')
 
-
-@st.dialog('Chat',width='large',on_dismiss=dismiss_chat,icon=':material/chat:')
-def private_chat_dialog(client,thread_id,own_picture=None):
-    st.html('<span class="sd-chat-marker"></span><style>'+(Path(__file__).parent/'assets'/'chat.css').read_text()+'</style>')
-    chat_conversation(client,thread_id,own_picture)
+        # Read the active thread before rendering unread badges in the inbox.
+        with conversation:
+            thread_id = st.session_state.get('chat_open')
+            if thread_id:
+                if st.button('Back to inbox', key='chat_back_to_inbox', icon=':material/arrow_back:'):
+                    st.session_state.pop('chat_open', None)
+                    st.session_state.pop('chat_choosing_friend', None)
+                    st.rerun()
+                chat_conversation(client, thread_id, own_picture)
+            else:
+                st.html('<div class="sd-chat-empty"><h2>Choose a conversation</h2>'
+                        '<p>Select a chat from the list or start one with a friend.</p></div>')
+        with inbox:
+            chat_inbox(client)
 
 
 @st.fragment(run_every='3s')
@@ -136,8 +253,11 @@ def chat_conversation(client,thread_id,own_picture=None):
     data=chat_call(client,'read',{'id':thread_id})
     if data is None:return
     image_repo=ProfileRepository(client,st.session_state.auth.user.id)
+    partner_avatar = chat_person_avatar(image_repo, data['partner'])
     identity,friend_controls=st.columns([3,2],vertical_alignment='center')
-    with identity:public_person(data['partner'],image_repo)
+    with identity:
+        username = escape(data['partner']['username'])
+        st.html(f'<div class="sd-chat-heading"><img src="{partner_avatar}" alt=""><h2>{username}</h2></div>')
     with friend_controls:
         friends=FriendsRepository(client)
         try:relationships=friends.action('list')
@@ -154,13 +274,7 @@ def chat_conversation(client,thread_id,own_picture=None):
             if st.button(label,icon=':material/person_add:',key='chat_friend_'+thread_id):
                 result=friend_action(friends,'accept' if incoming else 'request_user',incoming['id'] if incoming else peer)
                 if result:st.rerun()
-    try:partner_picture=image_repo.image(data['partner'].get('image_path'))
-    except Exception:partner_picture=None
-    def avatar_url(raw):
-        return 'data:image/png;base64,'+base64.b64encode(raw or render_avatar(DEFAULT_AVATAR)).decode()
-    own_avatar=avatar_url(own_picture)
-    partner_avatar=avatar_url(partner_picture)
-    st.caption('Private conversation · Updates every few seconds. A Battle timer keeps running while you chat.')
+    own_avatar = chat_avatar_url(own_picture)
     history_key='chat_history_'+thread_id
     history={m['id']:m for m in st.session_state.get(history_key,[])}
     history.update({m['id']:m for m in data['messages']})
@@ -168,13 +282,14 @@ def chat_conversation(client,thread_id,own_picture=None):
     st.session_state[history_key]=messages
     older_key='chat_older_'+thread_id
     if older_key not in st.session_state:st.session_state[older_key]=data['has_older']
-    if st.session_state[older_key] and messages and st.button('Load earlier messages',key='chat_earlier_'+thread_id):
-        older=chat_call(client,'read',{'id':thread_id,'before':messages[0]['id']})
-        if older is not None:
-            history.update({m['id']:m for m in older['messages']})
-            st.session_state[history_key]=sorted(history.values(),key=lambda m:m['id'])
-            st.session_state[older_key]=older['has_older'];st.rerun()
-    with st.container(height=340,border=True,autoscroll=True,key="chat_messages"):
+    with st.container(height=340, border=True, autoscroll=True, key='chat_messages'):
+        if st.session_state[older_key] and messages and st.button('Load earlier messages', key='chat_earlier_' + thread_id):
+            older = chat_call(client, 'read', {'id': thread_id, 'before': messages[0]['id']})
+            if older is not None:
+                history.update({message['id']: message for message in older['messages']})
+                st.session_state[history_key] = sorted(history.values(), key=lambda message: message['id'])
+                st.session_state[older_key] = older['has_older']
+                st.rerun()
         if not messages:st.caption('Start the conversation. Only you and this person can read it.')
         for message in messages:
             with st.chat_message('You' if message['from_me'] else data['partner']['username'],avatar=own_avatar if message['from_me'] else partner_avatar):
@@ -184,9 +299,13 @@ def chat_conversation(client,thread_id,own_picture=None):
         if st.session_state.get(seen_key)!=latest and chat_call(client,'seen',{'id':thread_id,'through':latest},quiet=True) is not None:st.session_state[seen_key]=latest
     text_key='chat_text_'+thread_id
     if st.session_state.pop('chat_clear_'+thread_id,False):st.session_state[text_key]=''
-    with st.form('chat_send_'+thread_id):
-        text=st.text_area('Message',key=text_key,max_chars=2000,height=80,placeholder='Write a message…')
-        send=st.form_submit_button('Send message',icon=':material/send:',type='primary')
+    with st.form('chat_send_' + thread_id):
+        message_input, send_control = st.columns([4, 1.35], gap='small', vertical_alignment='bottom')
+        with message_input:
+            text = st.text_area('Message', key=text_key, max_chars=2000, height=72,
+                                placeholder='Write a message…', label_visibility='collapsed')
+        with send_control:
+            send = st.form_submit_button('Send message', icon=':material/send:', type='primary')
     if send:
         body=text.strip()
         if not body:st.warning('Write a message before sending.');return
@@ -2986,7 +3105,7 @@ if not st.session_state.get("browser_loaded"):
         if auth.restore_session(saved["session"]):
             if saved.get("user_id")==auth.user.id:
                 st.session_state.editing=saved.get("route")=="edit"
-                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Play","Friends","Leaderboard","Study Plan","Profile") else "Play"
+                st.session_state.main_page=saved.get("page") if saved.get("page") in ("Decks","Play","Friends","Leaderboard","Study Plan","Profile","Chats") else "Play"
                 if isinstance(saved.get("deck_open"),str):st.session_state.deck_open=saved["deck_open"]
             st.session_state.started=True
         else:
@@ -3118,12 +3237,10 @@ if profile:
         with st.container(key='sidebar_account_actions'):
             if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',help='Friends',use_container_width=True):
                 navigate('Friends')
-            chat_dropdown(auth.client)
+            chat_navigation(auth.client, page == 'Chats')
             st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
             if st.button('Profile',key='open_profile',help='Profile',use_container_width=True):
                 navigate('Profile')
-if profile and st.session_state.get('chat_open'):
-    private_chat_dialog(auth.client,st.session_state.chat_open,picture)
 if profile:
     if st.session_state.get('play_exit_to'):
         st.warning('Leave this round? This counts as a loss and your opponent wins. Your question timer continues while you decide.')
@@ -3137,6 +3254,9 @@ if profile:
                 st.session_state.main_page=st.session_state.pop('play_exit_to')
                 st.session_state.play_in_round=False
                 st.session_state.pop('play_duel',None);st.session_state.pop('play_feedback',None);st.rerun()
+        st.stop()
+    if page=='Chats':
+        chats_screen(auth.client, picture)
         st.stop()
     if page=='Play':
         play_screen(auth.client,profile);st.stop()

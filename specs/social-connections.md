@@ -21,14 +21,14 @@ Supabase enforces participant-only access to requests and friendships. Only the 
 
 
 ### Private chat
-Use the existing Supabase authenticated API and database. Add a Chats dropdown beside Profile with partner image, username, last-message preview and unread count. Open a conversation from a matched partner or the dropdown. Store messages across reloads; refresh open chats every three seconds with Streamlit fragments. This first release uses polling, not a new external chat service.
+Use the existing Supabase authenticated API and database. The sidebar opens the [Chats page](tasks/chats-page.md). The inbox shows participant images, usernames, message previews and unread counts. On desktop, the active conversation sits beside the inbox. The inline friend picker lists accepted friends without a conversation. Open chats update every three seconds with Streamlit fragments.
 
 Only accepted friends or actual Battle/paired Study participants may start a conversation. Once created, only its two participants may list, read or send messages. Pending random searches do not grant access. Keep email, private profile fields and raw avatar settings out of chat responses. Limit messages to 2,000 characters, reject blank messages, rate-limit sends and use client request IDs to make retries safe. Messages are plain text. Loading older history must not lose new messages or incorrectly mark unseen messages read.
 
 
 Open a participant's name menu in either ongoing or historical Battle/Study sessions to send a friend request or message. The chat header also offers Send friend request, Friend request sent, Accept friend request or Friends according to the current relationship. A conversation permits a request, not automatic friendship. Only the recipient can accept it; retain the shared request rate limit and duplicate protection.
 
-Chat fits on screen with only message history scrolling. Show both participants' actual profile pictures beside messages. Opening a conversation closes the inbox dropdown; failed sends retain their draft. Supabase persists all accepted friendship and chat changes across restarts. Browser/session state holds unsent text only.
+The chat header and composer sit outside the scrollable message history. Show both participants' actual profile pictures beside messages. Failed sends retain their draft. Supabase persists all accepted friendship and chat changes across restarts.
 
 ## Out of scope
 Group chats, attachments, calls, typing indicators, push/email notifications, contact imports and automatically sending external sharing messages.

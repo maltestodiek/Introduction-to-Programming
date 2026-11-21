@@ -22,6 +22,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Friends header button](tasks/friends-header-button.md): Friends moves from the large tabs into the header between Profile and Chats.
 - [Play landing page and logo button](tasks/play-landing-and-logo.md): sign-in lands on Play, and the header logo opens Play.
 - [Start a chat from the friend list](tasks/friend-list-chat.md): clicking a friend on the Friends page opens the private conversation.
+- [Chats page](tasks/chats-page.md): the sidebar opens an inbox and conversation workspace with a picker for friends without a thread.
 - [Friends dashboard layout](tasks/friends-dashboard-layout.md): a scannable Friends and invitation layout without changing social rules.
 - [Calculator result rounding](tasks/calculator-rounding.md): the question calculator shows results rounded to four decimal places, with a note saying so.
 - [Arena logo](tasks/arena-logo.md): the two flashcards stand in an arena.

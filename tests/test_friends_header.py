@@ -42,7 +42,7 @@ def test_navigation_uses_a_left_sidebar_with_separate_account_actions():
     assert "['Decks','Play','Leaderboard','Study Plan']" in APP
     assert "with st.container(key='sidebar_main_actions'):" in APP
     assert "with st.container(key='sidebar_account_actions'):" in APP
-    assert "chat_dropdown(auth.client)" in APP
+    assert "chat_navigation(auth.client, page == 'Chats')" in APP
 
 
 def test_header_friends_button_opens_the_friends_page(monkeypatch):
@@ -70,9 +70,7 @@ def test_sidebar_has_consistent_vertical_actions_and_reserves_main_content_space
     assert 'margin-left:auto!important;margin-right:auto!important' in NAVIGATION_CSS
     assert 'text-align:left!important' in NAVIGATION_CSS
     assert 'justify-content:flex-start' in NAVIGATION_CSS
-    assert '.st-key-open_chats button{position:relative!important;justify-content:flex-start!important;gap:8px!important}' in NAVIGATION_CSS
-    assert 'left:57%!important;top:50%!important;width:auto!important;transform:translate(-50%,-50%)!important' in NAVIGATION_CSS
-    assert 'white-space:nowrap!important;word-break:normal!important' in NAVIGATION_CSS
+    assert '.st-key-open_chats button:focus-visible' in NAVIGATION_CSS
     assert '.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:"1"' in NAVIGATION_CSS
 
 

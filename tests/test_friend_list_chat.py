@@ -43,6 +43,7 @@ def test_clicking_a_friend_opens_the_conversation_with_that_friend(monkeypatch):
     friend.click().run()
     assert ('open',{'user_id':'b'}) in chat_calls
     assert at.session_state['chat_open']=='thread1'
+    assert at.title[0].value=='Chats'
     assert any(w.label=='Message' for w in at.text_area)
     assert not at.exception
 

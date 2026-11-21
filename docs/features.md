@@ -6,7 +6,7 @@ Current organization as of 13 November 2026. This is the current product map; th
 Email/password signup and confirmation, sign-in/out, recovery, verified session restoration; username, university lookup/manual entry, courses, languages, degree/field, graduation year and photo/avatar. [Specification](../specs/authentication-and-profiles.md).
 
 ## Social connections — implemented
-Friend codes and invitation links, requests and acceptance, private chat and unread previews. Participant menus work in ongoing/history cards; chat offers friendship controls. [Specification](../specs/social-connections.md).
+Friend codes and invitation links, requests and acceptance, a dedicated Chats page with unread previews and a friend picker. Participant menus work in ongoing/history cards; chat offers friendship controls. [Specification](../specs/social-connections.md).
 
 ## Deck authoring and question tools — implemented
 Flexible Study decks of up to 100 questions, four-answer questions, subsection/lecture names, mandatory review, revision-safe edits and optional per-question calculator. The separate classic editor retains 15-question immutable decks. Basic text-only Anki import stores private source cards; AI generation remains a placeholder. [Specification](../specs/deck-authoring.md).

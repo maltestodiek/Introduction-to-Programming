@@ -2,6 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace as Obj
 from unittest.mock import Mock
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from auth import AuthService
@@ -51,16 +52,17 @@ def test_user_without_a_profile_still_sees_profile_setup(monkeypatch):
     assert not at.exception
 
 
-def test_returning_browser_still_resumes_its_remembered_page(monkeypatch):
+@pytest.mark.parametrize('page', ['Decks', 'Chats'])
+def test_returning_browser_still_resumes_its_remembered_page(monkeypatch, page):
     monkeypatch.setattr('db.ProfileRepository.load',lambda self:PROFILE)
     monkeypatch.setattr('db.DeckRepository.list',lambda self,course:[])
-    saved={'started':True,'user_id':'a','page':'Decks','session':{'access_token':'access','refresh_token':'refresh'}}
+    saved={'started':True,'user_id':'a','page':page,'session':{'access_token':'access','refresh_token':'refresh'}}
     monkeypatch.setattr('launch.browser_bridge',lambda *a,**k:saved)
     client=Mock();client.auth.get_user.return_value=Obj(user=Obj(id='a'))
     at=AppTest.from_file(str(ROOT/'app.py'),default_timeout=20)
     at.session_state['auth']=AuthService(client)
     at.run()
-    assert at.session_state['main_page']=='Decks'
+    assert at.session_state['main_page']==page
     assert not at.exception
 
 
