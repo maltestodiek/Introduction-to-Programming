@@ -92,6 +92,7 @@ serve(async (request) => {
         requestyApiKey,
         requestyModel,
         batch.map(({ id, front, back }) => ({ id, front, back })),
+        fetch,
       )
     );
     // The model's answer order is biased towards the first option; UniArena decides it.

@@ -33,7 +33,7 @@ serve(async (request) => {
     return json(400, { error: error instanceof Error ? error.message : "Send the images of one card." });
   }
   try {
-    const texts = await Promise.all(images.map(async (image) => ({ id: image.id, text: await readImageText(requestyApiKey, model, image) })));
+    const texts = await Promise.all(images.map(async (image) => ({ id: image.id, text: await readImageText(requestyApiKey, model, image, fetch) })));
     return json(200, { texts });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The image could not be read.";

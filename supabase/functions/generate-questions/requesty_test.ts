@@ -1,3 +1,4 @@
+import { offlineTest } from "../offline-test-helper.ts";
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { requestQuestionsFromRequesty, requestQuestionsWithRetry } from "./requesty.ts";
 
@@ -7,7 +8,7 @@ const cards = [{
   back: "Money available now is worth more than the same amount later.",
 }];
 
-Deno.test("uses a simulated Requesty response and sends only source-card text", async () => {
+offlineTest("uses a simulated Requesty response and sends only source-card text", async () => {
   let requestBody: Record<string, unknown> | undefined;
   const fakeFetch: typeof fetch = async (_input, init) => {
     requestBody = JSON.parse(String(init?.body));
@@ -35,7 +36,7 @@ Deno.test("uses a simulated Requesty response and sends only source-card text", 
   assertEquals(messages.some((message) => message.content.includes("test-key")), false);
 });
 
-Deno.test("does not accept a simulated provider failure", async () => {
+offlineTest("does not accept a simulated provider failure", async () => {
   const fakeFetch: typeof fetch = async () => new Response("unavailable", { status: 503 });
   await assertRejects(
     () => requestQuestionsFromRequesty("test-key", "test-model", cards, fakeFetch),
@@ -44,7 +45,7 @@ Deno.test("does not accept a simulated provider failure", async () => {
   );
 });
 
-Deno.test("retries one malformed response and returns the valid replacement", async () => {
+offlineTest("retries one malformed response and returns the valid replacement", async () => {
   let calls = 0;
   const fakeFetch: typeof fetch = async () => {
     calls += 1;
@@ -64,7 +65,7 @@ Deno.test("retries one malformed response and returns the valid replacement", as
   assertEquals(drafts.length, 1);
 });
 
-Deno.test("recovers an omitted source with a targeted follow-up request", async () => {
+offlineTest("recovers an omitted source with a targeted follow-up request", async () => {
   const twoCards = [cards[0], { ...cards[0], id: "22222222-2222-4222-8222-222222222222", front: "What is discounting?" }];
   let calls = 0;
   const fakeFetch: typeof fetch = async (_input, init) => {
@@ -96,7 +97,7 @@ const lengthCueOptions = [
   "Cash is risk free",
 ];
 
-Deno.test("requests strict structured JSON output", async () => {
+offlineTest("requests strict structured JSON output", async () => {
   let format: Record<string, unknown> | undefined;
   const fakeFetch: typeof fetch = async (_input, init) => {
     format = JSON.parse(String(init?.body)).response_format;
@@ -107,7 +108,7 @@ Deno.test("requests strict structured JSON output", async () => {
   assertEquals((format?.json_schema as { strict?: boolean })?.strict, true);
 });
 
-Deno.test("falls back to JSON mode when a model rejects structured output", async () => {
+offlineTest("falls back to JSON mode when a model rejects structured output", async () => {
   const formats: string[] = [];
   const fakeFetch: typeof fetch = async (_input, init) => {
     const type = JSON.parse(String(init?.body)).response_format.type;
@@ -120,7 +121,7 @@ Deno.test("falls back to JSON mode when a model rejects structured output", asyn
   assertEquals(drafts.length, 1);
 });
 
-Deno.test("asks once more for options of similar length when the answer stands out", async () => {
+offlineTest("asks once more for options of similar length when the answer stands out", async () => {
   const bodies: Array<{ cards: unknown[]; rewrite?: string }> = [];
   const fakeFetch: typeof fetch = async (_input, init) => {
     const sent = JSON.parse(JSON.parse(String(init?.body)).messages[1].content);
@@ -134,7 +135,7 @@ Deno.test("asks once more for options of similar length when the answer stands o
   assertEquals(drafts[0].options, balancedOptions);
 });
 
-Deno.test("keeps the original draft when the length rewrite fails", async () => {
+offlineTest("keeps the original draft when the length rewrite fails", async () => {
   let calls = 0;
   const fakeFetch: typeof fetch = async () => {
     calls += 1;

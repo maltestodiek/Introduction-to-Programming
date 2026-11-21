@@ -24,7 +24,7 @@ Use `uv sync`, `uv run pytest -q` and `uv run streamlit run app.py`. Open http:/
 
 On this Mac, `sh run-app.sh` and `sh run-tests.sh` use the locked dependencies with an environment/cache under `~/Library/Caches/StudyDuel`, avoiding the stalled Desktop environment. Teammates copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and configure their approved Supabase URL and publishable key. Never commit the filled secrets file.
 
-From the repository root, run `deno test supabase/functions` to check the TypeScript AI functions with simulated provider responses.
+From the repository root, run `deno test --deny-net supabase/functions` to check the TypeScript AI functions with simulated provider responses.
 
 ## Lecture structure
 

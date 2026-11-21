@@ -65,3 +65,48 @@ def test_publishing_drafts_creates_the_study_deck_without_the_editor_detour():
            section.index('repository.publish_drafts(')]
     assert order==sorted(order)
     assert 'validate_study_deck' in section
+
+
+def test_notice_precedes_sending_private_material(monkeypatch):
+    calls = []
+    at = generation_app(monkeypatch, calls)
+    assert any('Requesty' in c.value and 'model provider' in c.value and
+               'selected' in c.value.lower() for c in at.caption)
+    assert calls == []
+
+
+def test_unsaved_correction_blocks_publishing_until_saved(monkeypatch):
+    draft = dict(id='draft-1', source_card_id='card-1', status='draft',
+                 question='What is NPV?', options=['Revenue', 'Net present value', 'Cost', 'Tax'],
+                 correct_option_index=0)
+    monkeypatch.setitem(IMPORT, 'drafts', [draft])
+    saved_decks = []
+
+    def save_edit(self, draft_id, question, options, correct):
+        assert draft_id == draft['id']
+        draft.update(question=question, options=options, correct_option_index=correct)
+
+    def study_action(self, action, data=None):
+        if action == 'review_deck':
+            return {'id': 'review-1'}
+        if action == 'save_deck':
+            saved_decks.append(data['draft'])
+            return {'id': 'deck-1'}
+        return {'decks': [], 'shared': [], 'sessions': [], 'open': [], 'invites': [], 'friends': []}
+
+    monkeypatch.setattr('db.AnkiImportRepository.update_draft', save_edit)
+    monkeypatch.setattr('db.AnkiImportRepository.publish_drafts', lambda self, ids: None)
+    monkeypatch.setattr('db.StudyRepository.action', study_action)
+    at = generation_app(monkeypatch, [])
+    at.checkbox(key='ai_include_draft-1').check().run()
+    publish = 'Publish Study deck from 1 drafts'
+    assert not button(at, publish).disabled
+    at.radio(key='ai_correct_draft-1').set_value(1).run()
+    assert button(at, publish).disabled
+    assert any('Save edits' in w.value for w in at.warning)
+    assert not saved_decks
+    at.button(key='ai_save_draft-1').click().run()
+    assert not button(at, publish).disabled
+    button(at, publish).click().run()
+    card = saved_decks[0]['cards'][0]
+    assert next(a['text'] for a in card['answers'] if a['id'] == card['correct_answer_id']) == 'Net present value'

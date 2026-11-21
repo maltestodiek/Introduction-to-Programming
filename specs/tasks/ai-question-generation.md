@@ -24,6 +24,8 @@ The Requesty key is stored exclusively as the Supabase secret `REQUESTY_API_KEY`
 
 A student reviews every draft, can edit or discard it, and explicitly publishes the approved questions into a UniArena deck in one step from that review: the app performs the Study review handshake (`review_deck` then `save_deck` with the identical reviewed snapshot) and marks the drafts published, without routing through the Study deck editor. The created deck remains editable later under Decks like any other Study deck. A published deck may contain one to 100 questions. Drafts never appear in Study Mode or in playable deck lists.
 
+The Generate control discloses that selected card or slide text goes to Requesty and its model provider. Publishing is disabled while an included draft has unsaved edits to its question, options or correct answer. Saving those edits or excluding the draft allows publishing to continue.
+
 ### Limits and concurrency
 
 The UI can select up to 100 source cards for one deck-generation request. The Edge Function processes those cards in internal batches of at most 10 to stay within provider and function time limits. It creates no partial saved result: if any batch fails or any response is invalid, no generated question from that request is saved.
