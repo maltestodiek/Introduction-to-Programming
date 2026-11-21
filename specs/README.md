@@ -12,7 +12,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Text from images on Anki cards](tasks/anki-image-text.md): read the text on Anki card images with AI, review it and import it as text cards.
 - [AI question generation](tasks/ai-question-generation.md): private, server-side Requesty generation of reviewed MC drafts from imported source cards.
 - [Question notepad](tasks/question-notepad.md): unsaved 500-character scratch notepad beside the calculator during questions.
-- [Leaderboard](tasks/leaderboard.md): global top ten with own place and a friends ranking, by Battle XP, read-only.
+- [Leaderboard](tasks/leaderboard.md): global top ten with own place, own-university top ten and a friends ranking, by Battle XP, read-only.
 - [Battle round layout](tasks/battle-round-layout.md): active-round overview and server-timed countdown display.
 - [Battle question reports](tasks/battle-question-reports.md): participant reports for individual completed-Battle questions.
 - [Battle invitation badge](tasks/battle-invitation-badge.md): pending incoming Battle invitations shown next to Play.
