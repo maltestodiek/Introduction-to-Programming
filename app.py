@@ -10,7 +10,7 @@ from supabase.lib.client_options import SyncClientOptions as ClientOptions
 from avatar_picker import avatar_picker
 from universities import search_universities, UniversitySearchError
 from auth import AuthService
-from recovery import recovery_callback
+from recovery import recovery_callback, store_recovery_proof
 from db import ProfileRepository, FriendsRepository
 from launch import browser_bridge, welcome
 from appearance import apply_appearance,profile_button_avatar_css
@@ -3071,15 +3071,28 @@ if not hasattr(auth,"resumable_session"):
 # Recovery tokens are received once from the email redirect and verified by Supabase.
 if not st.session_state.get("recovery_received"):
     recovery_data=recovery_callback()
+    if not recovery_data and st.query_params.get("code") and "state" not in st.query_params:
+        st.caption("Checking your email link…")
+        st.stop()
     if recovery_data:
         st.session_state.recovery_received=True
+        if recovery_data.get("code") and "state" not in st.query_params:
+            st.query_params.pop("code", None)
         result=auth.begin_recovery(recovery_data)
         if result.status=="recovery_ready":
             st.session_state.recovering=True
+            st.session_state.used_recovery_proof = recovery_data.get("verifier")
         else:
-            st.session_state.recovery_error=result.message
+            if recovery_data.get("code") and not recovery_data.get("verifier"):
+                st.session_state.started = True
+                st.session_state.browser_loaded = True
+                st.session_state.email_link_hint = result.message
+            else:
+                st.session_state.recovery_error=result.message
         st.rerun()
 if st.session_state.get("recovering"):
+    if st.session_state.get("used_recovery_proof"):
+        store_recovery_proof("clear", st.session_state.used_recovery_proof)
     st.title("Choose a new password")
     with st.form("new_password"):
         new_password=st.text_input("New password",type="password")
@@ -3101,6 +3114,8 @@ if st.session_state.get("recovering"):
         st.session_state.started=True
         st.rerun()
     st.stop()
+if st.session_state.get("email_link_hint"):
+    st.info(st.session_state.pop("email_link_hint"))
 if st.session_state.get("recovery_error"):
     st.error(st.session_state.recovery_error)
 # Read browser state once per server session. Never trust a stored user ID.
@@ -3194,9 +3209,25 @@ if not auth.user:
                 reset_email=st.text_input("Account email",value=email)
                 send_reset=st.form_submit_button("Send reset link")
             if send_reset:
+                st.session_state.pop("reset_email_notice", None)
                 result=auth.request_password_reset(reset_email)
-                if result.status=="check_email":st.success(result.message)
-                else:st.error(result.message)
+                if result.status == "check_email":
+                    st.session_state.pending_reset_proof = auth.recovery_verifier()
+                    st.session_state.reset_proof_expires = int((time.time() + 3600) * 1000)
+                    st.session_state.reset_email_notice = result.message
+                else:
+                    st.error(result.message)
+            if st.session_state.get("reset_email_notice"):
+                st.success(st.session_state.reset_email_notice)
+                st.caption("Open the latest reset email in this browser, using the same browser profile.")
+            if st.session_state.get("pending_reset_proof"):
+                storage_status = store_recovery_proof(
+                    "save", st.session_state.pending_reset_proof, st.session_state.reset_proof_expires
+                )
+                if storage_status == "saved":
+                    del st.session_state.pending_reset_proof
+                if storage_status == "storage_unavailable":
+                    st.warning("Allow browser storage, then request a fresh reset email.")
     st.caption("Your email stays private. You’ll confirm it before signing in.")
     if st.button("View welcome screen"):
         st.session_state.started=False

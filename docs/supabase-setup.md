@@ -20,7 +20,7 @@ Before live testing:
 Account records belong to Supabase Auth. Do not create a custom password table. No schema migration is needed for this first authentication-only feature.
 
 ## Password recovery
-The login screen now sends Supabase reset emails. The default Supabase recovery link redirects to http://localhost:8501; keep this URL allowed and the local app running. The app consumes the recovery fragment, removes it from the browser URL, verifies the session with Supabase, and displays the new-password form. Password changes use Supabase Auth only. No real recovery email or account password was changed during automated checks; verify delivery and a complete reset with your own test account. Expired-link UI and token removal were manually verified.
+Use **Sign in → Forgot password?** and open the newest email in the same browser profile. Supabase redirects to the configured `APP_URL`. Production uses `https://uniarena.streamlit.app` and local development uses `http://localhost:8501`. The requesting browser temporarily keeps the proof for the reset link so the link can open in a new tab. UniArena exchanges the one-time code with Supabase, verifies the user, and opens **Choose a new password**. After updating, sign in with the new password. If the link expired or you switched browsers, request a fresh email in the browser you intend to use.
 
 ## Shared university courses
 Apply `supabase/university-courses.sql` in the Supabase SQL Editor after the profile migrations. It adds the read-only `university_courses(p_university)` function, which returns the course names saved by students at one university and nothing else. It creates no table and changes no data. Verify with `tests/university_courses_database.mjs`.
