@@ -1678,14 +1678,11 @@ def study_round_screen(client,sid):
                 if not r['correct']:st.html('<div class="round-vignette"></div>')
                 elif streak_milestone(streak):st.html('<div class="round-streak-banner">'+streak_milestone(streak)+'</div>')
                 prefix=f"{sid}_{r['index']}"
-                with st.expander('Private note / feedback to author'):
+                with st.expander('Private note'):
                     note=st.text_area('Private note',value=c.get('note',''),max_chars=4000,key='study_note_'+prefix)
+                    st.caption('Your private note is kept with this question for you and is never sent.')
                     if st.button('Save private note',key='study_save_note_'+prefix):
                         if study_request(client,'annotate',{'id':sid,'index':r['index'],'note':note}) is not None:st.success('Private note saved.')
-                    feedback=st.text_area('Feedback for the author',max_chars=2000,key='study_feedback_'+prefix)
-                    st.caption('Sent feedback is visible to the author and kept with this question for you. Your private note is not sent.')
-                    if st.button('Send feedback to author',key='study_send_'+prefix,disabled=not feedback.strip()):
-                        if study_request(client,'annotate',{'id':sid,'index':r['index'],'feedback':feedback}) is not None:st.success('Feedback sent.')
                 if st.button('Next question' if r['index']+1<r['total'] else 'See session result',type='primary'):
                     if study_request(client,'next',{'id':sid,'index':r['index']}) is not None:st.rerun()
         return
