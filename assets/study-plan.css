@@ -36,3 +36,7 @@
 .study-plan-preview-stat{padding:.85rem;border:1px solid var(--sd-border);border-radius:14px;background:var(--sd-surface);margin:.7rem 0}
 .study-plan-preview-stat strong{display:block;font-size:1.35rem;margin-top:.25rem}
 @media(max-width:700px){[class*="st-key-study_plan_preview_"]{position:static}.study-plan-intro{font-size:1rem}}
+
+@media (max-width:1050px) {
+ [class*="st-key-plan_"] button p,.study-plan-actions button p { white-space:normal; overflow-wrap:anywhere; }
+}

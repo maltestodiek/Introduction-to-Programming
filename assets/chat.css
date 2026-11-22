@@ -1,27 +1,29 @@
 /* Chats uses the full space below the toolbar, beside the main navigation. */
-.stMain:has(.st-key-chat_workspace) {
-  overflow: hidden;
-  overflow: clip;
-}
+@media (min-width:1051px) and (min-height:641px) {
+  .stMain:has(.st-key-chat_workspace) {
+    overflow: hidden;
+    overflow: clip;
+  }
 
-.stMainBlockContainer:has(.st-key-chat_workspace) {
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  height: 100%;
-  min-height: 0;
-  padding-block: 3.875rem !important;
-}
+  .stMainBlockContainer:has(.st-key-chat_workspace) {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    padding-block: 3.875rem !important;
+  }
 
-.stMainBlockContainer:has(.st-key-chat_workspace) > [data-testid="stVerticalBlock"] {
-  flex: 1 1 0;
-  min-height: 0;
-  gap: .15rem;
-}
+  .stMainBlockContainer:has(.st-key-chat_workspace) > [data-testid="stVerticalBlock"] {
+    flex: 1 1 0;
+    min-height: 0;
+    gap: .15rem;
+  }
 
-[data-testid="stLayoutWrapper"]:has(> .st-key-chat_workspace) {
-  flex: 1 1 0;
-  min-height: 0;
+  [data-testid="stLayoutWrapper"]:has(> .st-key-chat_workspace) {
+    flex: 1 1 0;
+    min-height: 0;
+  }
 }
 
 .st-key-chat_workspace {
@@ -86,17 +88,19 @@
   font-size: clamp(1rem, 1.8vw, 1.4rem);
 }
 
-/* The native height enables scrolling. Flex gives each list all remaining room. */
-.st-key-chat_workspace :is(
-  .st-key-chat_list,
-  .st-key-chat_friend_list,
-  .st-key-chat_messages,
-  [data-testid="stLayoutWrapper"]:has(> :is(.st-key-chat_list, .st-key-chat_friend_list, .st-key-chat_messages))
-) {
-  flex: 1 1 0 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
+@media (min-width:1051px) and (min-height:641px) {
+  /* The native height enables scrolling. Flex gives each list all remaining room. */
+  .st-key-chat_workspace :is(
+    .st-key-chat_list,
+    .st-key-chat_friend_list,
+    .st-key-chat_messages,
+    [data-testid="stLayoutWrapper"]:has(> :is(.st-key-chat_list, .st-key-chat_friend_list, .st-key-chat_messages))
+  ) {
+    flex: 1 1 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
 }
 
 .st-key-chat_workspace :is(.st-key-chat_list, .st-key-chat_friend_list, .st-key-chat_messages) {
@@ -275,7 +279,7 @@
 }
 
 /* Keep app navigation visible when the desktop window is short. */
-@media (min-width: 761px) and (max-height: 640px) {
+@media (min-width: 1051px) and (max-height: 640px) {
   .stMain:has(.st-key-chat_workspace) .st-key-sidebar_navigation {
     padding-block: .85rem .5rem;
     gap: .65rem;
@@ -317,58 +321,23 @@
     display: block;
   }
 
-  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_navigation {
-    gap: .25rem;
-    margin-bottom: .4rem;
-  }
+}
 
-  .stMain:has(.st-key-chat_workspace) .st-key-top_brand {
-    margin: 0;
+/* Let the page own the height on smaller windows. The transcript and
+   inbox can scroll independently once their contents reach a useful size. */
+@media (max-width: 1050px), (max-height: 640px) {
+  .stMainBlockContainer:has(.st-key-chat_workspace) { padding-block:3.875rem 1.5rem!important; }
+  .st-key-chat_workspace { flex:none; grid-template-rows:auto auto; }
+  .st-key-chat_workspace :is(.st-key-chat_inbox, .st-key-chat_detail),
+  .st-key-chat_workspace :is(.st-key-chat_inbox, .st-key-chat_detail) > [data-testid="stLayoutWrapper"]:has(> [data-testid="stVerticalBlock"]),
+  .st-key-chat_workspace :is(.st-key-chat_inbox, .st-key-chat_detail) > [data-testid="stLayoutWrapper"] > [data-testid="stVerticalBlock"] {
+    flex:0 0 auto;
   }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-open_home button {
-    min-height: 32px;
+  .st-key-chat_workspace :is(.st-key-chat_inbox, .st-key-chat_detail) { align-self:start; }
+  .st-key-chat_workspace :is(.st-key-chat_list, .st-key-chat_friend_list, .st-key-chat_messages),
+  .st-key-chat_workspace [data-testid="stLayoutWrapper"]:has(> :is(.st-key-chat_list, .st-key-chat_friend_list, .st-key-chat_messages)) {
+    height:auto!important;
+    max-height:clamp(15rem, 52svh, 32rem);
   }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-open_home button::before {
-    width: 44px;
-    height: 30px;
-  }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_main_actions {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_account_actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .stMain:has(.st-key-chat_workspace) :is(.st-key-sidebar_main_actions, .st-key-sidebar_account_actions) button {
-    justify-content: center;
-    min-height: 38px;
-    padding: .25rem .2rem;
-    gap: .2rem;
-  }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_main_actions button {
-    flex-direction: column;
-    min-height: 42px;
-  }
-
-  .stMain:has(.st-key-chat_workspace) :is(.st-key-sidebar_main_actions, .st-key-sidebar_account_actions) button p {
-    font-size: .75rem;
-  }
-
-  .stMain:has(.st-key-chat_workspace) :is(.st-key-sidebar_main_actions, .st-key-sidebar_account_actions) button::before {
-    width: 16px;
-    height: 16px;
-  }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_account_actions button {
-    grid-template-columns: 16px minmax(0, 1fr);
-  }
-
-  .stMain:has(.st-key-chat_workspace) .st-key-sidebar_navigation hr {
-    margin: .15rem .2rem !important;
-  }
+  .st-key-chat_workspace .st-key-chat_messages { min-height:12rem; }
 }
