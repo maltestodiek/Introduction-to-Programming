@@ -105,6 +105,11 @@ def test_overview_heads_carry_the_live_accuracy_chip_in_both_modes():
     assert "round-streak" not in APP[APP.index("st.caption(f\"Question"):APP.index("st.caption(f\"Question")+600]
 
 
+def test_the_accuracy_chip_never_wraps_onto_two_lines():
+    rule=EFFECTS_CSS[EFFECTS_CSS.index('.round-acc{'):EFFECTS_CSS.index('}',EFFECTS_CSS.index('.round-acc{'))]
+    assert 'white-space:nowrap' in rule and 'flex-shrink:0' in rule
+
+
 def test_accuracy_is_computed_from_answered_questions_only():
     assert answered_accuracy([]) is None
     assert accuracy_chip([])==''
