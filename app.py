@@ -2388,9 +2388,9 @@ def study_invitations(client, invites, blocked):
                     st.session_state.pop('study_join',None);st.rerun()
 
 
-def study_stop_control(client, sid, *, in_round=False):
+def study_stop_control(client, sid, *, in_round=False, full_width=False):
     with st.popover('Stop session', key='study_stop_confirm_'+sid,
-                    icon=':material/stop_circle:', use_container_width=in_round):
+                    icon=':material/stop_circle:', use_container_width=in_round or full_width):
         st.write('Stopping frees your place immediately. Your answered questions still count toward your learning progress.')
         st.caption('Before matching, this cancels the search or invitation. After matching, you take a loss and give up the partner deck. Your partner can still finish and earn yours.')
         if st.button('Confirm stop', key='study_stop_'+sid):
@@ -2733,13 +2733,15 @@ def study_session_card(client, session, location, relationships):
                                 else 'Inactive session expires · ')
             st.caption(expiration_label+battle_deadline(session['expires_at']))
         dashboard = location == 'dashboard'
+        # Keep the destructive action directly above the primary continuation
+        # control, with the same full card width.
+        if not solo and state in ('own','waiting','paired'):
+            study_stop_control(client, sid, full_width=True)
         if dashboard or not waiting:
             label = 'Open Study' if dashboard and waiting else ('Resume Study' if dashboard else 'Continue')
             if st.button(label, key=('home_study_' if dashboard else 'study_resume_')+sid,use_container_width=True):
                 st.session_state.study_board_return = 'Waiting' if waiting else 'Your turn'
                 resume_study_session(session, origin='dashboard' if dashboard else 'mode')
-        if not solo and state in ('own','waiting','paired'):
-            study_stop_control(client, sid)
 
 
 def study_session_board(client, sessions, location, invites=()):

@@ -191,6 +191,13 @@ def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
     assert not at.exception
 
 
+def test_study_mode_picker_uses_the_same_blue_and_violet_colours_as_session_badges():
+    from pathlib import Path
+    css=(Path(__file__).parents[1]/'assets'/'study-design.css').read_text()
+    assert '.st-key-enter_solo button{background:#eaf3ff!important;border-color:#b9cdf7!important;color:#2554b8!important}' in css
+    assert '.st-key-enter_together button{background:#f5edff!important;border-color:#dcc5ff!important;color:#6d32c7!important}' in css
+
+
 def test_selected_battle_mode_hides_mode_picker_without_a_redundant_change_button(monkeypatch):
     at,calls,d=setup(monkeypatch)
     button(at,'Play').click().run()
