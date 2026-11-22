@@ -1,4 +1,4 @@
-name: Audit Python dependencies
+name: Audit production dependencies
 
 on:
   pull_request:
@@ -22,3 +22,24 @@ jobs:
         run: uv export --locked --no-dev --no-emit-project --format requirements.txt --quiet --output-file "$RUNNER_TEMP/requirements.txt"
       - name: Check deployed Python packages for known vulnerabilities
         run: uvx --python 3.13 --from pip-audit==2.10.1 pip-audit --strict --require-hashes --disable-pip -r "$RUNNER_TEMP/requirements.txt"
+
+  edge-functions:
+    name: Audit ${{ matrix.function }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        function: [generate-questions, extract-image-text]
+    defaults:
+      run:
+        working-directory: supabase/functions/${{ matrix.function }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.5.6
+      - name: Check the entry point against the committed lock
+        run: deno check --frozen index.ts
+      - name: Audit locked function dependencies
+        run: deno audit --frozen --level=low

@@ -36,7 +36,7 @@ Show the output line `PASS another student cannot read, change or delete the pla
 
 ### Check dependencies before presenting
 
-The [Python dependency audit](../.github/workflows/dependency-audit.yml) runs on pull requests to `main` and every Monday at 07:17 UTC. It checks the direct and indirect Python packages in the production lock for known vulnerabilities on Linux with Python 3.13. Development tools are excluded. If a package is flagged, review the advisory, update the affected pin and lockfile, and rerun the audit and the affected workflows.
+The [dependency audit](../.github/workflows/dependency-audit.yml) runs on pull requests to `main` and every Monday at 07:17 UTC. It checks the direct and indirect Python packages in the production lock for known vulnerabilities on Linux with Python 3.13. It also checks each deployed AI function against its own Deno lockfile and audits the resolved npm packages, including the Supabase authentication client. To reproduce an Edge Function check, run `deno check --frozen index.ts` followed by `deno audit --frozen --level=low` in its function directory. Development tools are excluded. If a package is flagged, review the advisory, update the affected pin and lockfile, and rerun the audit and the affected workflows.
 
 ## Live account tests
 

@@ -1,5 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { requestQuestionsWithRetry } from "./requesty.ts";
 import { chunks, mapWithConcurrency } from "./batches.ts";
 import { balanceAnswerPositions } from "./quality.ts";
@@ -18,7 +17,7 @@ const corsHeaders = {
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
-serve(async (request) => {
+Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
