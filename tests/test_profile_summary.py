@@ -67,6 +67,15 @@ def courses_profile(monkeypatch,shared=('Corporate Finance','Investments')):
     return at.run(),client
 
 
+def test_profile_displays_degree_and_field_under_the_university(monkeypatch):
+    at, _ = courses_profile(monkeypatch)
+    assert not at.exception
+    assert any(
+        'Example University' in element.proto.body and 'Master in Finance' in element.proto.body
+        for element in at.get('html')
+    )
+
+
 def saves(client):
     return [c.args[1] for c in client.rpc.call_args_list if c.args[0].startswith('save_profile')]
 
