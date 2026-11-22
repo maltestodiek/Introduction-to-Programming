@@ -63,6 +63,18 @@ def test_timed_out_study_match_shows_a_loss_in_completed_history():
     assert (row['result'], row['tone']) == ('Loss', 'red')
 
 
+def test_study_together_card_places_a_full_width_stop_action_before_resume():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    card=app[app.index('def study_session_card'):app.index('def study_session_board')]
+    stop="study_stop_control(client, sid, full_width=True)"
+    resume="st.button(label, key=('home_study_' if dashboard else 'study_resume_')+sid,use_container_width=True)"
+    assert stop in card and resume in card
+    assert card.index(stop) < card.index(resume)
+    assert "def study_stop_control(client, sid, *, in_round=False, full_width=False):" in app
+    assert 'use_container_width=in_round or full_width' in app
+
+
 def test_study_dashboard_shows_each_active_session_once_and_labels_history(monkeypatch):
     at=deck_app(monkeypatch)
     waiting=dict(STUDY[0], id='s-wait', mode='random', state='waiting', deadline=None)

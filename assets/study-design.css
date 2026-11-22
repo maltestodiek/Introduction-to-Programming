@@ -6,6 +6,7 @@
 [class*="st-key-study_choice_"]:hover,[class*="st-key-study_partner_"]:hover{transform:translateY(-3px);box-shadow:0 8px 24px var(--sd-shadow);border-color:var(--sd-accent)!important}
 [class*="st-key-study_choice_"][class*="selected"],[class*="st-key-study_partner_"][class*="selected"]{border-color:var(--sd-accent)!important;background:linear-gradient(135deg,var(--sd-surface),var(--sd-study-end))}
 [class*="st-key-study_choice_"]:hover .study-icon,[class*="st-key-study_partner_"]:hover .study-icon{animation:study-float .6s ease}
+.st-key-enter_solo button{background:#eaf3ff!important;border-color:#b9cdf7!important;color:#2554b8!important}.st-key-enter_together button{background:#f5edff!important;border-color:#dcc5ff!important;color:#6d32c7!important}.st-key-enter_solo button:hover{background:#dceaff!important;border-color:#8fb5ef!important}.st-key-enter_together button:hover{background:#ede0ff!important;border-color:#c7a6f4!important}
 [class*="st-key-study_invitation_"]{border-radius:18px!important;border-left:4px solid var(--sd-accent)!important;background:var(--sd-surface)}
 .study-legend {
     display: grid;
