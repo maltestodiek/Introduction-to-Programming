@@ -322,7 +322,7 @@ class LeaderboardRepository:
     def __init__(self,client):self.client=client
 
     def load(self):
-        try:result=self.client.rpc('leaderboard',{}).execute().data
+        try:result=self.client.rpc('leaderboard_30_days',{}).execute().data
         except Exception as exc:raise ValueError('The leaderboard could not be reached. Refresh and retry.') from exc
         if not isinstance(result,dict):raise ValueError('The leaderboard is temporarily unavailable.')
         if result.get('error'):raise ValueError(result['error'])

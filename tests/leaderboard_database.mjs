@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import {spawnSync} from 'node:child_process';import {fileURLToPath} from 'node:url';
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
-if(process.argv[2]==='reload'){const db=new PGlite(process.argv[3]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[process.argv[4]]);const r=(await db.query('select leaderboard() r')).rows[0].r;assert.equal(r.me.rank,Number(process.argv[5]));await db.close();console.log('PASS restart keeps the ranking');process.exit(0);}
+if(process.argv[2]==='reload'){const db=new PGlite(process.argv[3]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[process.argv[4]]);const r=(await db.query('select leaderboard() r')).rows[0].r;assert.equal(r.me.rank,Number(process.argv[5]));const rolling=(await db.query('select leaderboard_30_days() r')).rows[0].r;assert.equal(rolling.me.xp,30);await db.close();console.log('PASS restart keeps the ranking');process.exit(0);}
 const dir=await fs.mkdtemp(path.join(os.tmpdir(),'uniarena-leaderboard-'));const db=new PGlite(path.join(dir,'db'));let passed=0;
 const users=Object.fromEntries(['anna','ben','cleo','dan','eva','finn','gus','hana','ivo','jule','kai','lea','mo'].map(n=>[n,randomUUID()]));const NOPROFILE=randomUUID();
 const xp={anna:500,ben:400,cleo:400,dan:300,eva:250,finn:200,gus:150,hana:120,ivo:100,jule:90,kai:80,lea:10,mo:0};
@@ -42,6 +42,44 @@ try{
  });
  await test('only stored Battle XP moves a place',async()=>{
   await admin('update profiles set game_xp=450 where username=$1',['lea']);const r=await board('lea');assert.deepEqual([r.me.rank,r.top.find(x=>x.me).rank],[2,2]);assert.equal(r.top.length,10);
+ });
+ await admin('create table battle_sessions(id uuid primary key, settled_at timestamptz)');
+ await admin('create table battle_rounds(session_id uuid, user_id uuid, game_xp_delta integer, primary key(session_id,user_id))');
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261121230000_rolling_leaderboard.sql',import.meta.url),'utf8'));
+ async function points(user,delta,age) {
+  const id=randomUUID();
+  await admin('insert into battle_sessions values ($1,now()-$2::interval)',[id,age]);
+  await admin('insert into battle_rounds values ($1,$2,$3)',[id,users[user],delta]);
+ }
+ async function rolling(id) {
+  await who(id);
+  return (await db.query('select leaderboard_30_days() r')).rows[0].r;
+ }
+ await test('rolling Global, University and Friends use the same settlement window',async()=>{
+  await admin('begin');
+  await points('lea',40,'719 hours 59 minutes');
+  await points('lea',-10,'1 day');
+  await points('lea',80,'720 hours');
+  await points('lea',40,'31 days');
+  await points('lea',40,null);
+  await points('anna',30,'1 day');
+  await points('mo',80,'1 day');
+  await points('ben',40,'1 day');
+  const r=await rolling(users.lea);
+  for(const list of [r.top,r.university,r.friends]) assert.equal(list.find(row=>row.me).xp,30);
+  assert.deepEqual([r.me.rank,r.university.find(row=>row.me).rank,r.friends.find(row=>row.me).rank],[3,2,2]);
+  assert.deepEqual(r.friends.map(row=>row.username),['mo','anna','lea']);
+  assert.equal(r.university.length,10);
+  assert.ok(r.university.every(row=>row.university==='Nova SBE'));
+  assert.deepEqual((await rolling(users.mo)).university.map(row=>row.username),['mo']);
+  assert.deepEqual(Object.keys(r.me).sort(),['image_path','me','rank','university','username','xp']);
+  assert.equal((await rolling(users.cleo)).me.xp,0);
+  assert.equal((await admin('select game_xp from profiles where id=$1',[users.lea])).rows[0].game_xp,450);
+  await admin('commit');
+ });
+ await test('rolling rankings require a signed-in profile',async()=>{
+  await who('','anon');await assert.rejects(()=>db.query('select leaderboard_30_days()'));
+  assert.ok((await rolling(NOPROFILE)).error);
  });
  await db.exec('reset role');await db.close();
  const r=spawnSync(process.execPath,[fileURLToPath(import.meta.url),'reload',path.join(dir,'db'),users.lea,'2'],{encoding:'utf8',env:process.env});process.stdout.write(r.stdout);assert.equal(r.status,0,r.stderr);passed++;

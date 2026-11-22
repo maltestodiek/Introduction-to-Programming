@@ -8,7 +8,7 @@ Students want to see how their Battle results compare with others. A small, fair
 
 ## What
 
-The Leaderboard tab shows three rankings. All are built only from Battle XP, the XP earned from Battle results. Study Mode, study plans and learning progress never change them.
+The Leaderboard tab shows three rankings. Each uses the net Battle XP from results settled within the last 720 hours. A result drops out exactly 30 days after settlement. Students with no qualifying results have zero ranking XP. The profile retains lifetime Battle XP. Study Mode, study plans and learning progress never change them.
 
 - Global: the ten students with the most Battle XP. If the signed-in student is not among them, their own place is shown as an eleventh row below the ten, with its real place number.
 - University top 10: show up to ten students from the university saved on the signed-in student's profile. Rank within that university using the same Battle XP and tie rules. The student cannot select another university.
@@ -20,11 +20,11 @@ The leaderboard is read-only. It offers no friend code, no invitation, no chat a
 
 For development, a local copy (APP_URL on localhost) can set LEADERBOARD_DEMO to 1 to show invented students instead of the real ranking, with a visible notice. The switch is ignored anywhere else and never reads or writes the database.
 
-State and persistence: nothing new is stored. The rankings are read from the existing profile XP each time the tab is opened.
+State and persistence: nothing new is stored. All three rankings are calculated together from settled Battle rounds each time the tab is opened.
 
 ## Out of scope
 
-Any XP value other than Battle XP or Total XP in the ranking, rankings per course, weekly or seasonal rankings, rewards, more than ten global places, searching for a student, and any action on another student from the leaderboard.
+An all-time leaderboard or period selector, rankings per course, weekly or seasonal rankings, rewards, more than ten global places, searching for a student, and any action on another student from the leaderboard.
 
 ## Done when
 
@@ -36,6 +36,6 @@ Any XP value other than Battle XP or Total XP in the ranking, rankings per cours
 6. Privacy: the response contains only place, username, university, picture path, XP and the own-row mark. It has no friend codes, emails, courses or invitation data, and the screen offers no invite or chat action.
 7. A Study session or study plan activity does not change any place; a settled Battle result does.
 8. University top 10 appears between Global top 10 and Friends. It includes eligible classmates outside the global top ten, excludes students from other universities, and offers no university selector.
-9. Restart: the ranking is the same after a full restart, because it is read from stored XP.
+9. Restart: the ranking is the same after a full restart, while the same settled results fall within the rolling window.
 
 Checks: `tests/test_leaderboard_ui.py` and `tests/leaderboard_database.mjs`.
