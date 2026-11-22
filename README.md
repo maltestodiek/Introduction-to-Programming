@@ -8,25 +8,43 @@ We built UniArena for students who want to turn their course material into quizz
 
 Create an account with a **personal email address**. Verification emails may not reach NOVA SBE inboxes (`@novasbe.pt`). Once you confirm your email, open **Profile** and add your university, at least one course at that university, and your languages.
 
-In **Play**, choose **Study Mode** to practise alone or with a partner, or **Battle Mode** to compete against another student for XP. Both modes use decks of quiz questions. For Study Mode, create a deck or add a published course deck to your library. In Battle Mode, choose **Random Deck** to let UniArena pick a deck, or **Top Decks** to pick a top-rated deck yourself. Both options use published Battle decks for your university, course and language. With **Random player**, you can start answering while UniArena finds an opponent.
+In **Play**, choose **Study Mode** for untimed practice alone or with a partner, or **Battle Mode** for a timed, 15-question competition that awards Battle XP. To study, you need a Study deck in your library. To play a Battle, you can use a Battle deck someone at your university has already published.
 
 ### Decks
 
-A deck is a set of quiz questions for one course. To find one, open **Decks**. Under **Your courses**, choose **Study** on a published deck to save your own copy and open **Study alone**. If your course has no published deck, or you want to practise your own material, choose **Create deck → Create Study Deck**. Add questions with four answer choices, mark the correct answer, then review and save. You can also start from an Anki deck or text-based PDF slides and review the AI-generated drafts.
+**Create a Study deck.** Open **Decks → Study deck** and choose where your questions will come from.
+
+- **From scratch → Write questions.** Name your deck, select its course and language, then write a question with four answer choices and mark the correct one. Give it a subsection such as “Lecture 2” if you want to practise that lecture separately. For a calculation, tick **Allow calculator for this question**. Add up to 100 questions in total. Choose **Review Study deck**, check the questions and solutions, then **Confirm and save Study deck**.
+- **From Anki cards → Import Anki deck.** Upload your Anki deck, preview the cards and save the source material. Select the cards you want UniArena to turn into multiple-choice questions. Check the wording, answer choices and correct answer of each AI draft, choose which drafts to include, then publish the reviewed selection as a Study deck.
+- **From PDF slides → Import PDF slides.** Upload a PDF with selectable text and preview what UniArena extracted. Save the material, choose what to generate questions from and review the drafts just as you would for an Anki import. Check the suggested answers against your slides before including them.
+
+**Use or share a Study deck.** If a classmate has already made a deck, open **Decks → Your courses**, find the published deck and choose **Study** to save a copy and open Study alone. Your own saved Study decks start private. In **Deck studio**, you can edit a deck or choose **Publish** to make it available to students at your university with the matching course and language.
+
+**Create a Battle deck.** Open **Decks → Battle deck → Create Battle Mode Deck**, or open one of your saved Study decks and choose **Publish as Battle deck**. Select exactly 15 questions from that deck, name the Battle deck, confirm that other players can use it and choose **Submit Battle Deck**. This is the step that makes questions eligible for **Random Deck** and **Top Decks**, including questions originally imported from Anki or PDF. The published 15 questions stay fixed when you edit the original Study deck.
 
 ### Study Mode
 
-Open **Play → Study Mode** with a deck in your library, then choose how you want to practise.
+Open **Play → Study Mode**. Both options give feedback after each answer and let you choose when to move to the next question. Study sessions track learning progress and award no Battle XP.
 
-- **Study alone.** Select your course and deck, and choose the whole deck or specific chapters and learning levels. Pick a question count or practise all matching questions. After each answer you see the correct answer and can review it before moving on. Your learning levels are saved for your next session.
-- **Study together.** Each student needs a deck for the same course and language at their current university. Choose a friend, look for a random partner, or join an open search. For a 20-question session, each deck needs at least 10 questions. You answer your own 10 first and your partner’s 10 after matching. Both of you answer the same 20 questions, so you can compare scores. Larger sessions follow the same half-from-each-deck rule.
+#### Study alone
+
+1. Choose **Study alone → Create a new study session**, then select your course and deck. Leave chapters empty to use the whole deck, or pick one or more lectures.
+2. Choose the learning levels you want to practise. **New** (grey) means unanswered. **Needs practice** (red) means you have answered the question and it is at level zero. A correct answer moves it up one level: **Level 1** (orange), **Level 2** (yellow), then **Level 3** (green). A wrong answer moves it down one level, to a minimum of zero. You can combine levels, for example to practise new questions alongside ones you missed.
+3. Pick a number of questions or **All matching questions**. Questions appear once per session, without a timer. After answering, check the solution before selecting **Next question**. Use **Save and leave** to pause and return through **Continue session**.
+
+#### Study together
+
+1. Choose **Study together → Create a new study session**. Select your deck and a total of **20, 40, 60, 80 or 100 questions**. Each player contributes half from a different deck for the same university, course and language. For 40 questions, both decks need at least 20. Learning levels guide the choice from your deck. If only 15 questions match your chosen levels, UniArena fills the remaining five from the same deck.
+2. Choose an eligible **Friend**, opt in to **Random player**, or join an open search for the session size you want. You can answer your own half straight away. A friend receives the invitation once you finish that half. A random search pairs students who have both opted in.
+3. After matching, answer your partner’s half. Both players answer the same combined set, so the final scores are comparable. Finishing both halves earns you a full copy of your partner’s deck as it was when they started. Later edits stay with the author. Your partner earns your deck by finishing their own session.
+4. Under **Study sessions**, **Your turn** means you have questions to answer. **Waiting** means you are waiting for a match, an invitation response or your partner’s result. **Completed** holds the final results. An unmatched search stays open for 48 hours after you finish your half. Once matched, both players have 48 hours to finish. **Save and leave** pauses your session. **Stop session** frees your place immediately. Stopping or timing out after matching counts as a loss for the unfinished player, who does not earn the partner’s deck.
 
 ### Battle Mode
 
-You can play your first Battle without creating a deck yourself. Open **Play → Battle Mode → New Battle**, select your course and language, then choose **Random Deck** or **Top Decks**. At least one eligible Battle deck must be available for that combination at your university. If there are none, choose another combination or publish a Battle deck through **Decks → Create deck → Create Battle Mode Deck**.
-
-- **Random player.** Choose **Start random Battle** to answer the 15 questions immediately. You have one hour from the first question. If a compatible player is already waiting, you match immediately. Otherwise UniArena searches for up to 48 hours. After you finish, you can follow the match in **Active battles**. Leaving an unfinished Battle counts as a loss.
-- **Friend.** Choose an eligible friend and send a **Battle invitation**. Your friend accepts the invitation to play. Once the outcome is known, **Recent results** shows the score and Battle XP.
+1. **Choose the deck.** Open **Play → Battle Mode → New Battle**, then pick a course and language. **Random Deck** chooses an eligible published Battle deck at your university. **Top Decks** lets you choose from the highest-rated eligible decks. If none are available, choose a different course or language, or publish a Battle deck using the steps above.
+2. **Choose your opponent.** With **Random player**, select **Start random Battle** to begin immediately. UniArena matches you with a compatible waiting player or keeps the search open for up to 48 hours. With **Friend**, choose an eligible classmate and send a **Battle invitation**. They can accept it from their Battle page. Neither player needs to create a personal deck to enter.
+3. **Play the round.** Both players answer the same 15 questions from one deck. Each question has a **30-second timer**, and each player has **one hour** from opening their first question to finish the round. A correct answer scores one point. If your connection drops, reopen the Battle before your deadline. The clock keeps running. Confirming **Leave and lose** ends your round immediately and records a loss, even if you are still waiting for a random opponent.
+4. **Find the result.** **Battle invitations** holds unanswered friend invitations. **Active battles** includes rounds you can play and finished rounds still waiting for a match or an opponent to finish. Once the outcome is known, **Recent results** shows the score and Battle XP. A finished random round that finds no opponent within 48 hours expires without XP. After playing someone else’s deck, you can rate it to help other students choose from **Top Decks**.
 
 ### Leaderboard
 
