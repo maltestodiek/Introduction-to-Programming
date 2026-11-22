@@ -38,3 +38,7 @@ Incoming invitations appear after the sender completes their first half. Find th
 Save and leave pauses play. Confirming Stop session ends that player's participation, keeps their learning progress and immediately frees the slot. An unmatched search or invitation is cancelled. A matched player who stops takes a loss and forfeits the partner deck. Their partner may still finish within the original deadline, earn the shared deck and receive a win. A partner who also stops or times out unfinished earns no deck and takes a loss. Results never award Study XP.
 
 Before inviting a friend, check that they own an eligible deck for the course and language with at least half the selected total. Recheck when sending the invitation after the first half. Received partner copies do not qualify.
+
+When accepting an invitation, the matched course, language and total are fixed by that invitation. The setup labels the matched course as `Course – Study together`; it does not offer a course selector. The recipient selects only one of their compatible authored decks.
+
+The Study Together setup presents its game rules in the information control: each player answers their own half first, then the partner half; both answer the same combined set; there is no per-question timer; and saved progress remains available after leaving and returning.

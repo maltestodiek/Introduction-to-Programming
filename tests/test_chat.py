@@ -32,7 +32,7 @@ def test_chats_page_opens_private_chat_and_failed_send_keeps_draft(monkeypatch):
     assert not at.exception
 
 
-def test_study_partner_opens_the_right_chat_without_answering(monkeypatch):
+def test_study_round_keeps_partner_shortcuts_out_of_the_question_workspace(monkeypatch):
     from test_study_ui import setup
     calls=[]
     def action(self,kind,data=None):
@@ -51,15 +51,10 @@ def test_study_partner_opens_the_right_chat_without_answering(monkeypatch):
     at.session_state.study_choice='Study together'
     at.session_state.study_session='session'
     at.run()
-    assert any(p.proto.popover.label=='StudyPartner' for p in at.get('popover'))
-    button(at,'Send friend request').click().run()
-    assert ('request_user','partner') in friend_calls
-    assert any(s.value=='Friend request sent.' for s in at.success)
-    button(at,'Send message').click().run()
-    assert ('open',{'user_id':'partner'}) in calls
-    assert at.session_state.chat_open=='thread'
-    assert at.session_state.main_page=='Chats'
-    assert any(w.label=='Message' for w in at.text_area)
+    assert not any(p.proto.popover.label=='StudyPartner' for p in at.get('popover'))
+    assert not any(button.label in ('Send friend request', 'Send message') for button in at.button)
+    assert not any(kind in ('partner','open') for kind,_ in calls)
+    assert friend_calls == []
     assert not any(k=='answer' for k,_ in study_calls)
     assert not at.exception
 

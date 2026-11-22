@@ -11,6 +11,8 @@ Apply `supabase/migrations/20261122220000_study_sessions_per_friend.sql` after t
 
 Apply `supabase/migrations/20261122230000_list_all_study_friend_invites.sql` after those migrations. It keeps an open Friend invitation visible to its recipient even when their current profile or deck no longer meets the original compatibility criteria; accepting it still validates compatibility.
 
+Apply `supabase/migrations/20261122240000_study_session_dashboard_matching_criteria.sql` after those migrations. It adds each signed-in student's own session course and language to the session dashboard so Study Together cards can display the matching criteria. It does not expose another student's private deck or session data.
+
 A user/session is derived from auth.uid(), never a submitted user ID. All raw Study tables have RLS and revoked client privileges. A short shared transaction lock serializes claims and progress writes. Failed operations roll back their writes. Session request IDs, answer keys, reviews and earned-copy uniqueness protect retries.
 
 Do not reset production tables for tests. Automated database tests create and remove their own temporary PGlite database with fictional users. The optional TEST_STUDY_MIGRATION=1 switch runs the existing Play database tests with Study installed, without changing their expectations.

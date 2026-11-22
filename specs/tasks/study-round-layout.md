@@ -20,3 +20,5 @@ Changing Study scoring, matching, deadlines, notes, feedback privacy, Battle tim
 2. The overview distinguishes correct, incorrect, current and unopened questions.
 3. A reopening student sees their saved answer states in the overview.
 4. Another student cannot read the session overview data.
+5. On desktop, the overview begins level with the question card and uses the standard right-side panel width.
+6. Study Together session cards show their matching course, language and total question count below the deck name.
