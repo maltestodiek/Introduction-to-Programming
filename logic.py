@@ -472,7 +472,7 @@ def session_history_rows(battle_completed,study_finished):
         state=s.get('state')
         result=s.get('result') or ('Done' if state=='completed' else str(state).capitalize())
         rows.append({'kind':'study','id':s['id'],'session':s,'result':result,'tone':tones.get(result.lower(),'green' if state=='completed' else 'gray'),
-                     'deck':s['name'],'mode':'Solo' if s.get('mode')=='solo' else 'Together','score':f"{s.get('cursor',0)}/{s.get('count',0)}",'xp':'–'})
+                     'deck':s['name'],'mode':'Solo' if s.get('mode')=='solo' else 'Together','score':f"{s['score']}/{s['count']}" if s.get('score') is not None else '—' ,'xp':'–'})
     return rows
 
 def battle_record(battle_sessions):

@@ -22,6 +22,8 @@ def setup(monkeypatch):
     monkeypatch.setattr('db.StudyRepository.progress',lambda self,session_id:{'answers':[]})
     monkeypatch.setattr('db.StudyRepository.publication',lambda self,a,data=None:{'published_ids':[],'decks':[]} if a=='list' else {'id':data['id']})
     at=deck_app(monkeypatch);button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
+    assert not any(b.label=='Start studying' for b in at.button)
+    button(at,'Create a new study session').click().run()
     return at,calls,d
 
 
@@ -45,6 +47,8 @@ def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypa
 def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
     button(at,'Change study mode').click().run();button(at,'Study together').click().run()
+    assert not any(b.label=='Start studying' for b in at.button)
+    button(at,'Create a new study session').click().run()
     assert button(at,'Start studying').disabled
     assert any('20 questions = 10 from your deck + 10' in w.value for w in at.info)
     assert any(p.proto.popover.help=='Learning progress legend' for p in at.get('popover'))
@@ -107,8 +111,8 @@ def test_decks_navigation_returns_from_study_library_to_course_decks(monkeypatch
 
 def test_friend_settings_only_request_eligible_friends(monkeypatch):
     at,calls,d=setup(monkeypatch)
-    button(at,'Change study mode').click().run();button(at,'Study together').click().run();button(at,'Friend').click().run()
-    assert ('friend_options',{'deck_id':d['id']}) in calls
+    button(at,'Change study mode').click().run();button(at,'Study together').click().run();button(at,'Create a new study session').click().run();button(at,'Friend').click().run()
+    assert ('friend_options',{'deck_id':d['id'],'count':20}) in calls
     assert not any('Invite even' in w.label for w in at.checkbox)
     assert any('don’t have any friends yet' in w.value for w in at.info)
     assert button(at,'Go to Friends')
@@ -124,7 +128,12 @@ def test_incoming_invites_visible_before_course_setup(monkeypatch):
         if action=='list':result['invites']=[{'id':'invite','username':'Alex','course':'Math','language':'English','count':40}]
         return result
     monkeypatch.setattr('db.StudyRepository.action',with_invite)
-    at.run()
+    button(at,'Back to Study alone').click().run()
+    assert 'Study invitations' not in [h.value for h in at.subheader]
+    assert not any(b.label in ('Accept invitation', 'Decline') for b in at.button)
+    button(at,'Change study mode').click().run()
+    assert button(at,'Accept invitation')
+    button(at,'Study together').click().run()
     assert button(at,'Accept invitation')
     assert any('Math' in w.value and '40 questions' in w.value for w in at.caption)
     button(at,'Accept invitation').click().run()
@@ -221,6 +230,7 @@ def test_play_landing_shows_only_the_two_mode_cards(monkeypatch):
     assert not any('Saved finance' in w.value or 'Finished finance' in w.value for w in at.markdown)
     assert not any((item.key or '').startswith(('continue_session','home_study_','history_study_')) for item in at.button)
     button(at,'Play').click().run();button(at,'Study Mode').click().run();button(at,'Study alone').click().run()
+    button(at,'Create a new study session').click().run()
     assert button(at,'Start studying')
     assert not at.exception
 
@@ -287,6 +297,7 @@ def test_reopening_study_settings_in_a_fresh_app(monkeypatch):
     assert widget(at.radio, 'Session length').value == 'All matching questions'
     button(at,'Change study mode').click().run()
     button(at,'Study together').click().run()
+    button(at,'Create a new study session').click().run()
     button(at,'Friend').click().run()
     widget(at.selectbox,'Choose a friend').set_value('f2').run()
     widget(at.selectbox,'Total questions').set_value(40).run()
@@ -321,3 +332,35 @@ def test_reopening_study_settings_in_a_fresh_app(monkeypatch):
     assert not at.session_state.get('study_active')
     assert 'study_setup' not in saved
     assert not any(action in ('start','answer','next','decline') for action,_ in calls)
+
+
+def test_busy_player_sees_invites_and_can_stop_before_starting_another_session(monkeypatch):
+    at, calls, deck = setup(monkeypatch)
+    from db import StudyRepository
+    original = StudyRepository.action
+    sessions = [dict(id='busy', mode='friend', state='waiting', cursor=10, count=20, name='Finance')]
+    def action(self, kind, data=None):
+        if kind == 'stop':
+            assert data == {'id':'busy'}
+            sessions.clear()
+            return {}
+        result = original(self, kind, data)
+        if kind == 'list':
+            result.update(sessions=sessions, invites=[dict(id='invite', username='Alex',
+                          course='Finance', language='English', count=20)])
+        return result
+    monkeypatch.setattr(StudyRepository, 'action', action)
+    button(at,'Change study mode').click().run()
+    assert at.tabs[-1].label == 'Invitations'
+    button(at,'Accept invitation').click().run()
+    assert any('unfinished Study Together' in m.value for m in at.info)
+    button(at,'Study together').click().run()
+    headings = [h.value for h in at.subheader]
+    assert headings.index('Continue session') < headings.index('Study invitations') < headings.index('Create a new study session')
+    button(at,'Create a new study session').click().run()
+    assert any('unfinished Study Together' in m.value for m in at.info)
+    button(at,'Change study mode').click().run()
+    at.button(key='study_stop_busy').click().run()
+    button(at,'Accept invitation').click().run()
+    assert at.session_state['study_join'] == 'invite' and at.session_state['study_creating']
+    assert not at.exception
