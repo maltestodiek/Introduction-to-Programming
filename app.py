@@ -2975,29 +2975,30 @@ def battle_session_history(client,sessions):
                 if st.button('Review Battle',key='history_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
 
 
-def battle_dashboard_rank(client):
+def battle_dashboard_standing(client):
     """Read the authenticated player's real Battle-XP rank without blocking Battle."""
     from db import LeaderboardRepository
     try:data=LeaderboardRepository(client).load()
-    except ValueError:return None
-    rank=(data.get('me') or {}).get('rank') if isinstance(data,dict) else None
-    return rank if isinstance(rank,int) and rank>0 else None
+    except ValueError:return {}
+    return data.get('me') or {}
 
 
 def battle_dashboard_hero(client,profile,sessions):
     """Battle summary uses durable Battle XP and completed results only."""
-    from logic import battle_record,xp_breakdown
+    from logic import battle_record
     record=battle_record(sessions)
-    xp=xp_breakdown(profile)['battle']
-    rank=battle_dashboard_rank(client)
-    rank_html=f'<div><strong>#{rank}</strong><span>Leaderboard</span></div>' if rank is not None else ''
+    standing=battle_dashboard_standing(client)
+    xp=standing.get('xp')
+    xp_text=f'{xp:,}' if isinstance(xp,int) else '—'
+    rank=standing.get('rank')
+    rank_html=f'<div><strong>#{rank}</strong><span>Leaderboard</span></div>' if isinstance(rank,int) and rank>0 else ''
     streak_html=f'<div><strong>{int(profile.get("win_streak",0) or 0)}</strong><span>Win streak</span></div>'
     with st.container(key='battle_dashboard_hero'):
         details,action=st.columns([4,1],vertical_alignment='center')
         with details:
             st.subheader('Battle Mode')
             st.caption('15 shared questions · 30 seconds per question · Battle XP')
-            st.html(f'<div class="battle-hero-metrics"><div><strong>{xp:,}</strong><span>Battle XP</span></div><div><strong>{record["wins"]} / {record["losses"]}</strong><span>Wins / Losses</span></div>{rank_html}{streak_html}</div>')
+            st.html(f'<div class="battle-hero-metrics"><div><strong>{xp_text}</strong><span>30-day Battle XP</span></div><div><strong>{record["wins"]} / {record["losses"]}</strong><span>Wins / Losses</span></div>{rank_html}{streak_html}</div>')
         with action:
             if st.button('New Battle',key='hero_new_battle',type='primary',icon=':material/add:',use_container_width=True):
                 st.session_state.battle_new_setup=True;st.rerun()
@@ -3220,7 +3221,7 @@ def leaderboard_screen(client,repo,profile=None):
     else:
         try:data=rankings.load()
         except ValueError as exc:st.error(str(exc));return
-    st.caption('Ranks are based on Battle XP earned in Battle Mode. Study Mode does not affect them.')
+    st.caption('These rankings count XP from Battles settled in the last 30 days. Your profile keeps your lifetime Battle XP.')
     global_tab,university_tab,friends_tab=st.tabs(['Global top 10','University top 10','Friends'])
     with global_tab:
         top=data.get('top',[])
@@ -3229,22 +3230,16 @@ def leaderboard_screen(client,repo,profile=None):
             st.caption('Your place')
             leaderboard_rows([data['me']],repo)
     with university_tab:
-        # Both sources describe the authenticated player. Earlier leaderboard
-        # responses omit university, so use the loaded profile in that case.
-        viewer={**(profile or {}), **(data.get('me') or {})}
-        if not (viewer.get('university') or '').strip():
+        campus=(data.get('me') or {}).get('university') or (profile or {}).get('university')
+        if not (campus or '').strip():
             st.caption('Add your university to your profile to see its ranking.')
         else:
-            st.text(viewer['university'])
-            try:
-                campus_rows=data['university'] if demo else rankings.university_top(viewer)
-            except ValueError as exc:
-                st.error(str(exc))
+            st.text(campus)
+            campus_rows=data.get('university', [])
+            if campus_rows:
+                leaderboard_rows(campus_rows,repo)
             else:
-                if campus_rows:
-                    leaderboard_rows(campus_rows,repo)
-                else:
-                    st.caption('No students appear in your university ranking yet.')
+                st.caption('No students appear in your university ranking yet.')
     with friends_tab:
         friends=data.get('friends',[])
         leaderboard_rows(friends,repo)

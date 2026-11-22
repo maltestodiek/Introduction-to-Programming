@@ -15,4 +15,4 @@ def profile_stats_html(xp,win_streak,friends):
     def stat(label,value,note=''):
         return f'<div class="sd-profile-stat" role="listitem"><strong>{escape(str(value))}</strong><span>{escape(label)}</span>{note}</div>'
     return (_STYLE+'<div class="sd-profile-stats" role="list" aria-label="Profile figures">'
-            +stat('Battle XP',xp['battle'])+stat('Win streak',win_streak)+stat('Friends','—' if friends is None else friends)+'</div>')
+            +stat('Lifetime Battle XP',xp['battle'])+stat('Win streak',win_streak)+stat('Friends','—' if friends is None else friends)+'</div>')

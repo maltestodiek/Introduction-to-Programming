@@ -111,3 +111,24 @@ def test_university_query_filters_before_limiting_and_ranks_ties():
     client.reset_mock()
     assert repo.university_top({'university':'', 'username':'ben'})==[]
     client.table.assert_not_called()
+
+def test_all_rankings_use_one_30_day_response_and_explain_expiry(monkeypatch):
+    from db import LeaderboardRepository
+    from unittest.mock import Mock
+    me = row(1, 'student_a', 40, True)
+    data = {'top': [me], 'university': [me], 'friends': [me], 'me': me}
+    client = Mock()
+    client.rpc.return_value.execute.return_value.data = data
+    assert LeaderboardRepository(client).load() == data
+    client.rpc.assert_called_once_with('leaderboard_30_days', {})
+    def reject_lifetime_query(*args):
+        raise AssertionError('All three tabs must use the rolling score')
+    monkeypatch.setattr('db.LeaderboardRepository.load', lambda self: data)
+    monkeypatch.setattr('db.LeaderboardRepository.university_top', reject_lifetime_query)
+    at = deck_app(monkeypatch)
+    button(at, 'Leaderboard').click().run()
+    assert not at.exception
+    assert len(lists(at)) == 3
+    note = ' '.join(c.value.lower() for c in at.caption)
+    assert 'last 30 days' in note and 'lifetime' in note and 'profile' in note
+    assert not at.selectbox and not at.radio
