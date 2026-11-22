@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from logic import deck_studio_created_text, deck_studio_groups, format_deck_time
+from logic import deck_studio_created_text, deck_studio_groups, format_deck_time, format_expiration_time
 from test_deck_rules import complete_deck
 from test_deck_ui import button, deck_app
 
@@ -20,6 +20,12 @@ def test_times_are_shown_in_the_viewers_time_zone():
     assert format_deck_time('2026-11-19T19:25:38.948911+00:00','Europe/Berlin')=='19 Nov 2026, 20:25'
     assert format_deck_time('2026-11-19T19:25:38Z','America/New_York')=='19 Nov 2026, 14:25'
     assert format_deck_time(None,'Europe/Berlin') is None
+
+
+def test_expiration_time_is_shown_in_the_viewers_time_zone():
+    assert format_expiration_time('2026-11-24T19:20:42.269142+00:00','Europe/Lisbon')=='24 Nov 2026 at 19:20 WET'
+    assert format_expiration_time('2026-11-24T19:20:42Z','Europe/Berlin')=='24 Nov 2026 at 20:20 CET'
+    assert format_expiration_time(None,'Europe/Lisbon') is None
 
 
 def test_unknown_creation_time_is_not_invented():

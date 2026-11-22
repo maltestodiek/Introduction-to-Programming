@@ -1695,7 +1695,9 @@ def study_round_screen(client,sid):
         if st.button('Refresh session result'):st.rerun()
     elif state=='waiting':
         st.info('Your practice is saved. Waiting for a partner—there is no need to stay online.')
-        st.caption('Search / invitation expires: '+str(r.get('expires_at')))
+        from logic import format_expiration_time
+        expires_at=format_expiration_time(r.get('expires_at'),deck_studio_timezone())
+        if expires_at:st.caption('Search / invitation expires: '+expires_at)
         if st.button('Check for a study partner'):st.rerun()
         if st.button('Cancel this search or invitation'):
             if study_request(client,'cancel',{'id':sid}) is not None:st.rerun()
@@ -3167,6 +3169,8 @@ def play_landing_invitation_notices(client):
         for invite in study_invites:
             with st.container(border=True,key='play_study_invitation_'+invite['id']):
                 st.markdown(notice_markup('study',invite),unsafe_allow_html=True)
+                if st.button('Open Study Mode',key='open_study_invitation_notice_'+invite['id'],icon=':material/menu_book:',use_container_width=True):
+                    st.session_state.play_mode_preview='Study';st.rerun()
 
 
 def incoming_battle_invite_count(client):
