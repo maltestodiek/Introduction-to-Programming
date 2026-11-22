@@ -1761,7 +1761,9 @@ def study_round_screen(client,sid, *, history=False):
         if st.button('Refresh session result'):st.rerun()
     elif state=='waiting':
         st.info('Your practice is saved. Waiting for a partner—there is no need to stay online.')
-        st.caption('Search / invitation expires: '+str(r.get('expires_at')))
+        from logic import format_expiration_time
+        expires_at=format_expiration_time(r.get('expires_at'),deck_studio_timezone())
+        if expires_at:st.caption('Search / invitation expires: '+expires_at)
         if st.button('Check for a study partner'):st.rerun()
     else:st.info('This session '+state+'. Your completed practice and notes are saved.')
 

@@ -26,11 +26,11 @@
 @keyframes round-reveal{0%,100%{transform:scale(1)}40%{transform:scale(1.045);box-shadow:0 0 0 6px rgba(22,163,74,.25)}}
 
 /* --- Overview header row: the streak badge sits beside the Overview heading --- */
-.round-overview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.round-overview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;gap:8px;margin:0 0 14px}
 .round-overview-head h3{margin:0}
 
 /* --- Overview extras: live accuracy chip, streak row, combo meter --- */
-.round-acc{display:inline-flex;align-items:baseline;gap:4px;padding:3px 12px;border-radius:999px;background:var(--sd-hover);color:var(--sd-accent);font-weight:800;animation:round-streak-pop .5s ease-out both}
+.round-acc{display:inline-flex;align-items:baseline;gap:4px;padding:3px 12px;border-radius:999px;background:var(--sd-hover);color:var(--sd-accent);font-weight:800;white-space:nowrap;flex-shrink:0;animation:round-streak-pop .5s ease-out both}
 .round-acc small{font-weight:600;color:var(--sd-muted)}
 .round-overview-foot{display:flex;justify-content:flex-start;margin:12px 0 0}
 .round-combo{margin-top:12px}

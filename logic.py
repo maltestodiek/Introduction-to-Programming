@@ -426,6 +426,12 @@ def format_deck_time(value,tz_name):
     moment=_deck_moment(value,tz_name)
     return f"{moment.day} {moment:%b %Y}, {moment:%H:%M}"
 
+def format_expiration_time(value,tz_name):
+    """Format an invitation or search deadline in the viewer's local time zone."""
+    if not value:return None
+    moment=_deck_moment(value,tz_name)
+    return f"{moment.day} {moment:%b %Y} at {moment:%H:%M %Z}"
+
 def deck_studio_created_text(deck,tz_name):
     """Creation time, or an honest upper bound for older decks whose creation was not recorded."""
     if deck.get('created_at'):return format_deck_time(deck['created_at'],tz_name)

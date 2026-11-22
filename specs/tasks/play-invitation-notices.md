@@ -1,22 +1,20 @@
 # Play invitation notices
 
-Parent topics: [Appearance and navigation](../appearance-and-navigation.md), [Social connections](../social-connections.md), [Battle Mode](../battle-mode.md), and [Study Mode](../study-mode.md).
-
 ## Why
 
-Students should notice pending invitations as soon as they open Play, without adding controls or changing the existing invitation workflows.
+Students need to see which mode has new activity and find the invitation that needs their response.
 
 ## What
 
-The initial Play landing page shows a read-only notice below the Battle Mode card for each pending incoming Battle invitation and below the Study Mode card for each pending incoming Study invitation. A notice identifies the invitation type, deck when available, sender and course. The first Battle notice shows the total incoming-Battle invitation count, matching the left Play-navigation badge. The Battle notice group includes one **Open Battle Mode** button that opens the existing Battle overview, where the established invitation workflow remains available. Notices have no accept/decline controls or read state.
+Show the total unread count beside Play and separate counts on the Battle and Study mode cards. Within each mode, Your updates identifies the individual invitations, matches and results and provides a way to open each one. See the [Play updates rules](../appearance-and-navigation.md#play-updates).
 
 ## Out of scope
 
-Browser push notifications, persisted read/unread state, outgoing invitations, matching rules, invitation authorization, or accepting and declining invitations from the Play landing page.
+Browser push notifications and accepting invitations from the Play landing page.
 
 ## Done when
 
-1. Incoming pending Battle and Study invitations appear as clearly marked read-only notices below their respective mode cards.
-2. Outgoing Battle invitations do not produce a landing-page notice.
-3. Battle notices offer only the navigation action to the existing Battle overview; notices have no accept/decline controls and disappear when the server no longer returns the invitation.
-4. Existing Battle Mode and Study Mode invitation actions remain unchanged.
+1. An incoming invitation appears in the appropriate mode and increments the Play count.
+2. Viewing an update clears only that account’s read item. The invitation stays available to act on.
+3. Study Alone has no invitation section. Study Together and the Study overview both provide access to invitations.
+4. The Play landing page contains the two mode cards without separate invitation boxes below them.
