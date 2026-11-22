@@ -30,6 +30,8 @@ def setup(monkeypatch):
 def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypatch):
     at,calls,d=setup(monkeypatch)
     assert not at.exception
+    assert button(at,'Back to Study alone')
+    assert not any(b.label=='Change study mode' for b in at.button)
     assert any(p.proto.popover.label.strip()=='' for p in at.get('popover'))
     button(at,'Start studying').click().run()
     assert any(a=='start' and v['count']==10 and v['mode']=='solo' for a,v in calls)
@@ -46,12 +48,15 @@ def test_solo_filters_start_immediate_locked_feedback_and_explicit_next(monkeypa
 
 def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
+    button(at,'Back to Study alone').click().run()
     button(at,'Change study mode').click().run();button(at,'Study together').click().run()
     assert not any(b.label=='Start studying' for b in at.button)
-    assert not any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
+    assert any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
     button(at,'Create a new study session').click().run()
+    assert button(at,'Back to Study together')
+    assert not any(b.label=='Change study mode' for b in at.button)
     assert button(at,'Start studying').disabled
-    assert not any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
+    assert any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
     assert any('20 questions = 10 from your deck + 10' in w.value for w in at.info)
     assert any(p.proto.popover.help=='Learning progress legend' for p in at.get('popover'))
     for level in ('new', '0', '1', '2', '3'):
@@ -113,6 +118,7 @@ def test_decks_navigation_returns_from_study_library_to_course_decks(monkeypatch
 
 def test_friend_settings_only_request_eligible_friends(monkeypatch):
     at,calls,d=setup(monkeypatch)
+    button(at,'Back to Study alone').click().run()
     button(at,'Change study mode').click().run();button(at,'Study together').click().run();button(at,'Create a new study session').click().run();button(at,'Friend').click().run()
     assert ('friend_options',{'deck_id':d['id'],'count':20}) in calls
     assert not any('Invite even' in w.label for w in at.checkbox)
@@ -146,6 +152,7 @@ def test_incoming_invites_visible_before_course_setup(monkeypatch):
 
 def test_study_choices_require_click_each_time_play_menu_opens(monkeypatch):
     at,calls,d=setup(monkeypatch)
+    button(at,'Back to Study alone').click().run()
     for current in ('Study alone', 'Study together'):
         assert at.session_state['study_choice'] == current
         button(at,'Change study mode').click().run()
@@ -297,6 +304,7 @@ def test_reopening_study_settings_in_a_fresh_app(monkeypatch):
     widget(at.radio, 'Session length').set_value('All matching questions').run()
     at = reopen()
     assert widget(at.radio, 'Session length').value == 'All matching questions'
+    button(at,'Back to Study alone').click().run()
     button(at,'Change study mode').click().run()
     button(at,'Study together').click().run()
     button(at,'Create a new study session').click().run()
@@ -322,6 +330,7 @@ def test_reopening_study_settings_in_a_fresh_app(monkeypatch):
     assert widget(at.selectbox,'Total questions').value == 20
     assert not at.session_state.get('study_join')
     restored = deepcopy(saved)
+    button(at,'Back to Study together').click().run()
     button(at,'Change study mode').click().run()
     assert 'study_setup' not in saved
     button(at,'Study alone').click().run()
@@ -352,6 +361,7 @@ def test_waiting_friend_session_stays_visible_while_another_invitation_can_open(
                           course='Finance', language='English', count=20)])
         return result
     monkeypatch.setattr(StudyRepository, 'action', action)
+    button(at,'Back to Study alone').click().run()
     button(at,'Change study mode').click().run()
     assert at.tabs[-1].label == 'Invitations'
     button(at,'Accept invitation').click().run()
