@@ -14,7 +14,7 @@ BATTLES=[
     {'id':'b-loss','deck_name':'Bonds speed round','course':'Corporate Finance','language':'English','status':'completed','result':'loss','score':9,'opponent_score':12,'game_xp_delta':0,'opponent_username':'malte'},
 ]
 STUDY=[
-    {'id':'s-together','name':'CF Financial Restructuring questions','mode':'friend','state':'paired','count':20,'cursor':1,'deadline':SOON},
+    {'id':'s-together','name':'CF Financial Restructuring questions','course':'Corporate Finance','language':'English','mode':'friend','state':'paired','count':20,'cursor':1,'deadline':SOON},
     {'id':'s-solo','name':'CF Financial Restructuring questions','mode':'solo','state':'own','count':10,'cursor':6},
     {'id':'s-done','name':'Market efficience questions','mode':'solo','state':'completed','count':17,'cursor':17,'score':9},
 ]
@@ -81,6 +81,7 @@ def test_study_dashboard_shows_each_active_session_once_and_labels_history(monke
     badges=[m.value for m in at.markdown if '-badge[' in m.value]
     assert sum('Study alone' in badge for badge in badges)==2
     assert sum('Study together' in badge for badge in badges)==4
+    assert any(c.value=='Corporate Finance · English · 20 questions' for c in at.caption)
 
     for mode, expected in [
         ('Study alone', {'s-solo'}),

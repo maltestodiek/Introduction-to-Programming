@@ -1717,21 +1717,28 @@ def study_round_screen(client,sid, *, history=False):
     try:progress=StudyRepository(client).progress(sid)
     except ValueError as exc:st.error(str(exc));return
     st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
-    session_partner_chat(client,'study',sid)
-    if not history and r['state'] in ('feedback','question') and progress.get('match_deadline'):
-        st.caption('You can leave and resume until '+battle_deadline(progress['match_deadline'])+'. Finish by then to earn the partner deck. An unfinished match counts as a loss.')
-    if not history and st.button('Save and leave Study session'):
-        leave_study_round()
+    state=r['state']
+    if not history:
+        with st.container(horizontal=True, vertical_alignment='center'):
+            st.caption(':material/menu_book: Study Mode · '+st.session_state.get('study_choice','Study alone'))
+            if state in ('feedback','question') and progress.get('match_deadline'):
+                with st.popover(' ', icon=':material/info:', help='Session deadline', key='study_match_deadline_info_'+sid):
+                    st.markdown('**Session deadline**')
+                    st.caption('You can leave and resume until '+battle_deadline(progress['match_deadline'])+'. Finish by then to earn the partner deck. An unfinished match counts as a loss.')
+    # Waiting and result screens have no right-side overview. Keep their
+    # session controls available in the normal header area.
+    if not history and state not in ('question','feedback'):
+        with st.container(horizontal=True, vertical_alignment='center'):
+            if st.button('Save and leave Study session'):
+                leave_study_round()
     if (not history and st.session_state.get('study_choice') == 'Study together'
-            and r['state'] in ('question','feedback','waiting')
-            and not (r['state'] == 'feedback' and r['index'] + 1 == r['total'])):
+            and state in ('waiting',)):
         study_stop_control(client, sid, in_round=True)
-    if history and r['state'] != 'completed':
+    if history and state != 'completed':
         st.header('Study session')
         st.metric('Your correct answers', f"{sum(a['correct'] for a in progress['answers'])} / {progress['total']}")
         study_answer_review(progress)
         return
-    state=r['state']
     if state in ('question','feedback'):
         from study_ui import study_progress_tiles
         symbols={'correct':'✓','incorrect':'×','current':'•','open':''}
@@ -1740,16 +1747,29 @@ def study_round_screen(client,sid, *, history=False):
         flash=r['index'] if state=='feedback' else None
         tiles=study_progress_tiles(progress.get('answers',[]),current_index,r['total'])
         markup=''.join(f'<span class="study-tile study-tile-{tile["state"]}{" round-tile-flash" if flash==tile["number"]-1 else ""}" aria-label="Question {tile["number"]}: {tile["state"]}">{symbols[tile["state"]] or tile["number"]}</span>' for tile in tiles)
-        question,overview=st.columns([3,1],gap='large')
-        with overview:
-            badge=streak_badge(streak)
-            foot=('<div class="round-overview-foot">'+badge+'</div>' if badge else '')+combo_markup(streak,pulse=False)
-            st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+accuracy_chip(progress.get('answers',[]))+'</div><div class="study-overview-grid">'+markup+'</div>'+foot+'</aside>')
-        with question:
+        # Keep session context above the layout so the overview begins level with
+        # the question card, rather than with the progress captions.
+        if state=='question':
             st.caption(f"Question {r['index']+1} of {r['total']}")
+        question,overview=st.columns([3,2],gap='large')
+        with overview:
+            # Keep the session controls in the same extended card as the
+            # overview, rather than rendering a separate control block below it.
+            with st.container(border=True, key='study_round_overview_'+sid):
+                badge=streak_badge(streak)
+                foot=('<div class="round-overview-foot">'+badge+'</div>' if badge else '')+combo_markup(streak,pulse=False)
+                st.html('<aside class="study-overview"><div class="round-overview-head"><h3>Overview</h3>'+accuracy_chip(progress.get('answers',[]))+'</div><div class="study-overview-grid">'+markup+'</div>'+foot+'</aside>')
+                if not history:
+                    st.html('<div class="study-overview-actions-divider"></div>')
+                    with st.container(horizontal=True, vertical_alignment='center'):
+                        if st.button('Save and leave Study session', key='study_save_leave_'+sid,
+                                     icon=':material/save:', width='stretch'):
+                            leave_study_round()
+                    if (st.session_state.get('study_choice') == 'Study together'
+                            and not (state == 'feedback' and r['index'] + 1 == r['total'])):
+                        study_stop_control(client, sid, in_round=True)
+        with question:
             if state=='question':
-                st.caption(r['part']+' · '+(r.get('chapter') or 'General'))
-                if r.get('deadline'):st.caption('Finish by '+r['deadline'])
                 st.html('<div class="study-question-card">'+escape(r['question'])+'</div>')
                 question_tools(f'study_{sid}_{r["index"]}',r.get('allow_calculator') is True)
                 cols=st.columns(2)
@@ -1758,7 +1778,7 @@ def study_round_screen(client,sid, *, history=False):
                         if study_request(client,'answer',{'id':sid,'index':r['index'],'answer_id':a['id']}) is not None:
                             clear_notepads();st.rerun()
             else:
-                c=r['card'];st.caption(c.get('chapter') or 'General');st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
+                c=r['card'];st.html('<div class="study-question-card">'+escape(c['question'])+'</div>')
                 if r['correct']:st.success('Correct!')
                 else:st.error('Not quite. Review the correct answer below.')
                 burst=''.join(f'<span class="round-confetti c{n}"></span>' for n in range(1,9))
@@ -2364,6 +2384,10 @@ def study_together_information_button(key):
         st.caption(STUDY_SLOT_INFO)
         st.caption(STUDY_UNMATCHED_INFO)
         st.caption(STUDY_MATCHED_INFO)
+        st.markdown('**Game rules**')
+        st.caption('Each player answers their own half first, then their partner’s half. There is no timer per question.')
+        st.caption('Each session combines equal numbers of questions from both decks. Both players answer the same combined question set.')
+        st.caption('You can leave and return while waiting or playing; your saved answers and learning progress remain available.')
 
 
 def study_together_heading(label, key):
@@ -2402,7 +2426,8 @@ def study_invitations(client, invites, blocked):
 
 
 def study_stop_control(client, sid, *, in_round=False):
-    with st.popover('Stop session', key='study_stop_confirm_'+sid, icon=':material/stop_circle:'):
+    with st.popover('Stop session', key='study_stop_confirm_'+sid,
+                    icon=':material/stop_circle:', use_container_width=in_round):
         st.write('Stopping frees your place immediately. Your answered questions still count toward your learning progress.')
         st.caption('Before matching, this cancels the search or invitation. After matching, you take a loss and give up the partner deck. Your partner can still finish and earn yours.')
         if st.button('Confirm stop', key='study_stop_'+sid):
@@ -2418,7 +2443,6 @@ def study_screen(client,profile,draft):
     from logic import filter_study_cards
     study_design()
     if st.session_state.get('study_session'):
-        st.caption(':material/menu_book: Study Mode · '+st.session_state.get('study_choice','Study alone'))
         study_round_screen(client,st.session_state.study_session);return
     st.html('<style>'+(Path(__file__).parent/'assets'/'play-modes.css').read_text()+'</style>')
     st.markdown((Path(__file__).parent/'assets'/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
@@ -2488,16 +2512,23 @@ def study_screen(client,profile,draft):
         decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
-    setup_heading = 'Your session settings' if offer else 'Create a new study session'
+    setup_heading = f"{offer['course']} – Study together" if offer else 'Create a new study session'
     if together:
         study_together_heading(setup_heading, 'study_together_create_info')
     else:
         st.subheader(setup_heading)
-    courses=sorted({d['course'] for d in decks})
-    restore_study_option(saved, 'course', 'study_setup_course', courses)
-    course=st.selectbox('Study course',courses,key='study_setup_course')
+    if offer:
+        # The invitation fixes these matching criteria. Only the compatible deck
+        # remains selectable; changing course here would create a misleading join.
+        st.session_state.pop('study_setup_course', None)
+        course=offer['course']
+        choices=decks
+    else:
+        courses=sorted({d['course'] for d in decks})
+        restore_study_option(saved, 'course', 'study_setup_course', courses)
+        course=st.selectbox('Study course',courses,key='study_setup_course')
+        choices=[d for d in decks if d['course']==course]
     draft['course'] = course
-    choices=[d for d in decks if d['course']==course]
     deck_ids=[d['id'] for d in choices]
     preselected=st.session_state.pop('study_deck_preselection',None)
     selected_index=deck_ids.index(preselected) if preselected in deck_ids else 0
@@ -2534,13 +2565,15 @@ def study_screen(client,profile,draft):
         valid=bool(eligible) and (count==0 or count<=len(eligible))
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
-        st.caption('Answer your own half first, then your partner’s. No timer per question.')
-        opponent=study_choice_cards('study_partner',[('Random player','random','Meet someone studying your course.'),('Friend','friend','Practise with someone you know.')],locked=bool(offer))
+        opponent = 'Friend' if offer else study_choice_cards(
+            'study_partner',
+            [('Random player','random','Meet someone studying your course.'),
+             ('Friend','friend','Practise with someone you know.')],
+        )
         draft['partner'] = opponent
         mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
         if offer:
             count=offer['count'];request['join_id']=offer['id']
-            st.caption('Confirm below to reserve this session. You answer your own questions first.')
         else:
             totals = [20,40,60,80,100]
             restore_study_option(saved, 'total', 'study_setup_total', totals)
@@ -2581,8 +2614,6 @@ def study_screen(client,profile,draft):
                         if cols[1].button('Join',key='study_join_'+available['id']):
                             st.session_state.study_join=available['id'];st.rerun()
         draft['total'] = count
-        st.info(f'{count} questions = {count//2} from your deck + {count//2} from your partner’s deck.')
-        st.caption(f'First, answer {count//2} questions from your own deck. Once a partner is matched or your friend accepts, answer their {count//2} questions. Both of you answer the same combined set, starting with your own half. You can leave and return while waiting.')
         full=study_request(client,'deck',{'id':selected_id})
         if full is None:return
         st.subheader('What do you want to focus on?')
@@ -2696,6 +2727,8 @@ def study_session_card(client, session, location, relationships):
             show_play_update('study','result' if state=='completed' else 'match',sid)
         st.markdown(':blue-badge[Study alone]' if solo else ':violet-badge[Study together]')
         st.write('**'+session['name']+'**')
+        if not solo and session.get('course') and session.get('language'):
+            st.caption(f"{session['course']} · {session['language']} · {total} questions")
         if not solo and (session.get('deadline') or state in ('paired','completed','waiting_for_finish')):
             study_card_partner(client, sid, relationships)
         if active:

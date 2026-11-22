@@ -57,7 +57,7 @@ def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     assert not any(b.label=='Change study mode' for b in at.button)
     assert button(at,'Start studying').disabled
     assert any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
-    assert any('20 questions = 10 from your deck + 10' in w.value for w in at.info)
+    assert not any('questions = ' in w.value for w in at.info)
     assert any(p.proto.popover.help=='Learning progress legend' for p in at.get('popover'))
     for level in ('new', '0', '1', '2', '3'):
         at.checkbox(key='study_together_levels_'+level).uncheck()
@@ -69,7 +69,10 @@ def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     next(w for w in at.selectbox if w.label=='Total questions').set_value(100).run()
     assert button(at,'Start studying').disabled
     assert any('50' in w.value for w in at.warning)
-    assert any('100 questions = 50 from your deck + 50' in w.value for w in at.info)
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    assert "st.markdown('**Game rules**')" in app
+    assert 'Both players answer the same combined question set.' in app
     assert not at.exception
 
 
@@ -147,6 +150,27 @@ def test_incoming_invites_visible_before_course_setup(monkeypatch):
     button(at,'Accept invitation').click().run()
     assert any('compatible deck' in w.value for w in at.warning)
     assert not any('Accept an invitation or invite'==w.label for w in at.selectbox)
+    assert not at.exception
+
+
+def test_accepting_an_invitation_locks_the_matched_course_in_the_setup(monkeypatch):
+    import db
+    at,calls,d=setup(monkeypatch)
+    original=db.StudyRepository.action
+    def with_compatible_invite(self,action,data=None):
+        result=original(self,action,data)
+        if action=='list':
+            result['invites']=[{'id':'invite','username':'Alex','course':'Finance','language':'English','count':20}]
+        return result
+    monkeypatch.setattr('db.StudyRepository.action',with_compatible_invite)
+    button(at,'Back to Study alone').click().run()
+    button(at,'Change study mode').click().run()
+    button(at,'Study together').click().run()
+    button(at,'Accept invitation').click().run()
+    assert any(h.value=='Finance – Study together' for h in at.subheader)
+    assert not any(widget.label=='Study course' for widget in at.selectbox)
+    assert any('Joining: Finance · English · 20 questions' in item.value for item in at.info)
+    assert not any(widget.label in ('Random player', 'Friend') for widget in at.button)
     assert not at.exception
 
 

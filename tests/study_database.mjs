@@ -37,6 +37,7 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122210000_study_friend_waiting_name.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122220000_study_sessions_per_friend.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122230000_list_all_study_friend_invites.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122240000_study_session_dashboard_matching_criteria.sql',import.meta.url),'utf8'));
  async function dashboard(user,id){
   await who(user);
   const data=(await db.query('select study_session_dashboard() as data')).rows[0].data;
@@ -154,7 +155,7 @@ try{
   assert.equal((await ok(B,'list')).sessions.find(s=>s.id===b.id).state,'completed');await bad(B,'answer',{id:b.id,index:0,answer_id:dbb.cards[0].correct_answer_id});
  });
  await test('friend recipient accepts or declines, no unsolicited random invite',async()=>{
-  const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);assert.equal((await dashboard(A,a.id)).friend_username,'Bob');assert.equal((await ok(B,'list')).invites.length,1);await admin("update profile_private set courses=array['Other course'] where user_id=$1",[B]);assert.equal((await ok(B,'list')).invites.length,1);await admin("update profile_private set courses=array['Finance'] where user_id=$1",[B]);await bad(C,'decline',{id:a.id});await ok(B,'decline',{id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'cancelled');
+  const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);const senderDashboard=await dashboard(A,a.id);assert.equal(senderDashboard.friend_username,'Bob');assert.equal(senderDashboard.course,'Finance');assert.equal(senderDashboard.language,'English');assert.equal(senderDashboard.count,20);assert.equal((await ok(B,'list')).invites.length,1);await admin("update profile_private set courses=array['Other course'] where user_id=$1",[B]);assert.equal((await ok(B,'list')).invites.length,1);await admin("update profile_private set courses=array['Finance'] where user_id=$1",[B]);await bad(C,'decline',{id:a.id});await ok(B,'decline',{id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'cancelled');
   const a2=await start(A,da,'friend',{friend_id:B});await half(A,a2.id);const b=await start(B,dbb,'friend',{join_id:a2.id});assert.ok(b.id);
  });
  await test('different friends may have concurrent sessions, but a friend pair has one open session',async()=>{
