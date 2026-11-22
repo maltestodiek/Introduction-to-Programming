@@ -40,6 +40,8 @@ Open **Friends** and enter a classmate’s friend code, or share your invitation
 
 Open **Study Plan → Create study plan**, choose the courses and decks you want to revise, and enter your exam dates. UniArena spreads your practice across the days available. Open today’s session to work through the scheduled questions and track your progress toward each exam.
 
+**Calendar export.** UniArena's Google Calendar integration uses a Google OAuth app in **Testing**. Only Google accounts the team has added to its test-user list can authorize direct sync. Everyone else can open a saved **Study Plan**, choose **Calendar file**, and import the downloaded `.ics` file on a computer under **Google Calendar → Settings → Import & export**. The file contains the sessions as scheduled when you downloaded it. [Google OAuth testing rules](https://support.google.com/cloud/answer/15549945?hl=en) · [Calendar import instructions](https://support.google.com/calendar/answer/37118?hl=en)
+
 ## Team and GitHub contributors
 
 | Team member | Student number | GitHub accounts |
@@ -127,7 +129,3 @@ Focused helpers remain at the root: `auth.py` and `recovery.py` for account acce
 ## Branches
 
 `main` is the shared stable baseline. Start each change on a descriptive short-lived branch such as `feature/study-session-filters` or `fix/appearance-contrast`, review it and merge it into `main`. Streamlit deploys `app.py` directly from `main`. Merging a reviewed change into `main` updates the live app; no push to `first-feature` is needed. See [workflow](docs/team-workflow.md) and [deployment](docs/deployment.md).
-
-## Calendar note
-
-UniArena's Google Calendar integration uses a Google OAuth app in **Testing**. Only Google accounts the team has added to its test-user list can authorize direct sync. Everyone else can open a saved **Study Plan**, choose **Calendar file**, and import the downloaded `.ics` file on a computer under **Google Calendar → Settings → Import & export**. The file contains the sessions as scheduled when you downloaded it. [Google OAuth testing rules](https://support.google.com/cloud/answer/15549945?hl=en) · [Calendar import instructions](https://support.google.com/calendar/answer/37118?hl=en)
