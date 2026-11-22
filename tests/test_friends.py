@@ -56,7 +56,7 @@ def test_signup_confirmation_preserves_invitation():
     assert "?invite="+"a"*48 in client.auth.sign_up.call_args.args[0]["options"]["email_redirect_to"]
 
 
-def test_profile_summary_shows_studies_and_invitation_without_auto_accept(monkeypatch):
+def test_opening_invitation_requires_explicit_acceptance(monkeypatch):
     from pathlib import Path
     from types import SimpleNamespace as Obj
     from streamlit.testing.v1 import AppTest
@@ -66,7 +66,7 @@ def test_profile_summary_shows_studies_and_invitation_without_auto_accept(monkey
     monkeypatch.setattr('db.ProfileRepository.load',lambda self:profile)
     actions=[]
     def action(self,action,value=''):
-        actions.append(action)
+        actions.append((action,value))
         if action=='list':return {'code':'AB23CD45','friends':[],'incoming':[],'sent':[],'invite_expires':None}
         if action=='preview_invite':return {'person':{'id':'b','username':'student_b','image_path':None}}
         return {'message':'Invitation accepted.'}
@@ -78,11 +78,13 @@ def test_profile_summary_shows_studies_and_invitation_without_auto_accept(monkey
     at.session_state['auth']=auth;at.session_state['main_page']='Profile';at.query_params['invite']='a'*48
     at.run()
     assert not at.exception
-    assert any('Master in Finance' in m.value for m in at.markdown)
-    assert 'accept_invite' not in actions
+    token = at.query_params['invite']
+    assert ('accept_invite', token) not in actions
     next(b for b in at.button if b.label=='Friends').click().run()
-    assert any(b.label=='Accept invitation' for b in at.button)
+    assert not at.exception
+    assert ('preview_invite', token) in actions
+    assert not any(action == 'accept_invite' for action, _ in actions)
     next(b for b in at.button if b.label=='Accept invitation').click().run()
-    assert actions.count('accept_invite')==1
+    assert [value for action, value in actions if action == 'accept_invite'] == [token]
     assert 'invite' not in at.query_params
     assert not at.exception

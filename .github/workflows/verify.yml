@@ -1,0 +1,60 @@
+name: Verify UniArena
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python app and rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: '0.12.10'
+      - run: uv run --python 3.13 --locked pytest -q
+
+  database:
+    name: Isolated database suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Install the test database engine
+        run: npm install --prefix "$RUNNER_TEMP/pglite" --ignore-scripts --no-audit --no-fund @electric-sql/pglite@0.5.16
+      - name: Run database suites with fictional users
+        run: |
+          export PGLITE_MODULE="$RUNNER_TEMP/pglite/node_modules/@electric-sql/pglite/dist/index.js"
+          node --test --test-concurrency=2 tests/*_database.mjs
+
+  university-search:
+    name: University search
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - run: node --test tests/university_picker.mjs
+
+  ai:
+    name: Offline AI functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.5.6
+      - run: deno test --deny-net supabase/functions

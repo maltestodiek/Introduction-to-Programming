@@ -4,11 +4,23 @@ For each task, read its named spec and review the expected outcomes before writi
 
 Run `uv run pytest -q` (or `sh run-tests.sh` on the configured Mac). Narrow checks are appropriate for focused changes; broaden them when shared behavior changes. Tests must not weaken, skip or delete accepted expectations merely to pass.
 
-SQL/RLS checks live in `tests/decks_database.mjs`, `tests/play_database.mjs`, `tests/study_database.mjs`, `tests/chat_database.mjs` and `tests/session_friends_database.mjs`. They use a local PGlite engine; set PGLITE_MODULE to its installed module path. SQL scripts under tests/sql are for isolated fixtures only. Never run tests on production students or conversations.
+GitHub runs [Verify UniArena](../.github/workflows/verify.yml) on pull requests to `main` and on each push to `main`, including merges. The pull request's Checks tab and the repository's Actions tab report Python, isolated database, university search and offline AI results independently.
+
+The database job discovers all `tests/*_database.mjs` files. To run it locally, point `PGLITE_MODULE` at the installed PGlite 0.5.16 module and run `node --test --test-concurrency=2 tests/*_database.mjs`. Run the browser search check with `node --test tests/university_picker.mjs` and the AI checks with `deno test --deny-net supabase/functions`. The suites use fictional records and simulated external services. Production credentials are unnecessary.
 
 Manually verify the accepted action, rejection without saved-data changes, navigation/resume, and a full stop/start when persistence changes. Check theme/layout changes visually in light and dark mode. Account owners verify real email confirmation/recovery; automated tests must not send real messages.
 
 Record the command, actual result, changed files and any remaining manual limitations in the task/PR. See [Study verification](study-mode-verification.md), [profile scenarios](profile-requirements.md), [restoration checks](launch-and-resume.md), and [current status](implementation-status.md). Older unimplemented test proposals are archived, not current test results.
+
+## Examples for the repository walkthrough
+
+| Workflow | Accepted action | Rejected action | Edge case |
+| --- | --- | --- | --- |
+| [Battle](../tests/battle_database.mjs) | Two compatible players match and receive a result. | A third player cannot read round progress or report a question in that match. | Repeating a confirmed exit settles the loss once. |
+| [Study Together](../tests/study_database.mjs) | Compatible players answer both halves of the same question set. | A player cannot join an expired search. | After 48 hours an unmatched session expires and the player's practice is retained. |
+| [Private chat](../tests/chat_database.mjs) | A participant sends a message to a session partner. | An invalid message leaves stored history unchanged. | Retrying the same send creates one message, which survives a process restart. |
+| [Deck publication](../tests/decks_database.mjs) | Publish a reviewed deck. | Changed content cannot reuse an earlier review. | Repeating publication returns the existing deck. |
+| [Study Plan](../tests/study_plan_database.mjs) | The owner saves and updates a plan. | A different student cannot edit it. | Rejected writes preserve the stored plan. |
 
 ## Live account tests
 
