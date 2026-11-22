@@ -69,6 +69,15 @@ class FriendsRepository:
         if result.get('error'):raise ValueError(result['error'])
         return result
 
+    def incoming_count(self, user_id):
+        # Participant row-level security limits the count to this student's edges.
+        try:
+            response = (self.client.table('friend_edges').select('id', count='exact', head=True)
+                        .eq('state', 'pending').neq('sender', user_id).execute())
+        except Exception:
+            return None
+        return response.count if isinstance(response.count, int) else None
+
     def lookup(self,code):
         from logic import normalize_friend_code
         return self.action('lookup',normalize_friend_code(code))

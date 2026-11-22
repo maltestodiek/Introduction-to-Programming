@@ -99,16 +99,39 @@ def select_chat(thread_id):
     navigate('Chats')
 
 
+def social_badge(destination, count):
+    key = f"sidebar_{destination}_{st.session_state.auth.user.id}"
+    previous = st.session_state.get(key, 0)
+    if count is None:
+        count = previous
+    st.session_state[key] = count
+    content = f'"{count}"' if count else 'none'
+    st.html(f'<style>.st-key-open_{destination}{{--social-count:{content}}}</style>')
+    return previous != count
+
+
+@st.fragment(run_every='15s')
+def friends_navigation(client, active):
+    count = FriendsRepository(client).incoming_count(st.session_state.auth.user.id)
+    changed = social_badge('friends', count)
+    if st.button('Friends', key='open_friends', type='primary' if active else 'secondary', width='stretch'):
+        navigate('Friends')
+    if active and changed:
+        st.rerun()
+
+
+def chat_badge(data):
+    unread = sum(thread['unread'] for thread in data['threads']) if data is not None else None
+    social_badge('chats', unread)
+
+
 @st.fragment(run_every='15s')
 def chat_navigation(client, active):
-    # The inbox owns the unread count while the Chats page is open.
-    unread = 0
     if not active:
-        data = chat_call(client, 'list', quiet=True)
-        if data is not None:
-            unread = sum(thread['unread'] for thread in data['threads'])
-    label = f'Chats ({unread})' if unread else 'Chats'
-    if st.button(label, key='open_chats', type='primary' if active else 'secondary', width='stretch'):
+        chat_badge(chat_call(client, 'list', quiet=True))
+    if st.button('Chats', key='open_chats', type='primary' if active else 'secondary', width='stretch'):
+        st.session_state.pop('chat_open', None)
+        st.session_state.pop('chat_choosing_friend', None)
         navigate('Chats')
 
 
@@ -181,6 +204,7 @@ def start_chat_with_friend(client, threads):
 @st.fragment(run_every='15s')
 def chat_inbox(client):
     data = chat_call(client, 'list', quiet=True)
+    chat_badge(data)
     choosing = st.session_state.get('chat_choosing_friend', False)
     if choosing:
         st.subheader('Choose a friend')
@@ -388,47 +412,8 @@ def friends_screen(friends,repo,state):
     friend_count=len(state['friends'])
     st.title('Friends')
 
-    token=st.session_state.get("pending_invite")
-    if token:
-        with st.container(border=True,key='friends_link_invitation'):
-            st.subheader('Friend invitation')
-            try:
-                invitation_token(token)
-                preview=friends.action('preview_invite',token)
-                public_person(preview['person'],repo)
-                st.write('Accept this invitation to add each other as friends.')
-                if st.button('Accept invitation',type='primary'):
-                    if friend_action(friends,'accept_invite',token):
-                        st.session_state.pop('pending_invite',None)
-                        if 'invite' in st.query_params:del st.query_params['invite']
-                        st.rerun()
-            except ValueError as exc:st.warning(str(exc))
-            if st.button('Dismiss invitation'):
-                st.session_state.pop("friend_preview",None)
-                st.session_state.pop('pending_invite',None)
-                if 'invite' in st.query_params:del st.query_params['invite']
-                st.rerun()
-
     main,invite=st.columns([3,2],gap='medium')
     with main:
-        if state['incoming']:
-            for item in state['incoming']:
-                with st.container(border=True,key='friends_incoming_'+item['id']):
-                    person=item['person']
-                    avatar,identity,accept,decline=st.columns([.65,2.5,.9,.95],vertical_alignment='center')
-                    with avatar:
-                        try:data=repo.image(person.get('image_path'))
-                        except Exception:data=None
-                        portrait(data or render_avatar(DEFAULT_AVATAR),48)
-                    with identity:
-                        st.markdown('**'+person['username']+' wants to be your friend**')
-                    with accept:
-                        if st.button('Accept',key='accept_'+item['id'],type='primary',use_container_width=True):
-                            if friend_action(friends,'accept',item['id']):st.rerun()
-                    with decline:
-                        if st.button('Decline',key='decline_'+item['id'],use_container_width=True):
-                            if friend_action(friends,'decline',item['id']):st.rerun()
-
         with st.container(border=True,key='friends_list'):
             friends_heading,friends_search=st.columns([1.2,1],vertical_alignment='center')
             with friends_heading:
@@ -472,6 +457,54 @@ def friends_screen(friends,repo,state):
             else:st.caption('No other students from your university are available to add right now.')
 
     with invite:
+        with st.container(border=True,key='friends_open_invitations'):
+            st.html('<h2 class="friends-card-title">Open invitations</h2>')
+            token=st.session_state.get("pending_invite")
+            if token:
+                with st.container(key='friends_link_invitation'):
+                    st.subheader('Friend invitation')
+                    try:
+                        invitation_token(token)
+                        preview=friends.action('preview_invite',token)
+                        public_person(preview['person'],repo)
+                        st.write('Accept this invitation to add each other as friends.')
+                        if st.button('Accept invitation',type='primary'):
+                            if friend_action(friends,'accept_invite',token):
+                                st.session_state.pop('pending_invite',None)
+                                if 'invite' in st.query_params:del st.query_params['invite']
+                                st.rerun()
+                    except ValueError as exc:st.warning(str(exc))
+                    if st.button('Dismiss invitation'):
+                        st.session_state.pop("friend_preview",None)
+                        st.session_state.pop('pending_invite',None)
+                        if 'invite' in st.query_params:del st.query_params['invite']
+                        st.rerun()
+            if state['incoming']:
+                st.markdown('**Received**')
+            for item in state['incoming']:
+                person=item['person']
+                avatar,identity=st.columns([1,5],vertical_alignment='center')
+                with avatar:
+                    try:data=repo.image(person.get('image_path'))
+                    except Exception:data=None
+                    portrait(data or render_avatar(DEFAULT_AVATAR),44)
+                with identity:st.text(person['username'])
+                accept,decline=st.columns(2)
+                if accept.button('Accept',key='accept_'+item['id'],type='primary',use_container_width=True):
+                    if friend_action(friends,'accept',item['id']):st.rerun()
+                if decline.button('Decline',key='decline_'+item['id'],use_container_width=True):
+                    if friend_action(friends,'decline',item['id']):st.rerun()
+            if state['sent']:
+                st.markdown('**Sent**')
+            if not (state['incoming'] or state['sent'] or token):
+                st.caption('No pending requests.')
+            for item in state['sent']:
+                person=item['person']
+                sent_name,cancel=st.columns([2,1],vertical_alignment='center')
+                with sent_name:st.write(person['username'])
+                with cancel:
+                    if st.button('Cancel',key='cancel_'+item['id'],use_container_width=True):
+                        if friend_action(friends,'cancel',item['id']):st.rerun()
         with st.container(border=True,key='friends_invite_card'):
             st.html('<h2 class="friends-card-title">Invite friends</h2>')
             st.html('<p class="friends-invite-intro">Share your code or a link.</p>')
@@ -534,16 +567,6 @@ def friends_screen(friends,repo,state):
                 if state.get('invite_expires') and st.button('Revoke',key='revoke_friend_invite',use_container_width=True):
                     if friend_action(friends,'revoke_invite'):
                         st.session_state.pop('share_invite_token',None);st.rerun()
-        with st.container(border=True,key='friends_sent_card'):
-            st.html('<h2 class="friends-card-title">Open invitations</h2>')
-            if not state['sent']:st.caption('No pending requests.')
-            for item in state['sent']:
-                person=item['person']
-                sent_name,cancel=st.columns([2,1],vertical_alignment='center')
-                with sent_name:st.write(person['username'])
-                with cancel:
-                    if st.button('Cancel',key='cancel_'+item['id'],use_container_width=True):
-                        if friend_action(friends,'cancel',item['id']):st.rerun()
 
 def calculator_input_changed(key):
     st.session_state.pop(key+'_result',None)
@@ -3857,8 +3880,7 @@ if profile:
                     navigate(label)
         st.divider()
         with st.container(key='sidebar_account_actions'):
-            if st.button('Friends',key='open_friends',type='primary' if page=='Friends' else 'secondary',use_container_width=True):
-                navigate('Friends')
+            friends_navigation(auth.client, page == 'Friends')
             chat_navigation(auth.client, page == 'Chats')
             st.html('<style>'+profile_button_avatar_css(page_speed.thumbnail(picture or page_speed.rendered_avatar(tuple(sorted(DEFAULT_AVATAR.items()))),84))+'</style>')
             if st.button('Profile',key='open_profile',use_container_width=True):

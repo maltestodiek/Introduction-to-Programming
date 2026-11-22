@@ -189,15 +189,6 @@
   color: var(--sd-muted);
 }
 
-.sd-chat-unread {
-  padding: .1rem .45rem;
-  border-radius: 999px;
-  font-size: .76rem;
-  font-weight: 700;
-  color: var(--sd-accent);
-  background: var(--sd-battle-end);
-}
-
 .sd-chat-heading {
   display: flex;
   align-items: center;
