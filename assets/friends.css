@@ -6,7 +6,7 @@
 :is(.st-key-friends_list,.st-key-friends_university_directory,.st-key-friends_invite_card) .stColumn {
   width:100%; min-width:0;
 }
-:is(.st-key-friends_list,.st-key-friends_university_directory,.st-key-friends_invite_card,.st-key-friends_sent_card,.st-key-friends_code_preview,[class*="st-key-friends_incoming_"]) {
+:is(.st-key-friends_list,.st-key-friends_university_directory,.st-key-friends_invite_card,.st-key-friends_open_invitations,.st-key-friends_code_preview) {
   border:1px solid var(--sd-border)!important; border-radius:18px!important;
   background:var(--sd-surface)!important; padding:clamp(1rem,1.6vw,1.35rem)!important; gap:.75rem;
 }

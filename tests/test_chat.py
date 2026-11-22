@@ -15,7 +15,8 @@ def test_chats_page_opens_private_chat_and_failed_send_keeps_draft(monkeypatch):
     monkeypatch.setattr('db.ChatRepository.action',action)
     at=deck_app(monkeypatch)
     assert not any(p.proto.popover.label.startswith('Chats') for p in at.get('popover'))
-    button(at,'Chats (1)').click().run()
+    assert any('.st-key-open_chats{--social-count:"1"}' in x.proto.body for x in at.get('html'))
+    button(at,'Chats').click().run()
     assert at.title[0].value=='Chats'
     assert not any(w.label=='Message' for w in at.text_area)
     button(at,'Open chat with Demo Alex (1 unread)').click().run()

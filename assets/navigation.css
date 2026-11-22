@@ -73,7 +73,17 @@
  .st-key-sidebar_navigation .st-key-sidebar_account_actions button::before{justify-self:center}
  .st-key-sidebar_navigation .st-key-sidebar_account_actions button>div{justify-content:flex-start}
 }
-.st-key-nav_play_invite_badge .st-key-nav_Play button{position:relative!important}.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:var(--play-count);position:absolute;z-index:2;top:50%;right:.7rem;display:grid;place-items:center;min-width:1.25rem;height:1.25rem;padding:0 .28rem;border-radius:999px;background:#5142e5;color:#fff;font-size:.72rem;font-weight:800;line-height:1;box-shadow:0 1px 4px rgba(47,38,130,.28);transform:translateY(-50%);pointer-events:none}
+.st-key-nav_play_invite_badge .st-key-nav_Play button::after{content:var(--play-count)}
+:is(.st-key-open_chats,.st-key-open_friends) button::after{content:var(--social-count,none)}
+:is(.st-key-nav_play_invite_badge,.st-key-open_chats,.st-key-open_friends) button{position:relative}
+:is(.st-key-nav_play_invite_badge,.st-key-open_chats,.st-key-open_friends) button::after,.sd-chat-unread{
+ display:inline-grid;place-items:center;min-width:1.25rem;height:1.25rem;padding:0 .28rem;box-sizing:border-box;
+ border-radius:999px;background:#5142e5;color:#fff;font-size:.72rem;font-weight:800;line-height:1;
+ box-shadow:0 1px 4px rgba(47,38,130,.28);pointer-events:none;
+}
+:is(.st-key-nav_play_invite_badge,.st-key-open_chats,.st-key-open_friends) button::after{
+ position:absolute;z-index:2;top:50%;right:.7rem;transform:translateY(-50%);
+}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button:hover{background:var(--sd-nav-hover)!important;box-shadow:none!important;transform:none}
 .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) button[kind="primary"]{border-left:4px solid var(--sd-accent)!important;border-right-width:0!important;background:linear-gradient(90deg,var(--sd-nav-selected-start),var(--sd-nav-selected-end)) border-box no-repeat!important;color:var(--sd-nav-selected-text)!important;font-weight:800}
 .st-key-sidebar_navigation [class*="st-key-nav_"] button::before,.st-key-sidebar_navigation .st-key-open_friends button::before{width:22px;height:22px}
@@ -111,7 +121,7 @@
  }
  .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button > div { justify-content:center; }
  .st-key-sidebar_navigation .st-key-sidebar_account_actions button::before { width:22px; height:22px; }
- .st-key-nav_play_invite_badge .st-key-nav_Play button::after { top:.25rem; right:.25rem; transform:none; }
+ :is(.st-key-nav_play_invite_badge,.st-key-open_chats,.st-key-open_friends) button::after { top:.25rem; right:.25rem; transform:none; }
 }
 @media (max-width:760px) {
  .stMainBlockContainer:has(.st-key-sidebar_navigation) { padding:3.75rem clamp(.75rem,3vw,1.25rem) 1.5rem!important; }

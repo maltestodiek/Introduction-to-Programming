@@ -9,7 +9,7 @@ Use the existing Python, Streamlit, uv, pytest and Supabase stack. Supabase stor
 
 Each profile gets a random, unique eight-character uppercase alphanumeric friend code, displayed with a leading #. Exclude confusing characters (0/O and 1/I). Normalize input case and optional #. Generate codes on the server with a unique constraint and retry collisions; keep the code stable across sessions and profile edits. The code is an identifier, never a login credential.
 
-Profile -> Friends shows My code, Add friend, Invite a friend, Incoming requests, Sent requests, and Friends. Entering a valid code previews the student's public username and active image. Send request creates a pending request. Only the recipient can accept or decline; the sender can cancel a pending request. Acceptance creates one mutual friendship; either friend can remove it. No emails or private study information appear in lookup results.
+Profile -> Friends shows My code, Add friend, Invite a friend, Open invitations, and Friends. Open invitations groups received requests with Accept and Decline, sent requests with Cancel, and any invitation opened through a shared link. Entering a valid code previews the student's public username and active image. Send request creates a pending request. Only the recipient can accept or decline; the sender can cancel a pending request. Acceptance creates one mutual friendship; either friend can remove it. No emails or private study information appear in lookup results.
 
 Students can also find profiles at their own university. The university stored on the signed-in profile is the server-enforced identifier: the directory only returns other profiles with the identical university value, and only returns username and active image. Existing friends and pending requests are excluded. A directory request can only target a displayed student at the caller's university and creates the same consent-based pending request as a friend-code request.
 
@@ -22,6 +22,8 @@ Supabase enforces participant-only access to requests and friendships. Only the 
 
 ### Private chat
 Use the existing Supabase authenticated API and database. The sidebar opens the [Chats page](tasks/chats-page.md). The inbox shows participant images, usernames, message previews and unread counts. On desktop, the active conversation sits beside the inbox. The inline friend picker lists accepted friends without a conversation. Open chats update every three seconds with Streamlit fragments.
+
+The sidebar shows numbered circles for unread incoming chat messages and pending incoming friend requests. Counts refresh every 15 seconds. Opening Chats shows unread counts beside individual conversations. Reading a conversation clears only its displayed messages; opening Friends preserves the request count until a request is accepted or declined. A zero count hides the circle. The sidebar labels stay centered as the numbers change.
 
 Only accepted friends or actual Battle/paired Study participants may start a conversation. Once created, only its two participants may list, read or send messages. Pending random searches do not grant access. Keep email, private profile fields and raw avatar settings out of chat responses. Limit messages to 2,000 characters, reject blank messages, rate-limit sends and use client request IDs to make retries safe. Messages are plain text. Loading older history must not lose new messages or incorrectly mark unseen messages read.
 
