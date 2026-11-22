@@ -144,6 +144,7 @@ try{
   await assert.rejects(()=>db.query("select report_battle_question($1,0,'other','Not a participant')",[sessionId]));
   await db.exec('reset role');
   await db.exec(await fs.readFile(new URL('../supabase/migrations/20261121220000_async_battles.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122010000_battle_leave_loss.sql',import.meta.url),'utf8'));
   const settings={course:'Finance',language:'English',source_kind:'random'};
   const begin=(user,token=randomUUID())=>ok(user,'start_random',{...settings,request_id:token});
   const xp=async user=>(await fixtureQuery('select game_xp from profiles where id=$1',[user])).rows[0].game_xp;
@@ -171,6 +172,7 @@ try{
   await fail(C,'round',{id:first});
   await fail(C,'start_random',{...settings,request_id:randomUUID()});
   await complete(A,first,true);
+  assert.equal((await ok(A,'leave',{id:first,confirmed:true})).state,'pending');
   const waiting=(await sessionsFor(A)).find(s=>s.id===first);
   assert.equal(waiting.waiting_for_match,true);
   assert.equal(waiting.status,'pending');
@@ -222,6 +224,27 @@ try{
   assert.equal((await ok(B,'clock',{id:friend})).finish_by,opened.finish_by);
   assert.equal((await ok(A,'list')).invites.length,0);
   await fail(C,'clock',{id:friend});
+  await fail(C,'leave',{id:friend,confirmed:true});
+  const leave=(user,id)=>ok(user,'leave',{id,confirmed:true});
+  await leave(B,friend);
+  assert.equal((await sessionsFor(B)).find(s=>s.id===friend).result,'loss');
+  assert.equal((await sessionsFor(A)).find(s=>s.id===friend).result,'win');
+  const lone=(await begin(A)).session_id;
+  await ok(A,'round',{id:lone});
+  await fail(A,'leave',{id:lone,confirmed:false});
+  await fail(C,'leave',{id:lone,confirmed:true});
+  assert.equal((await sessionsFor(A)).find(s=>s.id===lone).status,'ongoing');
+  const beforeLeave=await xp(A);
+  await leave(A,lone);
+  const loss=(await sessionsFor(A)).find(s=>s.id===lone);
+  assert.deepEqual([loss.status,loss.result,loss.waiting_for_match,loss.opponent_username],['completed','loss',false,null]);
+  assert.equal(loss.game_xp_delta,-Math.min(beforeLeave,10));
+  await leave(A,lone);
+  await db.close();db=new PGlite(path.join(directory,'db'));
+  assert.equal((await ok(A,'round',{id:lone})).state,'completed');
+  assert.equal(await xp(A),beforeLeave+loss.game_xp_delta);
+  assert.notEqual((await begin(B)).session_id,lone);
+  console.log('PASS confirmed exits settle matched and unmatched losses once, survive restart and preserve finished searches');
   console.log('PASS immediate play, same deck, independent deadlines, match expiry and exactly-once XP');
   console.log('PASS Battle Deck creation, immutable snapshots, eligibility and rating without extra XP');
 }catch(error){console.error(error.stack||error);process.exitCode=1;}finally{await db.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}

@@ -130,7 +130,7 @@ def test_random_battle_search_is_disabled_when_no_eligible_deck_exists(monkeypat
     assert not at.exception
 
 
-def test_random_battle_starts_before_matching_and_can_exit_and_resume(monkeypatch):
+def test_random_battle_starts_before_matching_and_confirmed_exit_records_loss(monkeypatch):
     state={'sessions':[],'invites':[],'search':None}
     deadline='2099-01-01T16:30:00+00:00'
     def action(self,kind,data=None):
@@ -139,7 +139,10 @@ def test_random_battle_starts_before_matching_and_can_exit_and_resume(monkeypatc
             assert data['request_id']
             state['sessions']=[dict(id='first',status='ongoing',started=True,waiting_for_match=True,deck_name='Finance',finish_by=deadline)]
             return {'session_id':'first'}
-        if kind=='clock':return {'finish_by':deadline,'matched':False}
+        if kind=='leave':
+            assert data=={'id':'first','confirmed':True}
+            state['sessions'][0].update(status='completed',waiting_for_match=False,result='loss',score=0,game_xp_delta=0,opponent_username=None,course='Finance')
+            return {'state':'completed','result':'loss'}
         if kind=='round':return dict(state='question',index=0,seconds=28,question='First question?',options=[dict(id='a',text='Answer A')])
         raise AssertionError(kind)
     monkeypatch.setattr('db.BattleRepository.action',action)
@@ -149,12 +152,14 @@ def test_random_battle_starts_before_matching_and_can_exit_and_resume(monkeypatc
     button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'New Battle').click().run()
     button(at,'Start random Battle').click().run()
     assert button(at,'Answer A')
-    button(at,'Save and exit').click().run()
-    assert any('2099' in str(item.value) for item in at.get('html'))
-    button(at,'Save and exit Battle').click().run()
-    assert any('Finding an opponent' in str(item.value) for item in at.get('html'))
-    button(at,'Resume Battle').click().run()
+    button(at,'Leave Battle').click().run()
+    assert any('immediate loss' in str(item.value) for item in at.get('html'))
+    button(at,'Keep fighting').click().run()
     assert button(at,'Answer A')
+    button(at,'Leave Battle').click().run()
+    button(at,'Leave and lose').click().run()
+    assert not any(b.label=='Resume Battle' for b in at.button)
+    assert any('Loss' in str(item.value) and 'No opponent matched' in str(item.value) for item in at.get('html'))
     assert not at.exception
 
 

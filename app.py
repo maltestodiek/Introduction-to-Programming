@@ -2653,22 +2653,23 @@ def battle_deadline(value):
 
 
 def battle_leave_control(client,session_id):
-    """Leaving the screen preserves the server's timer and saved answers."""
-    if st.button('Save and exit',icon=':material/logout:',key=f'battle_exit_{session_id}',use_container_width=True):
+    if st.button('Leave Battle',icon=':material/logout:',key=f'battle_exit_{session_id}',use_container_width=True):
         st.session_state.round_leave_prompt=session_id;st.rerun()
     if st.session_state.get('round_leave_prompt')==session_id:
-        clock=battle_request(client,'clock',{'id':session_id})
         st.html('<div class="round-modal-backdrop"></div>')
         with st.container(key=f'round_leave_modal_{session_id}'):
-            deadline='Resume from Active battles by '+battle_deadline(clock['finish_by'])+'.' if clock and clock.get('finish_by') else 'Check your deadline in Active battles.'
-            st.html('<p class="round-modal-title">Save and exit?</p><p class="round-modal-text">Your answers are saved. '+escape(deadline)+' The current question timer keeps running. Missing your finish deadline counts as a loss only if you have an opponent.</p>')
+            st.html('<p class="round-modal-title">Leave this Battle?</p><p class="round-modal-text">Leaving before you finish counts as an immediate loss, even if you are still waiting for an opponent.</p>')
             stay,leave=st.columns(2)
             if stay.button('Keep fighting',key=f'round_leave_stay_{session_id}',use_container_width=True):
                 st.session_state.pop('round_leave_prompt',None);st.rerun()
-            if leave.button('Save and exit Battle',key=f'round_leave_confirm_{session_id}',use_container_width=True):
+            if leave.button('Leave and lose',key=f'round_leave_confirm_{session_id}',use_container_width=True):
+                result=battle_request(client,'leave',{'id':session_id,'confirmed':True})
+                if result is None:return
                 st.session_state.pop('round_leave_prompt',None)
                 st.session_state.pop(f'battle_timer_{session_id}',None)
-                return_to_battle_menu('Your answers are saved.')
+                if result.get('state')=='pending':
+                    return_to_battle_menu('Your finished round is in Active battles while you wait for the result.')
+                return_to_battle_menu('This Battle has ended. See Recent results.')
 
 
 @st.dialog('Battle review',width='large')
@@ -2765,7 +2766,8 @@ def battle_round_screen(client,session_id):
             if st.button('Continue',type='primary'):
                 st.session_state.pop('battle_feedback',None);st.rerun()
         with overview:
-            battle_leave_control(client,session_id)
+            if response['index']<14:
+                battle_leave_control(client,session_id)
             battle_overview(answers,response['index']+1,flash_index=response['index'],streak=streak)
         if response.get('timed_out') and st.session_state.pop(f'battle_timeout_notice_{session_id}',False):
             st.toast('Time has passed',icon=':material/timer_off:')
@@ -2924,7 +2926,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                                     st.caption('Round saved. Searching until '+battle_deadline(session['search_until'])+'.')
                                 elif not waiting:
                                     st.html('<div class="bo-wait"><span></span>Waiting for '+escape(str(opponent))+' to finish.</div>')
-                            if waiting and st.button('Cancel search',key='cancel_unmatched_'+session['id']):
+                            if waiting and (not session.get('started') or session['status']=='pending') and st.button('Cancel search',key='cancel_unmatched_'+session['id']):
                                 result=battle_request(client,'cancel_unmatched',{'id':session['id']})
                                 if result is not None:
                                     st.session_state.battle_notice='Search cancelled. No XP change.' if result.get('cancelled') else 'The search has already ended.'
@@ -2935,7 +2937,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
             if not completed:st.html('<div class="bo-empty">'+inline_icon('flag')+'No completed Battles yet.</div>')
             columns=st.columns(3,gap='medium')
             for index,session in enumerate(completed):
-                opponent=session.get('opponent_username','Unknown opponent')
+                opponent=session.get('opponent_username')
                 with columns[index%3]:
                     with st.container(border=True,key=f'battle_overview_card_completed_{session["id"]}'):
                         opponent_score=session.get('opponent_score')
@@ -2944,7 +2946,8 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                         xp=session.get('game_xp_delta',0)
                         xp_class='bo-xp-plus' if xp>0 else 'bo-xp-minus'
                         trophy=inline_icon('trophy') if result=='Win' else ''
-                        st.html(versus_markup(opponent)+deck_markup(session['deck_name'])
+                        match_label=versus_markup(opponent) if opponent else '<div class="bo-wait">No opponent matched</div>'
+                        st.html(match_label+deck_markup(session['deck_name'])
                          +f'<div class="bo-score"><b>{score}</b><span class="bo-pill bo-{result.lower()}">{trophy}{result}</span><span class="bo-pill {xp_class}">{xp:+d} XP</span></div>')
                         if st.button('Review questions',key='overview_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
 
@@ -2961,14 +2964,14 @@ def battle_session_history(client,sessions):
         if selected=='Losses':completed=[session for session in completed if session.get('result')=='loss']
         if not completed:st.caption('No completed Battles match this filter.')
         for session in completed:
-            opponent=session.get('opponent_username','Unknown opponent')
+            opponent=session.get('opponent_username')
             opponent_score=session.get('opponent_score')
             score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
             result=str(session.get('result') or 'completed').title()
             outcome,deck,opponent_cell,score_cell,xp,review=st.columns([1.05,2.8,1.65,.85,.7,1.25],vertical_alignment='center')
             with outcome:st.markdown(f'<span class="battle-history-result battle-overview-result-{result.lower()}">{result}</span>',unsafe_allow_html=True)
             with deck:st.write('**'+session['deck_name']+'**')
-            with opponent_cell:st.caption('vs. '+opponent)
+            with opponent_cell:st.caption('vs. '+opponent if opponent else 'No opponent matched')
             with score_cell:st.write(score)
             with xp:st.markdown(f'**{session.get("game_xp_delta",0):+d} XP**')
             with review:
@@ -3070,7 +3073,7 @@ def battle_new_setup_screen(client,profile):
     can_start=not (source=='Random Deck' and (availability is None or not availability['available']))
     if opponent=='Random player':
         from uuid import uuid4
-        st.caption('Start your 15 questions now. You have one hour from the first question. If nobody is waiting, we look for an opponent for up to 48 hours. An unmatched Battle expires without affecting XP.')
+        st.caption('Start your 15 questions now. You have one hour from the first question. If nobody is waiting, we look for an opponent for up to 48 hours. Leaving an unfinished Battle counts as an immediate loss, even before a match.')
         if st.button('Start random Battle',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
             request_id=st.session_state.setdefault('battle_start_request',str(uuid4()))
             result=battle_request(client,'start_random',{**payload,'request_id':request_id})

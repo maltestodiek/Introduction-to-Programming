@@ -6,7 +6,7 @@ Offer short, competitive course quizzes separately from non-rewarded Study sessi
 ## What
 Battle Mode replaces the former 30-question duel workflow. There must be no user-facing route to create or start a new 30-question duel: every new Battle uses exactly one 15-question Battle Deck. Existing legacy rows are not deleted or retroactively changed by this feature, but they are not selectable for new Play sessions.
 
-Random opponents play asynchronously. The server persists the deck, answers, search deadline and each player's finish deadline. Leaving saves progress, and reopening the app offers Resume in Active battles. The 30-second question clock continues while away.
+Random opponents play asynchronously. The server persists the deck, answers, search deadline and each player's finish deadline. Confirming Leave Battle before finishing records an immediate loss in Recent results, even before an opponent matches. A refresh or dropped connection can recover the current round until its original finish deadline. The 30-second question clock continues while away.
 
 ### Creating a Battle Deck
 A Battle Deck is a separate, immutable 15-question snapshot created from one of the creator's own published UniArena decks. It is not a second manual authoring form.
@@ -28,7 +28,7 @@ A Battle uses published Battle Decks from the signed-in player's own university.
 
 Before a Random Deck search or invitation is created, the server confirms that at least one eligible public Battle Deck already exists for the selected university, course and language. If none exists, matchmaking is unavailable and the player receives clear feedback instead of a pending search. A random opponent search opens the first question immediately. The server pairs the oldest compatible opt-in immediately or freezes an eligible deck and searches for up to 48 hours from entry. A requested Top Deck must match the frozen deck. Both players answer the same questions. Each has one hour from opening their own first question. An unopened random entry is released after one hour. An accepted friend invitation retains its 24-hour window to open the first question.
 
-An unfinished, unmatched entry expires without a loss or XP. A finished, unmatched round stays eligible for the rest of the original 48 hours. If a matched participant misses their deadline, that player forfeits. Settle scores and XP exactly once when both finish or a matched deadline decides the outcome. Identical missed deadlines leave both participants with a loss. The dashboard groups accepted and random rounds under **Active battles**, unanswered friend invitations under **Battle invitations**, and settled scores and XP under **Recent results**.
+An unfinished, unmatched entry that reaches its deadline without an explicit forfeit expires without a loss or XP. A finished, unmatched round stays eligible for the rest of the original 48 hours. If a matched participant misses their deadline, that player forfeits. Settle scores and XP exactly once when both finish, a player confirms leaving, or a matched deadline decides the outcome. A confirmed exit ends matchmaking and uses the standard loss XP and streak rules. If already matched, the opponent wins. Identical missed deadlines leave both participants with a loss. The dashboard groups accepted and random rounds under **Active battles**, unanswered friend invitations under **Battle invitations**, and settled scores and XP under **Recent results**.
 
 ### Battle deck sources
 Before a Battle, the initiator chooses one source:
