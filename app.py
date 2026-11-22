@@ -2322,24 +2322,19 @@ STUDY_MATCHED_INFO = ('After matching, both players have 48 hours to finish. The
 
 
 def study_together_information_button(key):
-    state_key = key+'_open'
-    if st.button(' ', icon=':material/info:', help='Study Together session rules', key=key, type='tertiary'):
-        st.session_state[state_key] = not st.session_state.get(state_key, False)
-    return st.session_state.get(state_key, False)
-
-
-def study_together_information_panel():
-    st.info('\n\n'.join((STUDY_SLOT_INFO, STUDY_UNMATCHED_INFO, STUDY_MATCHED_INFO)), icon=':material/info:')
+    with st.popover(' ', icon=':material/info:', help='Study Together session rules', key=key):
+        st.markdown('**Study Together information**')
+        st.caption(STUDY_SLOT_INFO)
+        st.caption(STUDY_UNMATCHED_INFO)
+        st.caption(STUDY_MATCHED_INFO)
 
 
 def study_together_heading(label, key):
-    title, info, _ = st.columns((7.5, .45, 8.05), vertical_alignment='center')
+    title, info, _ = st.columns((7.5, 1.2, 7.3), vertical_alignment='center')
     with title:
         st.subheader(label)
     with info:
-        show_information = study_together_information_button(key)
-    if show_information:
-        study_together_information_panel()
+        study_together_information_button(key)
 
 def has_unfinished_together(sessions):
     return any(s['mode'] != 'solo' and s['state'] in ('own', 'waiting', 'paired') for s in sessions)
@@ -2392,14 +2387,15 @@ def study_screen(client,profile,draft):
     st.markdown((Path(__file__).parent/'assets'/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
     st.header('Study Mode')
     st.caption(st.session_state.get('study_choice','Study alone'))
-    if st.button('Change study mode',icon=':material/arrow_back:'):
+    creating = bool(st.session_state.get('study_creating'))
+    if not creating and st.button('Change study mode',icon=':material/arrow_back:'):
         st.session_state.pop('study_active', None)
         st.session_state.pop('study_invite_friend', None)
         st.session_state.pop('study_creating', None)
         st.session_state.pop('study_join', None)
         st.session_state.play_mode_preview = 'Study'
         st.rerun()
-    data=study_request(client,'list', None if st.session_state.get('study_creating') else {'session_overview':True})
+    data=study_request(client,'list', None if creating else {'session_overview':True})
     if data is None:
         return
     saved = st.session_state.pop('returning_study_setup', {})
@@ -2410,7 +2406,7 @@ def study_screen(client,profile,draft):
         restore_study_option(saved, 'join', 'study_join', [o['id'] for o in data['invites'] + data.get('open', [])])
     choice=st.session_state.get('study_choice','Study alone')
     together=choice=='Study together'
-    if not st.session_state.get('study_creating'):
+    if not creating:
         draft['screen'] = 'menu'
         if not together:
             study_plan_play_todos(client,data,'solo')
