@@ -22,7 +22,7 @@ The notepad is scratch space for one attempt at one question:
 
 ## Out of scope
 
-Saved or shared notes, formatting, images, a notepad on the feedback screen, changes to the existing private note / feedback to author feature, and changes to calculator permissions or arithmetic.
+Saved or shared notes, formatting, images, a notepad on the feedback screen, changes to the existing private-note feature or the author-feedback backend (the send field was removed from the Study round; received feedback stays visible to authors), and changes to calculator permissions or arithmetic.
 
 ## Done when
 
