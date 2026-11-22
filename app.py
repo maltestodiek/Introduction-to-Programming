@@ -716,6 +716,8 @@ def decks_screen(client,profile):
     from db import DeckRepository,AnkiImportRepository
     from logic import new_deck,validate_card,validate_deck,add_card,delete_card
     repository=DeckRepository(client)
+    assets=Path(__file__).parent/'assets'
+    st.html('<style>'+''.join((assets/name).read_text() for name in ('deck-creation.css','course-list.css'))+'</style>')
     st.title('Decks')
     if st.session_state.get('battle_deck_creator'):
         battle_deck_creator(client);return
@@ -822,40 +824,52 @@ def decks_screen(client,profile):
             if st.button('Confirm discard'):
                 st.session_state.pop('deck_draft',None);st.session_state.pop('deck_review',None);st.rerun()
         return
-    assets=Path(__file__).parent/'assets'
-    st.html('<style>'+''.join((assets/name).read_text() for name in ('deck-creation.css','course-list.css'))+'</style>')
-    st.subheader('Create a deck')
-    st.caption('Choose how you want to create your next set of questions.')
-    if not profile['courses']:
-        st.info('Add a course for your current university in Profile to create a deck.')
-    manual,anki,ai=st.columns(3)
-    with manual:
-        with st.container(border=True,key='deck_create_manual'):
-            st.html('<div class="deck-create-icon">'+inline_icon('add')+'</div>')
-            st.markdown('#### Manual deck')
-            st.caption('Write questions from scratch and organise them into lectures.')
-            with st.popover('Create deck',type='primary',use_container_width=True):
-                if st.button('Create Study Deck',disabled=not profile['courses'],use_container_width=True):
+    study_tab, battle_tab = st.tabs(['Study deck', 'Battle deck'], key='deck_creation_tabs', on_change='rerun')
+    with study_tab:
+        with st.container(horizontal=True, vertical_alignment='center'):
+            st.subheader('Create a Study deck', width='content')
+            if study_tab.open:
+                with st.popover('About Study decks', icon=':material/info:', key='deck_info_study'):
+                    st.write('Practise alone or with a partner and track what you know. A Study deck starts private, and you can edit it as you learn.')
+        if not profile['courses']:
+            st.info('Add a course for your current university in Profile to create a deck.')
+        manual,anki,ai=st.columns(3)
+        with manual:
+            with st.container(border=True,key='deck_create_manual'):
+                st.html('<div class="deck-create-icon">'+inline_icon('add')+'</div>')
+                st.markdown('#### From scratch')
+                st.caption('Write questions from scratch and organise them into lectures.')
+                if st.button('Write questions',disabled=not profile['courses'],use_container_width=True):
                     st.session_state.study_library=True
                     if not st.session_state.get('study_draft'):
                         st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
                     st.session_state.pop('study_deck_open',None);st.rerun()
-                if st.button('Create Battle Mode Deck',disabled=not profile['courses'],use_container_width=True):
-                    st.session_state.pop('battle_source_id',None);st.session_state.pop('battle_return_study',None)
-                    st.session_state.battle_deck_creator=True;st.rerun()
-    with anki:
-        with st.container(border=True,key='deck_create_anki'):
-            st.html('<div class="deck-create-icon">'+inline_icon('file')+'</div>')
-            st.markdown('#### AI Anki import')
-            st.caption('Import Anki cards, then review AI-generated questions.')
-            if st.button('Import Anki deck',disabled=not profile['courses'],use_container_width=True):
-                st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
-    with ai:
-        with st.container(border=True,key='deck_create_slides'):
-            st.html('<div class="deck-create-icon">'+inline_icon('sparkles')+'</div>')
-            st.markdown('#### AI from lecture slides')
-            st.caption('Upload text-based PDF slides, then review generated questions.')
-            if st.button('Generate with AI',disabled=not profile['courses'],use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
+        with anki:
+            with st.container(border=True,key='deck_create_anki'):
+                st.html('<div class="deck-create-icon">'+inline_icon('file')+'</div>')
+                st.markdown('#### From Anki cards')
+                st.caption('Import your Anki cards and review the AI-generated questions.')
+                if st.button('Import Anki deck',disabled=not profile['courses'],use_container_width=True):
+                    st.session_state.anki_import_open=True;st.session_state.pop('anki_import_result',None);st.rerun()
+        with ai:
+            with st.container(border=True,key='deck_create_slides'):
+                st.html('<div class="deck-create-icon">'+inline_icon('sparkles')+'</div>')
+                st.markdown('#### From PDF slides')
+                st.caption('Upload your lecture slides and review the AI-generated questions.')
+                if st.button('Import PDF slides',disabled=not profile['courses'],use_container_width=True):st.session_state.pdf_import_open=True;st.session_state.pop('pdf_import_result',None);st.rerun()
+        st.caption('To use any saved Study deck in Battle, open it and select **Publish as Battle deck**.')
+    with battle_tab:
+        with st.container(horizontal=True, vertical_alignment='center'):
+            st.subheader('Create a Battle deck', width='content')
+            if battle_tab.open:
+                with st.popover('About Battle decks', icon=':material/info:', key='deck_info_battle'):
+                    st.write('A Battle deck is a fixed set of 15 questions. Both players answer the same questions in a timed match for Battle XP. Published Battle decks can appear under Random Deck for eligible players.')
+        st.write('Choose a saved Study deck, select exactly 15 questions, then confirm and submit.')
+        if st.button('Create Battle Mode Deck', disabled=not profile['courses'], type='primary'):
+            st.session_state.pop('battle_source_id', None)
+            st.session_state.pop('battle_return_study', None)
+            st.session_state.battle_deck_creator = True
+            st.rerun()
     with st.container(border=True,key='deck_studio_entry'):
         studio_text,studio_open=st.columns([5,2],vertical_alignment='center')
         with studio_text:
@@ -3880,7 +3894,9 @@ if profile:
             browser_bridge('write', resume_payload)
         st.stop()
     if page=='Decks':
-        decks_screen(auth.client,profile);st.stop()
+        with st.container(key='decks_page'):
+            decks_screen(auth.client,profile)
+        st.stop()
     if page=='Friends':
         friends=FriendsRepository(auth.client)
         try:friend_state=friends.action('list')

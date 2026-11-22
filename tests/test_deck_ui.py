@@ -22,7 +22,7 @@ def button(at,label):return next(b for b in at.button if b.label==label)
 def test_placeholders_disabled_and_incomplete_card_rejected(monkeypatch):
     at=deck_app(monkeypatch)
     assert not button(at,'Import Anki deck').disabled
-    assert not button(at,'Generate with AI').disabled
+    assert not button(at,'Import PDF slides').disabled
     assert not any(exp.label=='Battle Mode Decks' for exp in at.expander)
     assert 'Create Battle Mode Deck' in [widget.label for widget in at.button]
     assert not any('30-question' in getattr(widget,'value','') for widget in at.markdown)
@@ -79,7 +79,7 @@ def test_battle_deck_creator_shows_questions_only_after_choosing_a_source(monkey
     next(field for field in at.selectbox if field.label=='Source Study deck').set_value('source-1').run()
     assert len(at.checkbox)==17  # 16 questions plus the public-play confirmation.
     button(at, 'Back to Decks').click().run()
-    assert 'Create a deck' in [h.value for h in at.subheader]
+    assert [tab.label for tab in at.tabs] == ['Study deck', 'Battle deck']
 
 
 def test_battle_deck_creator_opens_a_dialog_when_selection_is_not_fifteen(monkeypatch):
@@ -213,9 +213,9 @@ def test_decks_page_does_not_include_daily_review_controls():
 
 def test_manual_study_deck_back_to_decks_preserves_draft(monkeypatch):
     at = deck_app(monkeypatch)
-    button(at, 'Create Study Deck').click().run()
+    button(at, 'Write questions').click().run()
     next(field for field in at.text_input if field.label == 'Study deck name').set_value('Review notes').run()
     button(at, 'Back to Decks').click().run()
-    assert 'Create a deck' in [h.value for h in at.subheader]
-    button(at, 'Create Study Deck').click().run()
+    assert [tab.label for tab in at.tabs] == ['Study deck', 'Battle deck']
+    button(at, 'Write questions').click().run()
     assert next(field for field in at.text_input if field.label == 'Study deck name').value == 'Review notes'
