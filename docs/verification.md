@@ -22,6 +22,22 @@ Record the command, actual result, changed files and any remaining manual limita
 | [Deck publication](../tests/decks_database.mjs) | Publish a reviewed deck. | Changed content cannot reuse an earlier review. | Repeating publication returns the existing deck. |
 | [Study Plan](../tests/study_plan_database.mjs) | The owner saves and updates a plan. | A different student cannot edit it. | Rejected writes preserve the stored plan. |
 
+### Demonstrate Study Plan ownership
+
+From the repository root, with PGlite 0.5.16 installed as described above, run:
+
+```sh
+node --test tests/study_plan_database.mjs
+```
+
+The test creates two fictional students in a temporary database. Alice saves and edits a plan. Bob signs in and lists his plans. Alice’s plan is absent. Even when Bob supplies its exact ID, the database rejects his attempts to rename it, replace its calendar entries or delete it. When Alice lists her plans again, hers still has the name she saved.
+
+Show the output line `PASS another student cannot read, change or delete the plan or its calendar entries`. Then open [the SQL function](../supabase/study-plan-schema.sql) and point to `auth.uid()` and `owner_id=me`. The database obtains the student’s identity from the signed-in session and checks ownership on each operation. The [same test](../tests/study_plan_database.mjs) checks that signed-in users cannot read the underlying table directly and that anonymous users cannot call the function.
+
+### Check dependencies before presenting
+
+The [Python dependency audit](../.github/workflows/dependency-audit.yml) runs on pull requests to `main` and every Monday at 07:17 UTC. It checks the direct and indirect Python packages in the production lock for known vulnerabilities on Linux with Python 3.13. Development tools are excluded. If a package is flagged, review the advisory, update the affected pin and lockfile, and rerun the audit and the affected workflows.
+
 ## Live account tests
 
 All four checks passed on 21 November 2026 in Chrome on the [public UniArena app](https://uniarena.streamlit.app/). The account owner handled the email links and entered the new password.
