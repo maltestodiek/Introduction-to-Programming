@@ -11,5 +11,6 @@
 @keyframes ua-mark{to{background:var(--ink)}}@keyframes ua-spin{to{transform:rotate(360deg)}}@keyframes ua-flight{from{transform:rotate(var(--ray)) translateX(21cqmin) scaleX(.35);opacity:0}40%{opacity:.5}to{transform:rotate(var(--ray)) translateX(70cqmin) scaleX(1.3);opacity:0}}
 @keyframes ua-wave{from{transform:scale(.7);opacity:.46}to{transform:scale(1.16);opacity:0}}
 @keyframes ua-beat{0%{transform:scale(1.15);opacity:0}15%,82%{transform:scale(1);opacity:1}100%{transform:scale(.97);opacity:0}}
+@media(min-width:761px) and (max-width:1050px){.ua-intro{left:var(--compact-rail)}}
 @media(max-width:760px){.ua-intro{position:relative;inset:auto;width:100%;height:clamp(240px,58svh,560px);border-radius:16px}}
 @media(prefers-reduced-motion:reduce){.ua-intro .orb:before,.ua-intro .orb:after,.ua-intro .wave,.ua-intro .streak{animation:none}.ua-intro .wave,.ua-intro .streak{display:none}.ua-intro .beat{animation-name:ua-still}@keyframes ua-still{0%,99%{opacity:1}100%{opacity:0}}.ua-intro .beat{animation-fill-mode:none}}

@@ -34,3 +34,22 @@
 .st-key-deck_studio_entry button{min-height:52px;border-radius:12px;font-weight:700}
 [class*="st-key-studio_deck_"] button{min-height:44px;padding:.35rem .65rem;white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.st-key-deck_studio_entry{transition:none!important}}
+
+/* Reflow the creation cards before three columns squeeze their actions. */
+@media (max-width: 800px) {
+ [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-deck_create_manual) {
+  display:grid; grid-template-columns:minmax(0,1fr);
+ }
+ [data-testid="stColumn"]:has(:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides)) {
+  width:100%; min-width:0;
+ }
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) {
+  display:grid; grid-template-columns:auto minmax(0,1fr); align-content:start; gap:.35rem .8rem;
+  min-height:0; padding:1rem!important;
+ }
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) > * { grid-column:2; min-width:0; }
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) > :has(.deck-create-icon) {
+  grid-column:1; grid-row:1 / span 2;
+ }
+ .deck-create-icon { margin:0; }
+}

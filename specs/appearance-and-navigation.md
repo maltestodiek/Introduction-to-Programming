@@ -14,7 +14,7 @@ Top navigation: Decks, Play, Leaderboard and Study Plan; Profile, Friends and Ch
 
 Play initially displays only separate Battle and Study cards; the selected mode contains its own session controls. Solo cards have no partner actions. Partner menus link to Social Connections.
 
-Learning-level selections use real colour swatches and readable names, with an info-only legend control. Show question preferences below What do you want to focus on? Keep the calculator beside the quiz on desktop. Keep the chat composer visible and only its message area scrollable.
+Learning-level selections use real colour swatches and readable names, with an info-only legend control. Show question preferences below What do you want to focus on? Keep the calculator beside the quiz on desktop. On wide, tall windows keep the chat composer visible while messages scroll. On narrower or shorter windows allow the whole page to scroll so the conversation and composer remain reachable. Use a narrower labeled sidebar at tablet widths and compact navigation above the page on phones.
 
 ## Out of scope
 Changing study scoring, stored avatar character design, authentication, matching, message permissions or database rules while making visual changes.

@@ -67,19 +67,6 @@
  .st-key-play_mode_choices button{min-height:44px}
 }
 
-/* On short touch screens keep the navigation and both actions in view. */
-@media(max-width:760px) and (max-height:800px){
- .block-container:has(.st-key-play_mode_choices){padding-block:1rem}
- .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_navigation{gap:.25rem;margin-bottom:.25rem}
- .block-container:has(.st-key-play_mode_choices) .st-key-top_brand{margin-bottom:0}
- .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_navigation hr{margin:.25rem .2rem!important}
- .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_account_actions{grid-template-columns:repeat(3,minmax(0,1fr))}
- .st-key-play_mode_choices :is(.st-key-battle_mode_card,.st-key-study_mode_card){min-height:0;padding-block:.5rem!important}
-}
-@media(min-width:520px) and (max-width:760px) and (max-height:800px){
- .block-container:has(.st-key-play_mode_choices) .st-key-sidebar_main_actions{grid-template-columns:repeat(4,minmax(0,1fr))}
-}
-
 .battle-emblem>circle:first-of-type{fill:var(--sd-icon-battle)}
 .battle-emblem>circle:nth-of-type(2){fill:var(--sd-battle-end);stroke:var(--sd-battle-border)}
 .study-emblem>circle:first-of-type{fill:var(--sd-icon-study)}

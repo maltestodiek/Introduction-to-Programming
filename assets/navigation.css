@@ -85,9 +85,45 @@
 @keyframes nav-pulse{0%,100%{transform:scale(1)}45%{transform:scale(1.2)}75%{transform:scale(.96)}}
 @keyframes nav-sway{0%,100%{transform:translateX(0)}35%{transform:translateX(-3px)}70%{transform:translateX(3px)}}
 @keyframes nav-bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}75%{transform:translateY(1px)}}
-@media(min-width:640px) and (max-width:850px){
- [class*="st-key-nav_"] button{flex-direction:column;gap:4px;min-height:66px;padding:7px 4px}
- [class*="st-key-nav_"] button p{font-size:.84rem}
+/* Keep the desktop rail on tablets, but give the page room for cards and forms. */
+@media (min-width:761px) and (max-width:1050px) {
+ .stApp:has(.st-key-sidebar_navigation) { --compact-rail: 6.5rem; }
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) { grid-template-columns:minmax(0,1fr); }
+ .st-key-sidebar_navigation { width:var(--compact-rail); padding:1rem .3rem; gap:.45rem; }
+ .stMain:has(.st-key-sidebar_navigation) { padding-left:var(--compact-rail); }
+ .stApp:has(.st-key-sidebar_navigation) .stAppHeader { left:var(--compact-rail)!important; }
+ .st-key-sidebar_navigation .st-key-top_brand { margin-bottom:.5rem; }
+ .st-key-sidebar_navigation .st-key-open_home button { flex-direction:column; gap:0; }
+ .st-key-sidebar_navigation .st-key-open_home button p { font-size:.95rem; }
+ .st-key-sidebar_navigation :is([class*="st-key-nav_"],.st-key-open_profile,.st-key-open_friends,.st-key-open_chats) { width:100%!important; min-width:0; }
+ .st-key-sidebar_navigation hr { margin:.5rem .25rem!important; }
+}
+/* Use the same seven labeled destinations across every small-window page. */
+@media (max-width:1050px) {
+ /* Streamlit's negative Markdown margin collapses the divider into the next row. */
+ .st-key-sidebar_navigation [data-testid="stMarkdownContainer"]:has(> hr) { margin:0; }
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button {
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  gap:.2rem; min-height:48px; padding:.25rem .1rem; border-left-width:1px!important;
+ }
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button p {
+  flex:none; font-size:.8rem; line-height:1.15; text-align:center!important;
+ }
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) button > div { justify-content:center; }
+ .st-key-sidebar_navigation .st-key-sidebar_account_actions button::before { width:22px; height:22px; }
+ .st-key-nav_play_invite_badge .st-key-nav_Play button { padding-right:.1rem!important; }
+ .st-key-nav_play_invite_badge .st-key-nav_Play button::after { top:.25rem; right:.25rem; transform:none; }
+}
+@media (max-width:760px) {
+ .stMainBlockContainer:has(.st-key-sidebar_navigation) { padding:3.75rem clamp(.75rem,3vw,1.25rem) 1.5rem!important; }
+ .st-key-sidebar_navigation { gap:.3rem; margin-bottom:.5rem; }
+ .st-key-sidebar_navigation .st-key-top_brand { margin:0; }
+ .st-key-sidebar_navigation .st-key-open_home button { min-height:34px; }
+ .st-key-sidebar_navigation .st-key-open_home button::before { width:42px; height:30px; }
+ .st-key-sidebar_navigation hr { margin:.15rem 0!important; border-color:var(--sd-border); }
+ .st-key-sidebar_main_actions { grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .st-key-sidebar_account_actions { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .st-key-sidebar_navigation :is(.st-key-sidebar_main_actions,.st-key-sidebar_account_actions) { gap:.25rem; }
 }
 @media(prefers-reduced-motion:reduce){
  .st-key-open_home button{transition:none!important;transform:none!important}
