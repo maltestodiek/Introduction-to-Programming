@@ -18,8 +18,8 @@
 }
 .st-key-battle_mode_card button{background:var(--sd-battle-button)!important;color:var(--sd-battle-button-text)!important;border:1.5px solid var(--sd-battle-button)!important}
 .st-key-battle_mode_card button:hover{background:var(--sd-battle-button-hover)!important;border-color:var(--sd-battle-button-hover)!important;color:var(--sd-battle-button-text)!important;box-shadow:0 6px 16px #10b98133}
-.st-key-study_mode_card button{background:#4f46e5;color:white;border:1.5px solid #4f46e5}
-.st-key-study_mode_card button:hover{background:#4338ca;color:white;box-shadow:0 6px 16px #4f46e533}
+.st-key-study_mode_card button{background:var(--sd-play-violet);color:white;border:1.5px solid var(--sd-play-violet)}
+.st-key-study_mode_card button:hover{background:var(--sd-play-violet-hover);color:white;box-shadow:0 6px 16px #4f46e533}
 :is(.st-key-battle_mode_card,.st-key-study_mode_card) button:focus-visible{outline:3px solid var(--sd-text);outline-offset:4px}
 .mode-emblem{display:block;width:116px;height:116px;margin:0 0 6px;overflow:visible}
 .sword{transform-origin:64px 64px}.sword-left{transform:rotate(-38deg)}.sword-right{transform:rotate(38deg)}

@@ -193,7 +193,7 @@ def test_calculator_only_for_enabled_question_and_does_not_submit_answer(monkeyp
 def test_main_creation_supports_more_than_fifteen_and_reuses_subsections(monkeypatch):
     at,calls,d=setup(monkeypatch)
     button(at,'Decks').click().run()
-    button(at,'Create Study Deck').click().run()
+    button(at,'Write questions').click().run()
     assert 'study_draft' in at.session_state
     draft=complete_deck()
     for card in draft['cards']:card['chapter']='Lecture 1'

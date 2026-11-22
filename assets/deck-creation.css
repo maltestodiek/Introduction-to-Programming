@@ -5,20 +5,15 @@
  border-radius:20px!important;padding:20px!important;min-height:250px;
  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
 }
-.st-key-deck_create_manual{background:linear-gradient(145deg,#4f46e5,#6258e9)!important;border-color:#4f46e5!important}
-:is(.st-key-deck_create_anki,.st-key-deck_create_slides){background:var(--sd-surface)!important}
+:is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides){background:var(--sd-surface)!important}
 :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides):is(:hover,:focus-within){
  transform:translateY(-4px);box-shadow:0 12px 28px var(--sd-shadow);border-color:#818cf8!important;
 }
 :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) [data-testid="stVerticalBlock"]{min-height:208px;display:flex;flex-direction:column}
 :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) [data-testid="stButton"]{margin-top:auto}
 .deck-create-icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:var(--sd-study-end);color:var(--sd-accent);font-size:1.35rem;margin-bottom:.7rem}
-.st-key-deck_create_manual .deck-create-icon{background:#ffffff26;color:#fff}
 :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) h4{font-size:1.35rem;letter-spacing:-.025em;margin:0 0 .35rem;color:var(--sd-text)}
-.st-key-deck_create_manual h4,.st-key-deck_create_manual [data-testid="stCaptionContainer"] p{color:#fff!important}
 :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) button{min-height:48px;border-radius:12px;font-weight:700}
-.st-key-deck_create_manual button{background:#fff!important;color:#4338ca!important;border-color:#fff!important}
-.st-key-deck_create_manual button:hover{background:#f5f3ff!important;border-color:#f5f3ff!important}
 @media(prefers-reduced-motion:reduce){
  :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides){transition:none!important;transform:none!important}
 }
@@ -34,6 +29,13 @@
 .st-key-deck_studio_entry button{min-height:52px;border-radius:12px;font-weight:700}
 [class*="st-key-studio_deck_"] button{min-height:44px;padding:.35rem .65rem;white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.st-key-deck_studio_entry{transition:none!important}}
+
+/* Align the three actions when the import instructions wrap to extra lines. */
+@media (min-width: 801px) {
+ [data-testid="stLayoutWrapper"]:has(> :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides)),
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) { flex:1; }
+ :is(.st-key-deck_create_manual,.st-key-deck_create_anki,.st-key-deck_create_slides) > :last-child { margin-top:auto; }
+}
 
 /* Reflow the creation cards before three columns squeeze their actions. */
 @media (max-width: 800px) {
@@ -52,4 +54,38 @@
   grid-column:1; grid-row:1 / span 2;
  }
  .deck-create-icon { margin:0; }
+}
+
+/* Keep the accessible popover labels while showing a compact information icon. */
+:is(.st-key-deck_info_study,.st-key-deck_info_battle) button {
+ width:2rem; height:2rem; min-height:2rem; padding:0; background:transparent; border:0;
+}
+:is(.st-key-deck_info_study,.st-key-deck_info_battle) button [data-testid="stMarkdownContainer"] {
+ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%);
+}
+:is(.st-key-deck_info_study,.st-key-deck_info_battle) button > div > div[aria-hidden="true"] { display:none; }
+
+/* Deck actions use the same violet as the Study Mode button on Play. */
+.st-key-deck_creation_tabs [role="tab"],
+.st-key-deck_creation_tabs [role="tab"][aria-selected="true"] {
+ background:transparent; color:var(--sd-text);
+}
+.st-key-deck_creation_tabs [role="tab"] .react-aria-SelectionIndicator {
+ background:var(--sd-play-violet);
+}
+.st-key-decks_page button[kind="primary"]:enabled,
+.st-key-deck_creation_tabs [data-testid="stButton"] button:enabled {
+ background:var(--sd-play-violet)!important; color:white!important; border-color:var(--sd-play-violet)!important;
+}
+.st-key-decks_page button[kind="primary"]:enabled:hover,
+.st-key-deck_creation_tabs [data-testid="stButton"] button:enabled:hover {
+ background:var(--sd-play-violet-hover)!important; color:white!important;
+}
+.st-key-decks_page :is(button,[role="tab"]):focus-visible { outline:2px solid var(--sd-accent); outline-offset:2px; }
+
+/* Streamlit mounts popovers outside their tabs. Hide the outgoing help while
+   the rerun unmounts it, before its hidden anchor can move it to the corner. */
+body:not(:has(.st-key-deck_creation_tabs [role="tabpanel"] .st-key-deck_info_study)) [data-testid="stPopoverBody"][aria-label="About Study decks"],
+body:not(:has(.st-key-deck_creation_tabs [role="tabpanel"] .st-key-deck_info_battle)) [data-testid="stPopoverBody"][aria-label="About Battle decks"] {
+ display:none;
 }

@@ -30,7 +30,7 @@ PALETTES={
 
 def theme_variables(mode):
     palette=PALETTES.get(mode,PALETTES['light'])
-    fallback=':root{'+''.join(f'--sd-{key}:{value};' for key,value in palette.items())+'}'
+    fallback=':root{'+''.join(f'--sd-{key}:{value};' for key,value in palette.items())+'--sd-play-violet:#4f46e5;--sd-play-violet-hover:#4338ca;}'
     # Streamlit updates color-scheme inside .stApp. Dialogs outside that
     # container inherit the reported theme from :root.
     adaptive='.stApp{'+''.join(f'--sd-{key}:light-dark({PALETTES["light"][key]},{PALETTES["dark"][key]});' for key in palette)+'}'
