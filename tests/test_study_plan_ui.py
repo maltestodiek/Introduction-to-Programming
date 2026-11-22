@@ -207,8 +207,8 @@ def test_plan_to_dos_appear_above_new_solo_session_in_study_mode(monkeypatch):
     plan=google_plan();plan['calendar_events']=[];plan['plan'].update(sessions=2,times=['09:00','19:00'])
     at,calls=setup(monkeypatch,[plan],levels=(None,)*150)
     button(at,'Play').click().run();button(at,'Study Mode').click().run()
-    assert any(h.value=="Today's study plan" for h in at.subheader)
-    assert at.button(key='todo_start_plan-1_0_Finance').label=='Start session'
+    assert not any(h.value=="Today's study plan" for h in at.subheader)
+    assert not any((b.key or '').startswith('todo_start_plan') for b in at.button)
     button(at,'Study alone').click().run()
     labels=[b.label for b in at.button]
     headings=[h.value for h in at.subheader]

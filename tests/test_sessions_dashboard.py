@@ -94,7 +94,8 @@ def test_study_dashboard_shows_each_active_session_once_and_labels_history(monke
         assert not any(b.label == 'View Study session' for b in at.button)
         assert 'Create a new study session' in [h.value for h in at.subheader]
         button(at,'Change study mode').click().run()
-        button(at,'Back to Play mode selection').click().run()
+        assert not any(b.label == 'Back to Play mode selection' for b in at.button)
+        button(at,'Play').click().run()
         button(at,'Study Mode').click().run()
 
 def test_history_uses_saved_score_and_returns_to_history_after_question_review(monkeypatch):

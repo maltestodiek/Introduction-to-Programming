@@ -100,6 +100,10 @@ def test_battle_history_and_overview_cards_use_the_requested_compact_layout():
     assert '-webkit-line-clamp:2' in BATTLE_OVERVIEW_CSS
 
 
+def test_recent_result_cards_keep_long_deck_names_on_one_line():
+    assert '.bo-deck{margin:0 0 .5rem!important;color:var(--sd-muted);font-size:.60rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' in BATTLE_OVERVIEW_CSS
+
+
 def test_overview_lanes_put_ongoing_beside_pending_and_completed_below():
     section=APP[APP.index('def battle_session_overview'):APP.index('def battle_session_history')]
     assert "st.columns(2,gap='medium')" in section
