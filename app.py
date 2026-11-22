@@ -2820,11 +2820,14 @@ def battle_game_dialog(client,session_id):
     battle_round_screen(client,session_id)
 
 
-@st.dialog('Rate this Battle Deck')
+@st.dialog('Rate this Battle Deck', dismissible=False)
 def battle_rating_dialog(client,session_id):
     """A completed participant chooses one rating, then returns to Battle home."""
     result=battle_request(client,'round',{'id':session_id})
-    if result is None:return
+    if result is None:
+        # A click reruns the dialog and reads the round again.
+        st.button('Retry loading rating')
+        return
     if result.get('state')!='rating':
         return_to_battle_menu()
         return
@@ -2836,8 +2839,12 @@ def battle_rating_dialog(client,session_id):
         return
     labels={'good':'Good','neutral':'Neutral','bad':'Bad'}
     rating=st.radio('How was this Battle Deck?',tuple(labels),format_func=labels.get,index=None,horizontal=True,key=f'battle_rating_{session_id}')
-    if rating and battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:
-        return_to_battle_menu()
+    if rating:
+        if battle_request(client,'rate',{'id':session_id,'rating':rating}) is not None:
+            return_to_battle_menu()
+        else:
+            # Retain the selection so the same rating can be retried.
+            st.button('Retry saving rating')
 
 
 @st.fragment(run_every='1s')
