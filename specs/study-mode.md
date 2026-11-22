@@ -33,7 +33,7 @@ Deck creation, subsection authoring and calculator permissions belong to [Deck A
 
 ### Invitations and stopping Study Together
 
-Incoming invitations appear after the sender completes their first half. Find them under Study Mode → Study sessions → Invitations, or between Continue session and Create a new study session in the Study Together menu. Each player can have one unfinished Together session. Answering both halves frees the slot immediately, even if the partner is still playing. A blocked attempt to accept leaves the invitation available.
+Incoming invitations appear after the sender completes their first half. Find them under Study Mode → Study sessions → Invitations, or between Continue session and Create a new study session in the Study Together menu. A player may have concurrent unfinished Friend sessions with different friends, but never more than one unfinished session with the same friend. A player may also have only one outstanding random search. Answering both halves frees the player-pair slot immediately, even if the partner is still playing. A blocked attempt to accept leaves the invitation available.
 
 Save and leave pauses play. Confirming Stop session ends that player's participation, keeps their learning progress and immediately frees the slot. An unmatched search or invitation is cancelled. A matched player who stops takes a loss and forfeits the partner deck. Their partner may still finish within the original deadline, earn the shared deck and receive a win. A partner who also stops or times out unfinished earns no deck and takes a loss. Results never award Study XP.
 

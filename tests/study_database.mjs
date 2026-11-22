@@ -34,6 +34,8 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122160000_study_answer_review.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122170000_study_session_dashboard.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122190000_study_stop.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122210000_study_friend_waiting_name.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122220000_study_sessions_per_friend.sql',import.meta.url),'utf8'));
  async function dashboard(user,id){
   await who(user);
   const data=(await db.query('select study_session_dashboard() as data')).rows[0].data;
@@ -151,11 +153,19 @@ try{
   assert.equal((await ok(B,'list')).sessions.find(s=>s.id===b.id).state,'completed');await bad(B,'answer',{id:b.id,index:0,answer_id:dbb.cards[0].correct_answer_id});
  });
  await test('friend recipient accepts or declines, no unsolicited random invite',async()=>{
-  const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);assert.equal((await ok(B,'list')).invites.length,1);await bad(C,'decline',{id:a.id});await ok(B,'decline',{id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'cancelled');
+  const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);assert.equal((await dashboard(A,a.id)).friend_username,'Bob');assert.equal((await ok(B,'list')).invites.length,1);await bad(C,'decline',{id:a.id});await ok(B,'decline',{id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'cancelled');
   const a2=await start(A,da,'friend',{friend_id:B});await half(A,a2.id);const b=await start(B,dbb,'friend',{join_id:a2.id});assert.ok(b.id);
+ });
+ await test('different friends may have concurrent sessions, but a friend pair has one open session',async()=>{
+  await admin("update study_sessions set state='cancelled' where user_id=$1 and finished_at is null",[A]);
+  await admin("insert into friend_edges values(least($1::uuid,$2::uuid),greatest($1::uuid,$2::uuid),'accepted')",[A,C]);
+  const withBob=await start(A,da,'friend',{friend_id:B});await half(A,withBob.id);
+  const withChris=await start(A,da,'friend',{friend_id:C});await half(A,withChris.id);
+  await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'friend',friend_id:B,count:20,consent:true});
  });
  await test('expired search cannot be joined and cancellation preserves progress',async()=>{await admin("update study_sessions set deadline=now()-interval '1 second' where deadline is not null");const a=await start(A,da,'random');await half(A,a.id);await admin("update study_sessions set expires_at=now()-interval '1 second' where id=$1",[a.id]);await bad(B,'start',{request_id:randomUUID(),deck_id:dbb.id,mode:'random',count:20,consent:true,join_id:a.id});assert.ok(!(await ok(A,'list')).sessions.some(s=>s.id===a.id));await bad(A,'round',{id:a.id});});
  await test('both unfinished friends receive completed losses',async()=>{
+  await admin("update study_sessions set state='cancelled' where finished_at is null");
   const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);
   const b=await start(B,dbb,'friend',{join_id:a.id});
   await admin("update study_sessions set deadline=now() where id in ($1,$2)",[a.id,b.id]);

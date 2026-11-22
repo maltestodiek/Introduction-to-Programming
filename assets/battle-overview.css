@@ -22,7 +22,7 @@
 .bo-av-op{background:linear-gradient(135deg,#f59e0b,#ec4899)}
 .bo-vs i{font-style:normal;font-size:.72rem;font-weight:800;color:var(--sd-muted);background:var(--sd-hover);border-radius:6px;padding:2px 7px}
 .bo-vs b{font-size:.98rem;color:var(--sd-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bo-deck{margin:0 0 .5rem!important;color:var(--sd-muted);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bo-deck{margin:0 0 .5rem!important;color:var(--sd-muted);font-size:.60rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bo-score{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .bo-score b{font-size:1.7rem;font-weight:800;color:var(--sd-text);line-height:1.1}
 .bo-score i{font-style:normal;font-weight:800;color:var(--sd-muted)}

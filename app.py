@@ -2348,10 +2348,35 @@ def restore_study_option(saved, field, widget_key, options):
         st.session_state[widget_key] = options[options.index(value)]
 
 
-STUDY_SLOT_INFO = ('Once you answer both halves, you can start or accept another session, '
-                   'even while your partner is still playing.')
-STUDY_SLOT_BUSY = ('You already have an unfinished Study Together session. Finish both halves or '
-                   'choose Stop session under Your turn or Waiting to free your place now.')
+STUDY_SLOT_INFO = ('You can start or accept another session with a different player while this one is open. '
+                   'Only one ongoing Study Together session is allowed per player pair.')
+STUDY_SLOT_BUSY = ('You already have an ongoing Study Together session with this player. '
+                   'Finish it or choose Stop session to free that player pair.')
+STUDY_UNMATCHED_INFO = ('Before matching, your unfinished session expires after 48 hours of inactivity. '
+                        'Once you finish your half, the search stays open for 48 hours. Your practice progress is saved.')
+STUDY_MATCHED_INFO = ('After matching, both players have 48 hours to finish. The match then moves to completed history. '
+                      'Each player who did not finish receives a loss.')
+
+
+def study_together_information_button(key):
+    state_key = key+'_open'
+    if st.button(' ', icon=':material/info:', help='Study Together session rules', key=key, type='tertiary'):
+        st.session_state[state_key] = not st.session_state.get(state_key, False)
+    return st.session_state.get(state_key, False)
+
+
+def study_together_information_panel():
+    st.info('\n\n'.join((STUDY_SLOT_INFO, STUDY_UNMATCHED_INFO, STUDY_MATCHED_INFO)), icon=':material/info:')
+
+
+def study_together_heading(label, key):
+    title, info, _ = st.columns((7.5, .45, 8.05), vertical_alignment='center')
+    with title:
+        st.subheader(label)
+    with info:
+        show_information = study_together_information_button(key)
+    if show_information:
+        study_together_information_panel()
 
 def has_unfinished_together(sessions):
     return any(s['mode'] != 'solo' and s['state'] in ('own', 'waiting', 'paired') for s in sessions)
@@ -2361,7 +2386,6 @@ def study_invitations(client, invites, blocked):
     if not invites:
         st.caption('No incoming Study Together invitations.')
         return
-    st.caption(STUDY_SLOT_INFO)
     for invite in invites:
         with st.container(border=True,key='study_invitation_'+invite['id']):
             show_play_update('study','invite',invite['id'])
@@ -2430,34 +2454,24 @@ def study_screen(client,profile,draft):
         st.subheader('Continue session')
         sessions = [s for s in data['sessions'] if (s['mode'] != 'solo') == together]
         study_session_board(client, sessions, 'together' if together else 'solo')
-        blocked = together and has_unfinished_together(data['sessions'])
         if together:
             st.subheader('Study invitations')
-            study_invitations(client, data['invites'], blocked)
-        st.subheader('Create a new study session')
+            study_invitations(client, data['invites'], False)
         if together:
-            st.caption(STUDY_SLOT_INFO)
+            study_together_heading('Create a new study session', 'study_together_menu_info')
+        else:
+            st.subheader('Create a new study session')
         if st.button('Create a new study session', type='primary', icon=':material/add:'):
-            if together and blocked:
-                st.info(STUDY_SLOT_BUSY)
-            else:
-                st.session_state.study_creating = True
-                st.rerun()
+            st.session_state.study_creating = True
+            st.rerun()
         return
     draft['screen'] = 'create'
     if st.button('Back to '+choice, icon=':material/arrow_back:'):
         st.session_state.pop('study_creating', None)
         st.session_state.pop('study_join', None)
         st.rerun()
-    if together:
-        st.caption(STUDY_SLOT_INFO)
-        if has_unfinished_together(data['sessions']):
-            st.info(STUDY_SLOT_BUSY)
-            return
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
     if together:
-        st.caption('Before matching, your unfinished session expires after 48 hours of inactivity. Once you finish your half, the search stays open for 48 hours. Your practice progress is saved.')
-        st.caption('After matching, both players have 48 hours to finish. The match then moves to completed history. Each player who did not finish receives a loss.')
         if profile.get('course_history'):
             st.caption(f"Matching uses courses at {profile['university']}. Switch universities in Profile to use a course from another university.")
         active_courses={name.strip().casefold() for name in profile['courses']}
@@ -2478,7 +2492,11 @@ def study_screen(client,profile,draft):
         decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
-    st.subheader('Your session settings' if offer else 'Create a new study session')
+    setup_heading = 'Your session settings' if offer else 'Create a new study session'
+    if together:
+        study_together_heading(setup_heading, 'study_together_create_info')
+    else:
+        st.subheader(setup_heading)
     courses=sorted({d['course'] for d in decks})
     restore_study_option(saved, 'course', 'study_setup_course', courses)
     course=st.selectbox('Study course',courses,key='study_setup_course')
@@ -2695,7 +2713,7 @@ def study_session_card(client, session, location, relationships):
             st.progress(min(answered/total,1.0) if total else 0.0, text=f'{answered} / {total} answered')
         elif waiting:
             label = ('Waiting for your partner to finish' if state == 'waiting_for_finish'
-                     else 'Waiting for your friend to accept' if session['mode'] == 'friend'
+                     else f"Waiting for {session.get('friend_username') or 'your friend'} to accept & play" if session['mode'] == 'friend'
                      else 'Waiting to be matched')
             st.markdown(f':orange-badge[{label}]')
             if state == 'waiting_for_finish':
@@ -2718,12 +2736,16 @@ def study_session_card(client, session, location, relationships):
         if session.get('deadline'):
             st.caption('Match deadline · '+battle_deadline(session['deadline']))
         elif session.get('expires_at'):
-            st.caption(('Search expires · ' if waiting else 'Inactive session expires · ')+battle_deadline(session['expires_at']))
+            expiration_label = ('Invitation expires · ' if session['mode'] == 'friend'
+                                else 'Search expires · ' if waiting
+                                else 'Inactive session expires · ')
+            st.caption(expiration_label+battle_deadline(session['expires_at']))
         dashboard = location == 'dashboard'
-        label = ('Open Study' if dashboard else 'Open session') if waiting else ('Resume Study' if dashboard else 'Continue')
-        if st.button(label, key=('home_study_' if dashboard else 'study_resume_')+sid,use_container_width=True):
-            st.session_state.study_board_return = 'Waiting' if waiting else 'Your turn'
-            resume_study_session(session, origin='dashboard' if dashboard else 'mode')
+        if dashboard or not waiting:
+            label = 'Open Study' if dashboard and waiting else ('Resume Study' if dashboard else 'Continue')
+            if st.button(label, key=('home_study_' if dashboard else 'study_resume_')+sid,use_container_width=True):
+                st.session_state.study_board_return = 'Waiting' if waiting else 'Your turn'
+                resume_study_session(session, origin='dashboard' if dashboard else 'mode')
         if not solo and state in ('own','waiting','paired'):
             study_stop_control(client, sid)
 
@@ -2732,11 +2754,16 @@ def study_session_board(client, sessions, location, invites=()):
     st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
     dashboard = location == 'dashboard'
     if not dashboard:
-        sessions = [session for session in sessions if session['state'] in ('own', 'paired')]
+        visible_states = ('own', 'paired')
+        if location == 'together':
+            visible_states += STUDY_WAITING_STATES
+        sessions = [session for session in sessions if session['state'] in visible_states]
     groups = {'Your turn': [], 'Waiting': [], 'Completed': []} if dashboard else {'Your turn': []}
     for session in sessions:
         state = session['state']
-        tab = 'Waiting' if state in STUDY_WAITING_STATES else 'Your turn' if state in ('own','paired') else 'Completed'
+        tab = ('Waiting' if dashboard and state in STUDY_WAITING_STATES
+               else 'Your turn' if state in ('own','paired') or not dashboard
+               else 'Completed')
         groups[tab].append(session)
     relationships = {}
     if any(s['mode'] != 'solo' and (s.get('deadline') or s['state'] in ('paired','completed','waiting_for_finish')) for s in sessions):
@@ -2760,20 +2787,23 @@ def study_session_board(client, sessions, location, invites=()):
                 continue
             limit = st.session_state.get('sessions_history_limit',5) if name == 'Completed' else len(rows)
             visible = rows[:limit]
-            for offset in range(0,len(visible),2):
-                for column,session in zip(st.columns(2),visible[offset:offset+2]):
-                    with column:
-                        study_session_card(client,session,location,relationships)
+            if not dashboard and location == 'together':
+                for session in visible:
+                    study_session_card(client,session,location,relationships)
+            else:
+                for offset in range(0,len(visible),2):
+                    for column,session in zip(st.columns(2),visible[offset:offset+2]):
+                        with column:
+                            study_session_card(client,session,location,relationships)
             if len(rows)>limit:
                 st.button('Show more',key='sessions_history_more',on_click=show_more_history)
     if dashboard:
         with tabs[-1]:
-            study_invitations(client, invites, has_unfinished_together(sessions))
+            study_invitations(client, invites, False)
     st.button('Refresh study sessions', key='study_refresh_'+location, icon=':material/refresh:')
 
 
 def ongoing_sessions(client,data):
-    study_plan_play_todos(client,data)
     sessions = data.get('sessions',[])
     st.subheader('Study sessions')
     completed = sum(s['state']=='completed' for s in sessions)
@@ -3582,8 +3612,6 @@ def play_screen(client,profile):
             battle_screen(client,profile);return
         else:
             st.header('Study Mode')
-            if st.button('Back to Play mode selection', icon=':material/arrow_back:'):
-                navigate('Play')
             st.caption('Study alone with one deck, or study together with two decks. Each player contributes half the questions.')
             study_design()
             data=study_request(client,'list',{'session_overview':True})

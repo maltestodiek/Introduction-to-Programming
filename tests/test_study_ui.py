@@ -48,8 +48,10 @@ def test_together_requires_consent_and_sufficient_questions(monkeypatch):
     at,calls,d=setup(monkeypatch)
     button(at,'Change study mode').click().run();button(at,'Study together').click().run()
     assert not any(b.label=='Start studying' for b in at.button)
+    assert not any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
     button(at,'Create a new study session').click().run()
     assert button(at,'Start studying').disabled
+    assert not any(p.proto.popover.help=='Study Together session rules' for p in at.get('popover'))
     assert any('20 questions = 10 from your deck + 10' in w.value for w in at.info)
     assert any(p.proto.popover.help=='Learning progress legend' for p in at.get('popover'))
     for level in ('new', '0', '1', '2', '3'):
@@ -334,11 +336,11 @@ def test_reopening_study_settings_in_a_fresh_app(monkeypatch):
     assert not any(action in ('start','answer','next','decline') for action,_ in calls)
 
 
-def test_busy_player_sees_invites_and_can_stop_before_starting_another_session(monkeypatch):
+def test_waiting_friend_session_stays_visible_while_another_invitation_can_open(monkeypatch):
     at, calls, deck = setup(monkeypatch)
     from db import StudyRepository
     original = StudyRepository.action
-    sessions = [dict(id='busy', mode='friend', state='waiting', cursor=10, count=20, name='Finance')]
+    sessions = [dict(id='busy', mode='friend', state='waiting', cursor=10, count=20, name='Finance', friend_username='Alex', expires_at='2026-12-01T12:00:00+00:00')]
     def action(self, kind, data=None):
         if kind == 'stop':
             assert data == {'id':'busy'}
@@ -352,15 +354,6 @@ def test_busy_player_sees_invites_and_can_stop_before_starting_another_session(m
     monkeypatch.setattr(StudyRepository, 'action', action)
     button(at,'Change study mode').click().run()
     assert at.tabs[-1].label == 'Invitations'
-    button(at,'Accept invitation').click().run()
-    assert any('unfinished Study Together' in m.value for m in at.info)
-    button(at,'Study together').click().run()
-    headings = [h.value for h in at.subheader]
-    assert headings.index('Continue session') < headings.index('Study invitations') < headings.index('Create a new study session')
-    button(at,'Create a new study session').click().run()
-    assert any('unfinished Study Together' in m.value for m in at.info)
-    button(at,'Change study mode').click().run()
-    at.button(key='study_stop_busy').click().run()
     button(at,'Accept invitation').click().run()
     assert at.session_state['study_join'] == 'invite' and at.session_state['study_creating']
     assert not at.exception
