@@ -1,30 +1,43 @@
-import importlib
-import sys
-from types import SimpleNamespace
+from io import BytesIO
+from pathlib import Path
 
 import pytest
+from pypdf import PdfWriter
+
+import pdf_import as parser
 from test_deck_ui import button, deck_app
 
 
-@pytest.fixture
-def parser(monkeypatch):
-    class Reader:
-        def __init__(self, _payload):
-            self.is_encrypted=False
-            self.pages=[]
-    monkeypatch.setitem(sys.modules,'pypdf',SimpleNamespace(PdfReader=Reader))
-    sys.modules.pop('pdf_import',None)
-    return importlib.import_module('pdf_import')
+def test_real_slide_produces_source_text_for_question_generation():
+    slide = Path(__file__).with_name('fixtures') / 'lecture-slide.pdf'
+    assert parser.parse_pdf_slides(slide.read_bytes()) == {
+        'cards': [{'front': 'Lecture slide 1', 'back': 'Capital budgeting'}],
+        'skipped': 0,
+        'limited': False,
+    }
 
 
-def test_pdf_import_rejects_missing_and_oversized_uploads(parser):
+def test_real_reader_rejects_unreadable_and_encrypted_files():
+    with pytest.raises(parser.SlideImportError, match='readable PDF'):
+        parser.parse_pdf_slides(b'ordinary text')
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=100)
+    writer.encrypt('fixture-only')
+    encrypted = BytesIO()
+    writer.write(encrypted)
+    with pytest.raises(parser.SlideImportError, match='Encrypted'):
+        parser.parse_pdf_slides(encrypted.getvalue())
+
+
+def test_pdf_import_rejects_missing_and_oversized_uploads():
     with pytest.raises(parser.SlideImportError,match='Choose a PDF lecture file'):
         parser.parse_pdf_slides(b'')
     with pytest.raises(parser.SlideImportError,match='smaller than 20 MB'):
         parser.parse_pdf_slides(b'x'*(parser.MAX_FILE_BYTES+1))
 
 
-def test_pdf_import_creates_bounded_slide_sources(parser,monkeypatch):
+def test_pdf_import_creates_bounded_slide_sources(monkeypatch):
     class Page:
         def __init__(self,text): self.text=text
         def extract_text(self): return self.text
@@ -39,7 +52,7 @@ def test_pdf_import_creates_bounded_slide_sources(parser,monkeypatch):
     assert result['cards'][0]['back']=='First slide'
 
 
-def test_pdf_import_rejects_scanned_or_encrypted_sources(parser,monkeypatch):
+def test_pdf_import_rejects_scanned_or_encrypted_sources(monkeypatch):
     class Reader:
         is_encrypted=True
         pages=[]
