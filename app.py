@@ -3622,81 +3622,77 @@ if not editing:
     except ValueError as exc:
         friend_state=None
         st.warning(str(exc))
-    left,right=st.columns([1,3])
-    with left:portrait(picture or render_avatar(DEFAULT_AVATAR),176)
-    with right:
-        code_label=("#"+friend_state["code"]) if friend_state else ""
-        st.html(f'<h1 style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;color:var(--sd-text)"><span>{escape(profile["username"])}</span><span aria-label="Your friend code" style="font-size:16px;font-weight:400;letter-spacing:.03em;color:var(--sd-muted)">{escape(code_label)}</span></h1>')
-        st.html(fresh_module("profile_summary").profile_stats_html(xp_breakdown(profile),profile.get("win_streak",0),len(friend_state["friends"]) if friend_state else None))
-        st.write(profile["university"])
+    st.html('<style>'+(Path(__file__).parent/'assets'/'profile.css').read_text()+'</style>')
+    with st.container(key="profile_identity"):
+        with st.container(key="profile_top"):
+            avatar_col,summary,actions=st.columns([1,4,1],vertical_alignment="center")
+            with avatar_col:
+                portrait(picture or render_avatar(DEFAULT_AVATAR),108)
+            with summary:
+                code=(f'<span class="profile-code" aria-label="Your friend code">#{escape(friend_state["code"])}</span>'
+                      if friend_state and friend_state.get("code") else "")
+                st.html(f'<h1 class="profile-name">{escape(profile["username"])}{code}</h1>')
+                st.html(fresh_module("profile_summary").profile_stats_html(xp_breakdown(profile),profile.get("win_streak",0),len(friend_state["friends"]) if friend_state else None))
+            with actions:
+                if st.button("Edit profile",icon=":material/edit:",key="profile_edit"):
+                    st.session_state.editing=True;st.rerun()
         degree_labels={"Bachelor's":"Bachelor","Master's":"Master","Doctorate":"Doctorate","Associate":"Associate degree","Diploma / certificate":"Diploma / certificate"}
         degree=degree_labels.get(profile.get("degree"),"")
         field=profile.get("area","")
         study=degree+(" in "+field if degree and field else field)
         if profile.get("graduation_year"):
             study+=(" · " if study else "")+f"Class of {profile['graduation_year']}"
-        if study:st.write(study)
-        st.caption(" · ".join(profile["languages"]))
-        edit,sign_out=st.columns(2)
-        with edit:
-            if st.button("Edit profile",use_container_width=True):st.session_state.editing=True;st.rerun()
-        with sign_out:
-            st.html('''<style>
-                .st-key-profile_sign_out button {
-                    background:var(--sd-danger-surface)!important;
-                    color:var(--sd-danger-text)!important;
-                    border-color:var(--sd-danger-border)!important;
-                }
-                .st-key-profile_sign_out button:hover {
-                    background:color-mix(in srgb,var(--sd-danger-surface) 92%,var(--sd-danger-text))!important;
-                }
-                .st-key-profile_sign_out button:focus-visible {
-                    outline:2px solid var(--sd-danger-border);
-                    outline-offset:2px;
-                }
-            </style>''')
-            if st.button("Sign out",key="profile_sign_out",use_container_width=True):
-                message=auth.sign_out().message
-                for k in list(st.session_state):del st.session_state[k]
-                st.session_state.browser_loaded=True;st.session_state.started=True
-                st.session_state.notice=message;st.rerun()
-    st.subheader("Your courses")
-    st.caption("Only you can see your course selections.")
-    for course in profile["courses"]:
-        st.write(f":material/school: {course} ({profile['university']})")
-    other_courses = other_university_courses(profile, profile["university"])
-    for campus, saved_courses in other_courses.items():
-        for course in saved_courses:
-            st.write(f":material/school: {course} ({campus})")
-    if other_courses:
-        st.caption(OTHER_UNIVERSITY_HINT)
+        study_line=f'<span class="profile-degree">{escape(study)}</span>' if study else ""
+        languages=" · ".join(profile["languages"])
+        language_detail=(f'<div><dt>Languages</dt><dd>{escape(languages)}</dd></div>' if languages else "")
+        st.html('<dl class="profile-details"><div><dt>University</dt>'
+                f'<dd>{escape(profile["university"])}{study_line}</dd></div>{language_detail}</dl>')
+    with st.container(key="profile_courses"):
+        with st.container(horizontal=True,horizontal_alignment="distribute",vertical_alignment="center"):
+            st.subheader("Your courses")
+            if not st.session_state.get("adding_courses") and st.button("Add courses",icon=":material/add:"):
+                st.session_state.adding_courses=True;st.rerun()
+        st.caption("Only you can see your course selections.")
+        other_courses=other_university_courses(profile,profile["university"])
+        with st.container(key="profile_course_rows"):
+            for course in profile["courses"]:
+                st.write(f":material/school: {course} ({profile['university']})")
+            for campus,saved_courses in other_courses.items():
+                for course in saved_courses:
+                    st.write(f":material/school: {course} ({campus})")
+        if other_courses:
+            st.caption(OTHER_UNIVERSITY_HINT)
+        if st.session_state.get("adding_courses"):
+            # The same course selector as in Edit profile; only the courses change, everything else is saved back as it is.
+            from course_catalog import course_options,load_university_courses,match_courses
+            if st.session_state.get("shared_courses_for")!=profile["university"]:
+                st.session_state.shared_courses=load_university_courses(auth.client,profile["university"])
+                st.session_state.shared_courses_for=profile["university"]
+            listed_courses=[*CATALOG.get(profile["university"],[]),*st.session_state.get("shared_courses",[])]
+            own_courses=match_courses(profile["courses"],listed_courses)
+            chosen_courses=st.multiselect("Your courses",course_options(listed_courses,own_courses),default=own_courses,accept_new_options=True,placeholder="Choose courses or type a new one",key="profile_course_editor")
+            chosen_courses=match_courses(chosen_courses,listed_courses)
+            st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too.")
+            save_courses,cancel_courses=st.columns(2)
+            if save_courses.button("Save courses",type="primary",use_container_width=True):
+                try:
+                    repo.save(dict(username=profile["username"],university=profile["university"],courses=chosen_courses,languages=profile["languages"],avatar=profile.get("avatar") or DEFAULT_AVATAR,
+                                   degree=profile.get("degree","Not specified"),area=profile.get("area",""),graduation_year=profile.get("graduation_year")),
+                              profile.get("image_mode","Avatar"),None,profile.get("image_path"),previous=profile)
+                    st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.session_state.pop("shared_courses_for",None)
+                    st.session_state.profile_changed=True;st.session_state.notice="Your courses are saved.";st.rerun()
+                except ValueError as exc:st.error(str(exc))
+            if cancel_courses.button("Cancel",use_container_width=True):
+                st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.rerun()
     if st.session_state.get("pending_invite"):
         st.info("You have a friend invitation. Open Friends to review and accept it.")
-    if st.session_state.get("adding_courses"):
-        # The same course selector as in Edit profile; only the courses change, everything else is saved back as it is.
-        from course_catalog import course_options,load_university_courses,match_courses
-        if st.session_state.get("shared_courses_for")!=profile["university"]:
-            st.session_state.shared_courses=load_university_courses(auth.client,profile["university"])
-            st.session_state.shared_courses_for=profile["university"]
-        listed_courses=[*CATALOG.get(profile["university"],[]),*st.session_state.get("shared_courses",[])]
-        own_courses=match_courses(profile["courses"],listed_courses)
-        chosen_courses=st.multiselect("Your courses",course_options(listed_courses,own_courses),default=own_courses,accept_new_options=True,placeholder="Choose courses or type a new one",key="profile_course_editor")
-        chosen_courses=match_courses(chosen_courses,listed_courses)
-        st.caption("The list shows courses that students at your university have already added. If yours is missing, type it and press Enter; it then appears for your classmates too.")
-        save_courses,cancel_courses=st.columns(2)
-        if save_courses.button("Save courses",type="primary",use_container_width=True):
-            try:
-                repo.save(dict(username=profile["username"],university=profile["university"],courses=chosen_courses,languages=profile["languages"],avatar=profile.get("avatar") or DEFAULT_AVATAR,
-                               degree=profile.get("degree","Not specified"),area=profile.get("area",""),graduation_year=profile.get("graduation_year")),
-                          profile.get("image_mode","Avatar"),None,profile.get("image_path"),previous=profile)
-                st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.session_state.pop("shared_courses_for",None)
-                st.session_state.profile_changed=True;st.session_state.notice="Your courses are saved.";st.rerun()
-            except ValueError as exc:st.error(str(exc))
-        if cancel_courses.button("Cancel",use_container_width=True):
-            st.session_state.adding_courses=False;st.session_state.pop("profile_course_editor",None);st.rerun()
-    elif st.button("Add courses",icon=":material/add:"):
-        st.session_state.adding_courses=True;st.rerun()
-    st.caption("Your username, university, languages, chosen image, XP and streak are visible to signed-in students. Your email and courses are private.")
+    with st.container(key="profile_footer",horizontal=True,vertical_alignment="center"):
+        st.caption("Your username, university, languages, chosen image, XP and streak are visible to signed-in students. Your email and courses are private.")
+        if st.button("Sign out",icon=":material/logout:",key="profile_sign_out"):
+            message=auth.sign_out().message
+            for k in list(st.session_state):del st.session_state[k]
+            st.session_state.browser_loaded=True;st.session_state.started=True
+            st.session_state.notice=message;st.rerun()
     st.stop()
 
 st.title("Make yourself at home." if not profile else "Edit your profile")
