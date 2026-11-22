@@ -63,6 +63,18 @@ def test_play_landing_shows_incoming_battle_and_study_invites_as_read_only_notic
     assert not at.exception
 
 
+def test_study_invitation_notice_opens_study_mode(monkeypatch):
+    monkeypatch.setattr('db.BattleRepository.action',lambda self,action,data=None:{'invites':[],'sessions':[],'search':None})
+    monkeypatch.setattr('db.StudyRepository.action',lambda self,action,data=None:{'invites':[
+        {'id':'study-invite','username':'Alex','course':'Corporate Finance','language':'English','count':20},
+    ],'decks':[],'shared':[],'sessions':[],'open':[],'friends':[],'feedback':[]})
+    at=deck_app(monkeypatch)
+    keyed(at,'nav_Play').click().run()
+    at.button(key='open_study_invitation_notice_study-invite').click().run()
+    assert at.session_state['play_mode_preview']=='Study'
+    assert not at.exception
+
+
 def test_user_without_a_profile_still_sees_profile_setup(monkeypatch):
     at=signed_in_app(monkeypatch,None)
     assert any(b.label=='Save profile' for b in at.button)
