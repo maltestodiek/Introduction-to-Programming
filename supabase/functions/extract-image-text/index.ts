@@ -1,5 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { readImageText, validateImages } from "./vision.ts";
 
 const corsHeaders = {
@@ -10,7 +9,7 @@ const corsHeaders = {
 const json = (status: number, body: Record<string, unknown>) => new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
 /** Reads the text on the images of one Anki card. Nothing is stored; the student reviews the text before importing. */
-serve(async (request) => {
+Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json(405, { error: "Use POST to read image text." });
 
