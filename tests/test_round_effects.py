@@ -172,8 +172,8 @@ def test_leaving_a_battle_asks_in_a_centred_modal_not_a_dropdown():
     assert 'st.popover' not in section
     assert "st.container(key=f'round_leave_modal_{session_id}')" in section
     assert 'round-modal-backdrop' in section
-    assert "battle_request(client,'clock'" in section and "'abandon'" not in section
-    assert 'Keep fighting' in section and 'Save and exit Battle' in section
+    assert "battle_request(client,'leave'" in section and "'confirmed':True" in section
+    assert 'Keep fighting' in section and 'Leave and lose' in section
     assert '[class*="st-key-round_leave_modal_"]{position:fixed;z-index:2200;top:50%;left:50%;transform:translate(-50%,-50%)' in MODAL_CSS
     assert '.round-modal-backdrop{position:fixed;inset:0' in MODAL_CSS
     assert "(Path(__file__).parent/'assets'/'confirm-modal.css').read_text()" in APP
