@@ -354,7 +354,6 @@ def friend_match_row(item,repo,friends):
         portrait(data or render_avatar(DEFAULT_AVATAR),48)
     with profile:
         st.markdown("**"+person["username"]+"**")
-        st.caption("Friend")
     with actions:
         battle,study,chat,remove=st.columns([1.35,1.2,.7,.7],gap='small',vertical_alignment='center')
         with battle:
@@ -409,7 +408,7 @@ def friends_screen(friends,repo,state):
                 if 'invite' in st.query_params:del st.query_params['invite']
                 st.rerun()
 
-    main,invite=st.columns([2.05,1],gap='large')
+    main,invite=st.columns([3,2],gap='medium')
     with main:
         if state['incoming']:
             for item in state['incoming']:
@@ -429,46 +428,47 @@ def friends_screen(friends,repo,state):
                         if st.button('Decline',key='decline_'+item['id'],use_container_width=True):
                             if friend_action(friends,'decline',item['id']):st.rerun()
 
-        friends_heading,friends_search=st.columns([1.2,1],vertical_alignment='center')
-        with friends_heading:
-            st.html(f'<div class="friends-heading-inline" aria-label="{friend_count} friends"><span>Your friends</span><strong>{friend_count}</strong></div>')
-        with friends_search:
-            query=st.text_input('Search friends',placeholder='Search friends',key='friends_local_search',label_visibility='collapsed')
-        visible_friends=[item for item in state['friends'] if not query or query.casefold() in item['person']['username'].casefold()]
-        if not visible_friends:
-            st.caption('No friends match your search.' if query else 'Nothing here yet.')
-        else:
-            with st.container(border=True,key='friends_list'):
+        with st.container(border=True,key='friends_list'):
+            friends_heading,friends_search=st.columns([1.2,1],vertical_alignment='center')
+            with friends_heading:
+                st.html(f'<div class="friends-heading-inline" aria-label="{friend_count} friends"><span>Your friends</span><strong>{friend_count}</strong></div>')
+            with friends_search:
+                query=st.text_input('Search friends',placeholder='Search friends',key='friends_local_search',label_visibility='collapsed')
+            visible_friends=[item for item in state['friends'] if not query or query.casefold() in item['person']['username'].casefold()]
+            if not visible_friends:
+                st.caption('No friends match your search.' if query else 'Your accepted friends will appear here.')
+            else:
                 for item in visible_friends:
                     friend_match_row(item,repo,friends)
 
-        st.subheader('Find students at your university')
-        try:university_directory=friends.university_profiles()
-        except ValueError as exc:st.error(str(exc));university_directory={'profiles':[]}
-        students=university_directory['profiles']
-        if students:
-            st.caption(f"Students with a profile at {university_directory['university']}.")
-            with st.container(border=True,key='friends_university_directory'):
+        with st.container(border=True,key='friends_university_directory'):
+            st.subheader('Find students at your university')
+            try:university_directory=friends.university_profiles()
+            except ValueError as exc:st.error(str(exc));university_directory={'profiles':[]}
+            students=university_directory['profiles']
+            if students:
+                st.caption(f"Students with a profile at {university_directory['university']}.")
                 for student in students:
-                    avatar,name,university,action=st.columns([.6,2.4,2.8,1.2],vertical_alignment='center')
+                    avatar,name,action=st.columns([.6,3.6,1.2],vertical_alignment='center')
                     with avatar:
                         try:data=repo.image(student.get('image_path'))
                         except Exception:data=None
                         portrait(data or render_avatar(DEFAULT_AVATAR),44)
-                    with name:st.markdown('**'+student['username']+'**')
-                    with university:st.caption(university_directory['university'])
+                    with name:
+                        st.markdown('**'+student['username']+'**')
+                        st.caption(university_directory['university'])
                     with action:
                         if st.button('Add',key='university_friend_'+student['id'],icon=':material/person_add:',use_container_width=True):
                             try:
                                 result=friends.request_university_friend(student['id'])
                                 st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
                             except ValueError as exc:st.error(str(exc))
-        else:st.caption('No other students from your university are available to add right now.')
+            else:st.caption('No other students from your university are available to add right now.')
 
     with invite:
         with st.container(border=True,key='friends_invite_card'):
             st.html('<h2 class="friends-card-title">Invite friends</h2>')
-            st.html('<p class="friends-invite-intro">Share your code or a link — you decide who to invite.</p>')
+            st.html('<p class="friends-invite-intro">Share your code or a link.</p>')
             st.html('<p class="friends-invite-label">YOUR FRIEND CODE</p>')
             st.code('#'+state['code'],language=None)
             st.divider()
@@ -528,7 +528,7 @@ def friends_screen(friends,repo,state):
                 if state.get('invite_expires') and st.button('Revoke',key='revoke_friend_invite',use_container_width=True):
                     if friend_action(friends,'revoke_invite'):
                         st.session_state.pop('share_invite_token',None);st.rerun()
-            st.divider()
+        with st.container(border=True,key='friends_sent_card'):
             st.html('<h2 class="friends-card-title">Open invitations</h2>')
             if not state['sent']:st.caption('No pending requests.')
             for item in state['sent']:
