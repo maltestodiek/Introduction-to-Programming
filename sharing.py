@@ -25,19 +25,20 @@ HTML = f"""
 
 CSS = """
 *{box-sizing:border-box}
-.invite-share{color:var(--sd-text)}
-.invite-heading{display:flex;align-items:center;justify-content:space-between;gap:.35rem;margin:0 0 12px;color:var(--sd-muted);font-size:11px;font-weight:800;letter-spacing:.04em}
+.invite-share{color:var(--sd-text);font-family:inherit}
+.invite-heading{display:flex;align-items:center;justify-content:space-between;gap:.35rem;margin:0 0 12px;color:var(--sd-muted);font-size:.8rem;font-weight:650;letter-spacing:.04em;flex-wrap:wrap}
 .invite-expiry{display:flex;align-items:center;gap:5px;color:var(--sd-badge-text);font-size:12px;letter-spacing:0}
 .invite-expiry::before{content:"";width:8px;height:8px;flex:none;border-radius:50%;background:var(--sd-success-border)}
 .invite-url{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:12px}
 .invite-link{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--sd-border);border-radius:13px;padding:12px;background:var(--sd-surface-muted);color:var(--sd-muted);font-size:13px;line-height:18px}
-button,.invite-channels a{display:flex;align-items:center;justify-content:center;gap:.25rem;height:44px;border:1px solid var(--sd-border);border-radius:13px;background:var(--sd-surface);color:var(--sd-text);cursor:pointer;font:700 14px system-ui;text-decoration:none;white-space:nowrap}
+button,.invite-channels a{display:flex;align-items:center;justify-content:center;gap:.25rem;height:44px;border:1px solid var(--sd-border);border-radius:13px;background:var(--sd-surface);color:var(--sd-text);cursor:pointer;font:inherit;font-size:.875rem;font-weight:600;text-decoration:none;white-space:nowrap}
 button.copy{padding:0 .75rem;border-color:var(--sd-action);background:var(--sd-action);color:#fff}
 .invite-channels{display:flex;flex-wrap:wrap;gap:6px}
-.invite-channels button,.invite-channels a{flex:1 0 auto;height:38px;padding:0 .4rem;font-size:12px}
+.invite-channels button,.invite-channels a{flex:1 0 auto;height:38px;padding:0 .4rem;font-size:.85rem}
 button:hover,.invite-channels a:hover{background:var(--sd-hover)}
 button.copy:hover{background:var(--sd-action-hover)}
 button:focus-visible,a:focus-visible{outline:3px solid var(--sd-accent);outline-offset:2px}
+.share-status:empty{display:none}
 .share-status{margin:7px 0 0;color:var(--sd-muted);font-size:11px}
 """
 
