@@ -72,11 +72,9 @@
 .study-emblem>circle:first-of-type{fill:var(--sd-icon-study)}
 .study-emblem>circle:nth-of-type(2){fill:var(--sd-study-end);stroke:var(--sd-study-border)}
 
-:is([class*="st-key-play_battle_invitation_"],[class*="st-key-play_study_invitation_"]){margin-top:1rem;border-radius:16px!important;box-shadow:0 6px 16px var(--sd-shadow)}
-[class*="st-key-play_battle_invitation_"]{border-color:var(--sd-battle-border)!important;background:linear-gradient(135deg,var(--sd-surface),var(--sd-battle-end))!important}
-[class*="st-key-play_study_invitation_"]{border-color:var(--sd-study-border)!important;background:linear-gradient(135deg,var(--sd-surface),var(--sd-study-end))!important}
-.play-invite-notice{position:relative;padding:0}
-.play-invite-badges{position:absolute;top:.8rem;right:.85rem;display:flex;align-items:center;gap:.4rem}.play-invite-count{display:grid;place-items:center;min-width:1.55rem;height:1.55rem;padding:0 .35rem;border-radius:999px;background:#5142e5;color:#fff;font-size:.8rem;font-weight:850;box-shadow:0 3px 8px #4f46e544}.play-invite-new{display:inline-flex;align-items:center;gap:.28rem;padding:.25rem .55rem;border-radius:999px;background:#dff6f0;color:#087b69;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.play-invite-new svg{width:.85rem;height:.85rem}
-.play-invite-label{display:flex;align-items:center;gap:.35rem;margin:0 0 .45rem!important;color:var(--sd-text);font-size:.8rem!important;font-weight:750}.play-invite-label svg{width:1rem;height:1rem}.play-invite-notice strong{display:block;max-width:75%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sd-text);font-size:1rem}.play-invite-notice p:last-child{margin:.3rem 0 0!important;color:var(--sd-muted);font-size:.88rem}.play-invite-notice p:last-child b{color:var(--sd-text)}
-[class*="st-key-play_battle_invitation_"] button{margin-top:.8rem;border-color:#d0eee7!important;background:#dff6f0!important;color:#087b69!important}[class*="st-key-play_battle_invitation_"] button:hover{border-color:#b9e6dc!important;background:#c9f0e6!important;color:#076d5f!important}
-[class*="st-key-play_study_invitation_"] button{margin-top:.8rem;border-color:#ded9ff!important;background:#e9e6ff!important;color:#4938b8!important}[class*="st-key-play_study_invitation_"] button:hover{border-color:#cdc5ff!important;background:#ddd8ff!important;color:#392a9d!important}
+
+.st-key-play_mode_choices :is(.st-key-battle_mode_card,.st-key-study_mode_card){position:relative}
+.st-key-play_mode_choices :is(.st-key-mode_info_study,.st-key-mode_info_battle){position:absolute;top:.4rem;right:.45rem;width:auto}
+.st-key-play_mode_choices :is(.st-key-mode_info_study,.st-key-mode_info_battle) button{width:2rem;height:2rem;min-height:2rem;padding:0!important;border:0!important;background:transparent!important;color:var(--sd-text)!important;box-shadow:none!important}
+:is(.st-key-mode_info_study,.st-key-mode_info_battle) button [data-testid="stMarkdownContainer"]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+:is(.st-key-mode_info_study,.st-key-mode_info_battle) button > div > div[aria-hidden="true"]{display:none}

@@ -30,3 +30,11 @@ Creation update: the main Create New Deck button opens the flexible deck editor.
 
 ## Related feature ownership
 Deck creation, subsection authoring and calculator permissions belong to [Deck Authoring](deck-authoring.md). Session cards, mode selection and the shared colour legend presentation belong to [Appearance and Navigation](appearance-and-navigation.md). Friend requests and messages belong to [Social Connections](social-connections.md). This specification owns sampling, matching, answer feedback, learning levels, notes, copies and Study results.
+
+### Invitations and stopping Study Together
+
+Incoming invitations appear after the sender completes their first half. Find them under Study Mode → Study sessions → Invitations, or between Continue session and Create a new study session in the Study Together menu. Each player can have one unfinished Together session. Answering both halves frees the slot immediately, even if the partner is still playing. A blocked attempt to accept leaves the invitation available.
+
+Save and leave pauses play. Confirming Stop session ends that player's participation, keeps their learning progress and immediately frees the slot. An unmatched search or invitation is cancelled. A matched player who stops takes a loss and forfeits the partner deck. Their partner may still finish within the original deadline, earn the shared deck and receive a win. A partner who also stops or times out unfinished earns no deck and takes a loss. Results never award Study XP.
+
+Before inviting a friend, check that they own an eligible deck for the course and language with at least half the selected total. Recheck when sending the invitation after the first half. Received partner copies do not qualify.

@@ -340,6 +340,7 @@ def open_friend_match(person,mode):
         st.session_state.study_active=True
         st.session_state.study_choice='Study together'
         st.session_state.study_partner='Friend'
+        st.session_state.study_creating=True
         st.session_state.study_invite_friend=person
     st.rerun()
 
@@ -445,7 +446,10 @@ def friends_screen(friends,repo,state):
             st.subheader('Find students at your university')
             try:university_directory=friends.university_profiles()
             except ValueError as exc:st.error(str(exc));university_directory={'profiles':[]}
-            students=university_directory['profiles']
+            search = st.text_input('Search students by username', key='university_student_search',
+                                   placeholder='Search by username').strip().casefold()
+            students = [person for person in university_directory['profiles']
+                        if search in person['username'].casefold()]
             if students:
                 st.caption(f"Students with a profile at {university_directory['university']}.")
                 for student in students:
@@ -463,6 +467,8 @@ def friends_screen(friends,repo,state):
                                 result=friends.request_university_friend(student['id'])
                                 st.session_state.notice=result.get('message','Friend request sent.');st.rerun()
                             except ValueError as exc:st.error(str(exc))
+            elif university_directory['profiles']:
+                st.caption('No students match your search.')
             else:st.caption('No other students from your university are available to add right now.')
 
     with invite:
@@ -662,6 +668,8 @@ def battle_deck_creator(client):
     from db import BattleRepository
     repository=BattleRepository(client)
     st.header('Create Battle Mode Deck')
+    if st.button('Back to Decks', icon=':material/arrow_back:'):
+        navigate('Decks')
     if st.session_state.get('battle_return_study'):
         if st.button('Back to Deck studio' if st.session_state.get('deck_studio') else 'Back to Study deck',icon=':material/arrow_back:'):
             for key in ('battle_deck_creator','battle_source_id','battle_return_study'):st.session_state.pop(key,None)
@@ -977,6 +985,7 @@ def open_course_study_deck(client,deck):
     st.session_state.main_page='Play'
     st.session_state.study_active=True
     st.session_state.study_choice='Study alone'
+    st.session_state.study_creating=True
     st.session_state.study_deck_preselection=deck_id
     st.session_state.pop('study_session',None)
     st.session_state.pop('study_join',None)
@@ -1252,6 +1261,8 @@ def navigate(page):
         st.session_state.main_page=page
         if page=='Play':
             st.session_state.pop('study_active',None)
+            for key in ('study_creating','study_history_id','study_round_origin','study_session','study_join'):
+                st.session_state.pop(key,None)
             st.session_state.pop('study_choose',None)
             st.session_state.pop('play_mode_preview',None)
             st.session_state.pop('battle_new_setup',None)
@@ -1484,6 +1495,8 @@ def study_editor(client,profile):
     from logic import new_card,validate_card,validate_study_deck
     d=st.session_state.study_draft;revision=st.session_state.get('study_revision',0)
     st.subheader('Edit Study deck')
+    if st.button('Back to Decks', icon=':material/arrow_back:', help='Keep your draft in this session.'):
+        navigate('Decks')
     st.caption('Add up to 100 questions. Your deck stays private until a together session shares a fixed copy with a partner who finishes.')
     if st.session_state.get('study_review'):
         st.warning('Review every question and correct answer before saving. Edits affect future sessions; received copies stay unchanged.')
@@ -1617,21 +1630,70 @@ def study_library(client,profile):
             st.write(f['question']);st.info(f['body']);st.caption(f"From {f['username']} · {f['created_at']}")
 
 
-def study_round_screen(client,sid):
-    show_round_intro('study',sid)
+def leave_study_round():
+    origin = st.session_state.pop('study_round_origin', 'mode')
+    st.session_state.pop('study_session', None)
+    st.session_state.pop('study_creating', None)
+    if origin in ('dashboard', 'Study Plan'):
+        st.session_state.pop('study_active', None)
+        st.session_state.play_mode_preview = 'Study'
+        if origin == 'Study Plan':
+            st.session_state.main_page = origin
+    st.rerun()
+
+
+def study_answer_review(progress):
+    st.subheader('Your answers')
+    answers = progress.get('review', progress.get('answers', []))
+    if not answers:
+        st.caption('You did not answer any questions in this session.')
+        return
+    if 'review' not in progress:
+        st.caption('Question text is unavailable for this connection. Your saved answer results are shown below.')
+    for answer in answers:
+        verdict = 'Correct' if answer['correct'] else 'Incorrect'
+        label = f"Question {answer['index'] + 1} · {verdict}"
+        if answer.get('question'):
+            with st.expander(label + ' · ' + answer['question']):
+                st.write('Your answer: ' + answer['selected'])
+                st.write('Correct answer: ' + answer['solution'])
+        else:
+            st.write(label)
+    unanswered = progress.get('total', len(answers)) - len(answers)
+    if unanswered > 0:
+        st.caption(f'{unanswered} unanswered')
+
+
+def study_round_screen(client,sid, *, history=False):
+    if history:
+        if st.button('Back to Study history', icon=':material/arrow_back:'):
+            st.session_state.pop('study_history_id', None)
+            st.rerun()
+    else:
+        show_round_intro('study',sid)
     r=study_request(client,'round',{'id':sid})
     if r is None:
-        if st.button('Back to Study Mode'):
-            st.session_state.pop('study_session',None)
-            st.rerun()
+        if not history and st.button('Back to Study Mode'):
+            leave_study_round()
         return
     from db import StudyRepository
     try:progress=StudyRepository(client).progress(sid)
     except ValueError as exc:st.error(str(exc));return
     st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     session_partner_chat(client,'study',sid)
-    if st.button('Save and leave Study session'):
-        st.session_state.pop('study_session',None);st.rerun()
+    if not history and r['state'] in ('feedback','question') and progress.get('match_deadline'):
+        st.caption('You can leave and resume until '+battle_deadline(progress['match_deadline'])+'. Finish by then to earn the partner deck. An unfinished match counts as a loss.')
+    if not history and st.button('Save and leave Study session'):
+        leave_study_round()
+    if (not history and st.session_state.get('study_choice') == 'Study together'
+            and r['state'] in ('question','feedback','waiting')
+            and not (r['state'] == 'feedback' and r['index'] + 1 == r['total'])):
+        study_stop_control(client, sid, in_round=True)
+    if history and r['state'] != 'completed':
+        st.header('Study session')
+        st.metric('Your correct answers', f"{sum(a['correct'] for a in progress['answers'])} / {progress['total']}")
+        study_answer_review(progress)
+        return
     state=r['state']
     if state in ('question','feedback'):
         from study_ui import study_progress_tiles
@@ -1684,13 +1746,17 @@ def study_round_screen(client,sid):
                     if st.button('Save private note',key='study_save_note_'+prefix):
                         if study_request(client,'annotate',{'id':sid,'index':r['index'],'note':note}) is not None:st.success('Private note saved.')
                 if st.button('Next question' if r['index']+1<r['total'] else 'See session result',type='primary'):
-                    if study_request(client,'next',{'id':sid,'index':r['index']}) is not None:st.rerun()
+                    advanced=study_request(client,'next',{'id':sid,'index':r['index']})
+                    if advanced is not None:
+                        if advanced.get('notice'):st.session_state.notice=advanced['notice']
+                        st.rerun()
         return
     elif state=='completed':
         st.subheader(r['result']);st.metric('Your correct answers',f"{r['score']} / {r['total']}")
         if r.get('opponent_score') is not None:st.metric('Partner’s correct answers',f"{r['opponent_score']} / {r['total']}")
+        if r.get('left_early'):st.caption('You stopped this match and gave up the partner deck.')
         if r.get('timed_out'):st.caption('The 48-hour deadline passed. Each player who did not finish received a loss.')
-        st.caption('Study Mode does not change XP, rankings or win streaks.')
+        study_answer_review(progress)
         if r.get('shared'):st.success('Your partner’s full deck is available under Decks → Study decks & progress → Shared with me.')
         if st.button('Refresh session result'):st.rerun()
     elif state=='waiting':
@@ -1699,8 +1765,6 @@ def study_round_screen(client,sid):
         expires_at=format_expiration_time(r.get('expires_at'),deck_studio_timezone())
         if expires_at:st.caption('Search / invitation expires: '+expires_at)
         if st.button('Check for a study partner'):st.rerun()
-        if st.button('Cancel this search or invitation'):
-            if study_request(client,'cancel',{'id':sid}) is not None:st.rerun()
     else:st.info('This session '+state+'. Your completed practice and notes are saved.')
 
 
@@ -1752,6 +1816,8 @@ def study_plan_start(client,plan,course,steps,by_deck,decks):
         st.info('Every question of this course has reached your target level.');return
     started=study_request(client,'start',{'deck_id':deck_id,'shared':lookup[deck_id]['shared'],'mode':'solo','count':min(steps,waiting[deck_id],100),'chapters':[],'levels':['new']+[str(level) for level in range(plan['target'])],'request_id':str(uuid4())})
     if started is not None:
+        st.session_state.study_round_origin = ('Study Plan' if st.session_state.get('main_page') == 'Study Plan'
+                                               else 'mode' if st.session_state.get('study_active') else 'dashboard')
         st.session_state.study_active=True;st.session_state.study_choice='Study alone';st.session_state.main_page='Play'
         open_round('study', started['id'], fresh=True)
 
@@ -2238,39 +2304,57 @@ def study_choice_cards(key,choices,locked=False):
     return selected
 
 
-def study_continue_sessions(client, sessions, together):
-    from logic import STUDY_ONGOING_STATES
-    active = [s for s in sessions if s['state'] in STUDY_ONGOING_STATES
-              and (s['mode'] != 'solo') == together]
-    st.subheader('Continue session')
-    if not active:
-        st.caption('No ongoing sessions in this mode.')
-        return
-    for session in active:
-        sid = session['id']
-        waiting = session['state'] == 'waiting'
-        with st.container(border=True, key='study_continue_'+sid):
-            details, action = st.columns([3, 1], vertical_alignment='center')
-            details.text(session['name'])
-            details.caption(f"{study_mode_label(session['mode'])} · {session['cursor']} / {session['count']} answered")
-            if waiting:
-                details.caption('Waiting for a study partner')
-            if action.button('Open session' if waiting else 'Continue', key='study_resume_'+sid, use_container_width=True):
-                resume_study_session(session)
-            if together:
-                session_partner_chat(client,'study',sid,'saved')
-                if session['state'] in ('own','waiting') and st.button('Cancel search / invitation',key='study_cancel_'+sid):
-                    if study_request(client,'cancel',{'id':sid}) is not None:
-                        st.rerun()
-    if st.button('Refresh study sessions'):
-        st.rerun()
-
-
 def restore_study_option(saved, field, widget_key, options):
     """Only restore a widget value that still exists in the current form."""
     value = saved.get(field)
     if value in options:
         st.session_state[widget_key] = options[options.index(value)]
+
+
+STUDY_SLOT_INFO = ('Once you answer both halves, you can start or accept another session, '
+                   'even while your partner is still playing.')
+STUDY_SLOT_BUSY = ('You already have an unfinished Study Together session. Finish both halves or '
+                   'choose Stop session under Your turn or Waiting to free your place now.')
+
+def has_unfinished_together(sessions):
+    return any(s['mode'] != 'solo' and s['state'] in ('own', 'waiting', 'paired') for s in sessions)
+
+
+def study_invitations(client, invites, blocked):
+    if not invites:
+        st.caption('No incoming Study Together invitations.')
+        return
+    st.caption(STUDY_SLOT_INFO)
+    for invite in invites:
+        with st.container(border=True,key='study_invitation_'+invite['id']):
+            show_play_update('study','invite',invite['id'])
+            study_avatar('friend')
+            st.write('**'+invite['username']+' invited you**')
+            st.caption(f"{invite['course']} · {invite['language']} · {invite['count']} questions")
+            accept,decline=st.columns(2)
+            if accept.button('Accept invitation',key='study_accept_'+invite['id'],type='primary'):
+                if blocked:
+                    st.info(STUDY_SLOT_BUSY)
+                else:
+                    st.session_state.pop('study_update_invite',None)
+                    st.session_state.study_active=True
+                    st.session_state.study_creating=True
+                    st.session_state.study_join=invite['id'];st.session_state.study_choice='Study together';st.session_state.study_partner='Friend';st.rerun()
+            if decline.button('Decline',key='study_decline_'+invite['id']):
+                if study_request(client,'decline',{'id':invite['id']}) is not None:
+                    st.session_state.pop('study_join',None);st.rerun()
+
+
+def study_stop_control(client, sid, *, in_round=False):
+    with st.popover('Stop session', key='study_stop_confirm_'+sid, icon=':material/stop_circle:'):
+        st.write('Stopping frees your place immediately. Your answered questions still count toward your learning progress.')
+        st.caption('Before matching, this cancels the search or invitation. After matching, you take a loss and give up the partner deck. Your partner can still finish and earn yours.')
+        if st.button('Confirm stop', key='study_stop_'+sid):
+            if study_request(client, 'stop', {'id':sid}) is not None:
+                st.session_state.notice = 'Session stopped. You can start or accept another Study Together session.'
+                if in_round:
+                    leave_study_round()
+                st.rerun()
 
 
 def study_screen(client,profile,draft):
@@ -2284,14 +2368,14 @@ def study_screen(client,profile,draft):
     st.markdown((Path(__file__).parent/'assets'/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
     st.header('Study Mode')
     st.caption(st.session_state.get('study_choice','Study alone'))
-    if st.session_state.get('study_session'):
-        study_round_screen(client,st.session_state.study_session);return
     if st.button('Change study mode',icon=':material/arrow_back:'):
         st.session_state.pop('study_active', None)
         st.session_state.pop('study_invite_friend', None)
+        st.session_state.pop('study_creating', None)
+        st.session_state.pop('study_join', None)
         st.session_state.play_mode_preview = 'Study'
         st.rerun()
-    data=study_request(client,'list')
+    data=study_request(client,'list', None if st.session_state.get('study_creating') else {'session_overview':True})
     if data is None:
         return
     saved = st.session_state.pop('returning_study_setup', {})
@@ -2300,25 +2384,39 @@ def study_screen(client,profile,draft):
     if draft['mode'] == 'Study together':
         restore_study_option(saved, 'partner', 'study_partner', ('Random player', 'Friend'))
         restore_study_option(saved, 'join', 'study_join', [o['id'] for o in data['invites'] + data.get('open', [])])
-    # Incoming invitations stay above all setup, regardless of selected course.
-    if data['invites']:
-        st.subheader('Study invitations')
-        for invite in data['invites']:
-            with st.container(border=True,key='study_invitation_'+invite['id']):
-                study_avatar('friend')
-                st.write('**'+invite['username']+' invited you**')
-                st.caption(f"{invite['course']} · {invite['language']} · {invite['count']} questions")
-                accept,decline=st.columns(2)
-                if accept.button('Accept invitation',key='study_accept_'+invite['id'],type='primary'):
-                    st.session_state.study_join=invite['id'];st.session_state.study_choice='Study together';st.session_state.study_partner='Friend';st.rerun()
-                if decline.button('Decline',key='study_decline_'+invite['id']):
-                    if study_request(client,'decline',{'id':invite['id']}) is not None:
-                        st.session_state.pop('study_join',None);st.rerun()
     choice=st.session_state.get('study_choice','Study alone')
     together=choice=='Study together'
-    if not together:
-        study_plan_play_todos(client,data,'solo')
-    study_continue_sessions(client, data['sessions'], together)
+    if not st.session_state.get('study_creating'):
+        draft['screen'] = 'menu'
+        if not together:
+            study_plan_play_todos(client,data,'solo')
+        st.subheader('Continue session')
+        sessions = [s for s in data['sessions'] if (s['mode'] != 'solo') == together]
+        study_session_board(client, sessions, 'together' if together else 'solo')
+        blocked = together and has_unfinished_together(data['sessions'])
+        if together:
+            st.subheader('Study invitations')
+            study_invitations(client, data['invites'], blocked)
+        st.subheader('Create a new study session')
+        if together:
+            st.caption(STUDY_SLOT_INFO)
+        if st.button('Create a new study session', type='primary', icon=':material/add:'):
+            if together and blocked:
+                st.info(STUDY_SLOT_BUSY)
+            else:
+                st.session_state.study_creating = True
+                st.rerun()
+        return
+    draft['screen'] = 'create'
+    if st.button('Back to '+choice, icon=':material/arrow_back:'):
+        st.session_state.pop('study_creating', None)
+        st.session_state.pop('study_join', None)
+        st.rerun()
+    if together:
+        st.caption(STUDY_SLOT_INFO)
+        if has_unfinished_together(data['sessions']):
+            st.info(STUDY_SLOT_BUSY)
+            return
     decks=[dict(d,shared=False) for d in data['decks'] if d.get('language')]
     if together:
         st.caption('Before matching, your unfinished session expires after 48 hours of inactivity. Once you finish your half, the search stays open for 48 hours. Your practice progress is saved.')
@@ -2393,9 +2491,11 @@ def study_screen(client,profile,draft):
             count=offer['count'];request['join_id']=offer['id']
             st.caption('Confirm below to reserve this session. You answer your own questions first.')
         else:
-            count=20
+            totals = [20,40,60,80,100]
+            restore_study_option(saved, 'total', 'study_setup_total', totals)
+            count=st.selectbox('Total questions',totals,key='study_setup_total')
             if mode=='friend':
-                options=study_request(client,'friend_options',{'deck_id':selected_id})
+                options=study_request(client,'friend_options',{'deck_id':selected_id,'count':count})
                 if options is None:return
                 friends=options['friends']
                 if not friends:
@@ -2405,7 +2505,7 @@ def study_screen(client,profile,draft):
                         if st.button('Go to Friends',icon=':material/person_add:'):
                             st.session_state.study_return_after_friends=True
                             navigate('Friends');st.rerun()
-                    else:st.info('None of your friends have this course and deck language in their profile yet. Ask a friend to add them to study together.')
+                    else:st.info(f'No friends are eligible for this session. They need this course and language in their profile and their own matching deck with at least {count//2} questions.')
                     valid=False
                 else:
                     friend_ids=[f['id'] for f in friends]
@@ -2418,7 +2518,7 @@ def study_screen(client,profile,draft):
                     friend=st.selectbox('Choose a friend',friend_ids,index=index,key='study_setup_friend',format_func=lambda x:next(f['username'] for f in friends if f['id']==x))
                     draft['friend'] = friend
                     request['friend_id']=friend
-                    st.caption('Only friends enrolled in this course and speaking the deck language are shown.')
+                    st.caption(f'Listed friends have the course, speak the deck language and own a matching deck with at least {count//2} questions.')
                 st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
             else:
                 st.caption('Only students who also choose random study can match. Your search lasts 48 hours after your own half.')
@@ -2429,10 +2529,6 @@ def study_screen(client,profile,draft):
                         cols=st.columns([3,1]);cols[0].write(f"**{available['count']} questions** · {available['course']}")
                         if cols[1].button('Join',key='study_join_'+available['id']):
                             st.session_state.study_join=available['id'];st.rerun()
-        if not offer:
-            totals = [20,40,60,80,100]
-            restore_study_option(saved, 'total', 'study_setup_total', totals)
-            count=st.selectbox('Total questions',totals,key='study_setup_total')
         draft['total'] = count
         st.info(f'{count} questions = {count//2} from your deck + {count//2} from your partner’s deck.')
         st.caption(f'First, answer {count//2} questions from your own deck. Once a partner is matched or your friend accepts, answer their {count//2} questions. Both of you answer the same combined set, starting with your own half. You can leave and return while waiting.')
@@ -2482,7 +2578,8 @@ def show_round_intro(mode, session_id):
         stage.empty()
 
 
-def resume_study_session(session):
+def resume_study_session(session, *, origin='mode'):
+    st.session_state.study_round_origin = origin
     st.session_state.study_active=True;st.session_state.study_choice='Study alone' if session['mode']=='solo' else 'Study together'
     open_round('study', session['id'], fresh=False)
 
@@ -2501,77 +2598,151 @@ def study_mode_badge(mode):
     return f':violet-badge[:material/group: {study_mode_label(mode)}]'
 
 
-def session_card(client,kind,session):
-    """One ongoing Battle or Study session with its progress, turn and resume action."""
-    with st.container(border=True,key=f"session_card_{kind}_{session['id']}"):
-        if kind=='battle':
-            st.markdown(':material/swords: **'+session['deck_name']+'**')
-            st.caption(f"Battle · {session['course']} · {session['language']} · 15 questions")
-            if session['status']=='pending':
-                st.progress(1.0);st.markdown(":orange-badge[:material/hourglass_top: Opponent's turn]")
-                st.caption('Round saved. Finding an opponent.' if session.get('waiting_for_match') else 'Round saved. Waiting for their score.')
-                return
-            else:st.markdown(':violet-badge[Your turn]' if session.get('started') else ':blue-badge[Ready to start]')
-            if st.button('Resume Battle' if session.get('started') else 'Start Battle',key='home_battle_'+session['id'],use_container_width=True):
-                open_round('battle', session['id'], fresh=not session.get('started'))
-            return
-        st.markdown(study_mode_badge(session['mode']))
-        st.markdown(':material/menu_book: **'+session['name']+'**')
-        if session['mode']!='solo':session_partner_chat(client,'study',session['id'],'home')
-        st.caption(f"{session['cursor']} / {session['count']} answered")
-        st.progress(min(1.0,session['cursor']/session['count']) if session.get('count') else 0.0)
-        if session['state']=='waiting':st.markdown(':gray-badge[Waiting for a study partner]')
-        else:st.markdown(':green-badge[Your turn]')
-        if session.get('deadline'):
-            from logic import time_left_text
-            st.caption('Finish by '+session['deadline']+' · '+(time_left_text(session['deadline']) or ''))
-        if st.button('Open Study' if session['state']=='waiting' else 'Resume Study',key='home_study_'+session['id'],use_container_width=True):
-            resume_study_session(session)
+STUDY_WAITING_STATES = ('waiting', 'waiting_for_finish')
 
 
-def ongoing_sessions(client):
-    """Study Mode dashboard: continuation, session history and Study Plan to-dos."""
-    from logic import STUDY_ONGOING_STATES,session_continue_pick,session_history_rows
-    study_data=study_request(client,'list')
-    st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
-    study_sessions=(study_data or {}).get('sessions',[])
-    study_ongoing=[s for s in study_sessions if s['state'] in STUDY_ONGOING_STATES]
-    study_finished=[s for s in study_sessions if s['state'] not in STUDY_ONGOING_STATES]
-    study_plan_play_todos(client,study_data)
-    st.subheader('Ongoing study sessions')
-    main,side=st.columns([2.3,1],gap='large',vertical_alignment='top')
-    with main:
-        if not study_ongoing:st.caption('No ongoing sessions. Start a new one above.')
-        pick=session_continue_pick([],study_ongoing)
-        if pick:
-            study_ongoing.sort(key=lambda session:session['id']!=pick['session']['id'])
-        for row in range(0,len(study_ongoing),2):
-            for column,session in zip(st.columns(2),study_ongoing[row:row+2]):
-                with column:session_card(client,'study',session)
-        st.subheader('Study history')
-        rows=session_history_rows([],study_finished)
-        if not rows:st.caption('No finished sessions yet. Your results will appear here.')
+def study_card_partner(client, sid, relationships):
+    data = chat_call(client, 'partner', {'kind':'study','id':sid}, quiet=True)
+    person = (data or {}).get('partner')
+    if not person:
+        return
+    peer = person['id']
+    name = person['username']
+    image_repo = ProfileRepository(client, st.session_state.auth.user.id)
+    avatar = chat_person_avatar(image_repo, person)
+    state, request_id = relationships.get(peer, ('new', None))
+    labels = {
+        'new': (f'Add {name} as a friend', ':material/person_add:'),
+        'friends': (f'Already friends with {name}', ':material/how_to_reg:'),
+        'sent': (f'Friend request sent to {name}', ':material/schedule:'),
+        'incoming': (f'Accept friend request from {name}', ':material/person_add:'),
+    }
+    label, icon = labels[state]
+    with st.container(key='study_peer_'+sid, horizontal=True, gap='xsmall', vertical_alignment='center'):
+        st.html(f'<div class="study-peer-identity"><img src="{avatar}" alt=""><strong>{escape(name)}</strong></div>', width='content')
+        add = st.button(label, key='study_peer_friend_'+sid, icon=icon, help=label,
+                        disabled=state in ('friends','sent'))
+        message = st.button(f'Message {name}', key='study_peer_message_'+sid,
+                            icon=':material/chat:', help=f'Message {name}')
+    if add:
+        action, target = ('accept', request_id) if state=='incoming' else ('request_user', peer)
+        if friend_action(FriendsRepository(client), action, target):
+            st.rerun()
+    if message:
+        open_private_chat(client, peer)
+
+
+def study_session_card(client, session, location, relationships):
+    sid = session['id']
+    state = session['state']
+    total = session['count']
+    answered = session.get('answered', session['cursor'])
+    solo = session['mode'] == 'solo'
+    waiting = state in STUDY_WAITING_STATES
+    active = state in ('own', 'paired')
+    with st.container(border=True, height='stretch', key=f'study_board_card_{location}_{sid}'):
+        if not solo and state in ('paired','waiting_for_finish','completed'):
+            show_play_update('study','result' if state=='completed' else 'match',sid)
+        st.markdown(':blue-badge[Study alone]' if solo else ':violet-badge[Study together]')
+        st.write('**'+session['name']+'**')
+        if not solo and (session.get('deadline') or state in ('paired','completed','waiting_for_finish')):
+            study_card_partner(client, sid, relationships)
+        if active:
+            if solo:
+                label = 'Your practice'
+            elif state == 'paired' and session['cursor'] >= total//2:
+                label = 'Your partner’s questions'
+            else:
+                label = 'Your own questions'
+            st.caption(label)
+            st.progress(min(answered/total,1.0) if total else 0.0, text=f'{answered} / {total} answered')
+        elif waiting:
+            label = ('Waiting for your partner to finish' if state == 'waiting_for_finish'
+                     else 'Waiting for your friend to accept' if session['mode'] == 'friend'
+                     else 'Waiting to be matched')
+            st.markdown(f':orange-badge[{label}]')
+            if state == 'waiting_for_finish':
+                st.caption('Your answers are saved. You have earned your partner’s deck.')
+            else:
+                st.caption('Your half is finished. You can leave while you wait.')
         else:
-            widths=[.9,2.6,1.9,.8,.6,2.1]
-            for column,label in zip(st.columns(widths),['Result','Deck','Mode','Score','XP','']):column.caption(label)
-            limit=st.session_state.get('sessions_history_limit',5)
-            for item in rows[:limit]:
-                with st.container(key=f"history_row_{item['kind']}_{item['id']}"):
-                    result,deck,mode,score,xp,action=st.columns(widths,vertical_alignment='center')
-                    result.markdown(f":{item['tone']}-badge[{item['result']}]")
-                    deck.markdown(item['deck'])
-                    with mode:
-                        st.markdown(study_mode_badge(item['session']['mode']))
-                        if item['session']['mode']!='solo':session_partner_chat(client,'study',item['id'],'history')
-                    score.markdown(item['score']);xp.markdown(item['xp'])
-                    if action.button('View Study session',key='history_study_'+item['id'],use_container_width=True):
-                        resume_study_session(item['session'])
-            if len(rows)>limit:st.button('Show more',key='sessions_history_more',on_click=show_more_history,use_container_width=True)
-    with side:
-        with st.container(key='sessions_stat_study'):
-            st.caption('Study sessions finished')
-            st.markdown(f"### {sum(1 for s in study_finished if s['state']=='completed')}")
-            st.caption(f"{sum(s.get('cursor',0) for s in study_sessions)} questions answered in Study sessions")
+            outcome = session.get('result') or ('Completed' if state == 'completed' else state.capitalize())
+            tone = {'Loss':'red','Win':'green','Draw':'blue','Completed':'green'}.get(outcome,'gray')
+            st.markdown(f':{tone}-badge[{outcome}]')
+            if session.get('score') is not None:
+                st.write(f"Your score · {session['score']}/{total}")
+            if session.get('opponent_score') is not None:
+                st.caption(f"Partner’s score · {session['opponent_score']}/{total}")
+            if st.button('View Study session',key='history_study_'+sid,use_container_width=True):
+                st.session_state.study_history_id = sid
+                st.session_state.study_board_return = 'Completed'
+                st.rerun()
+            return
+        if session.get('deadline'):
+            st.caption('Match deadline · '+battle_deadline(session['deadline']))
+        elif session.get('expires_at'):
+            st.caption(('Search expires · ' if waiting else 'Inactive session expires · ')+battle_deadline(session['expires_at']))
+        dashboard = location == 'dashboard'
+        label = ('Open Study' if dashboard else 'Open session') if waiting else ('Resume Study' if dashboard else 'Continue')
+        if st.button(label, key=('home_study_' if dashboard else 'study_resume_')+sid,use_container_width=True):
+            st.session_state.study_board_return = 'Waiting' if waiting else 'Your turn'
+            resume_study_session(session, origin='dashboard' if dashboard else 'mode')
+        if not solo and state in ('own','waiting','paired'):
+            study_stop_control(client, sid)
+
+
+def study_session_board(client, sessions, location, invites=()):
+    st.html('<style>'+(Path(__file__).parent/'assets'/'sessions.css').read_text()+'</style>')
+    dashboard = location == 'dashboard'
+    if not dashboard:
+        sessions = [session for session in sessions if session['state'] in ('own', 'paired')]
+    groups = {'Your turn': [], 'Waiting': [], 'Completed': []} if dashboard else {'Your turn': []}
+    for session in sessions:
+        state = session['state']
+        tab = 'Waiting' if state in STUDY_WAITING_STATES else 'Your turn' if state in ('own','paired') else 'Completed'
+        groups[tab].append(session)
+    relationships = {}
+    if any(s['mode'] != 'solo' and (s.get('deadline') or s['state'] in ('paired','completed','waiting_for_finish')) for s in sessions):
+        try:
+            roster = FriendsRepository(client).action('list')
+        except ValueError:
+            roster = {}
+        for status in ('friends','sent','incoming'):
+            for edge in roster.get(status, []):
+                relationships[edge['person']['id']] = (status, edge.get('id'))
+    default = st.session_state.pop('study_board_return', None) or next((name for name, rows in groups.items() if rows), 'Your turn')
+    tab_names = [*groups, 'Invitations'] if dashboard else list(groups)
+    tabs = (st.tabs(tab_names, default=default, key='study_tabs_'+location)
+            if dashboard else [st.container()])
+    empty = {'Your turn':'No sessions need your answers.', 'Waiting':'No sessions are waiting for a partner.', 'Completed':'No finished sessions yet.'}
+    for (name, rows), tab in zip(groups.items(), tabs):
+        with tab:
+            if not rows:
+                with st.container(border=True):
+                    st.caption(empty[name])
+                continue
+            limit = st.session_state.get('sessions_history_limit',5) if name == 'Completed' else len(rows)
+            visible = rows[:limit]
+            for offset in range(0,len(visible),2):
+                for column,session in zip(st.columns(2),visible[offset:offset+2]):
+                    with column:
+                        study_session_card(client,session,location,relationships)
+            if len(rows)>limit:
+                st.button('Show more',key='sessions_history_more',on_click=show_more_history)
+    if dashboard:
+        with tabs[-1]:
+            study_invitations(client, invites, has_unfinished_together(sessions))
+    st.button('Refresh study sessions', key='study_refresh_'+location, icon=':material/refresh:')
+
+
+def ongoing_sessions(client,data):
+    study_plan_play_todos(client,data)
+    sessions = data.get('sessions',[])
+    st.subheader('Study sessions')
+    completed = sum(s['state']=='completed' for s in sessions)
+    answered = sum(s.get('answered',s['cursor']) for s in sessions)
+    st.caption(f'{completed} sessions completed · {answered} questions answered')
+    study_session_board(client,sessions,'dashboard',data.get('invites', []))
 
 
 def battle_request(client,action,data=None):
@@ -2899,11 +3070,13 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                     for invite in pending_invites:
                         invite_key='battle_overview_invite_received_' if invite['incoming'] else 'battle_overview_invite_sent_'
                         with st.container(border=True,key=invite_key+invite['id']):
+                            st.html(f'<span id="battle-invite-{escape(invite["id"],quote=True)}"></span>')
                             direction='Invitation received' if invite['incoming'] else 'Invitation sent'
                             deck_name=str(invite.get('deck_name') or 'Random Deck')
                             safe_deck=escape(deck_name,quote=True)
                             if invite['incoming']:
-                                st.html('<div class="battle-overview-card-copy battle-invite-received"><span class="battle-invite-new">'+inline_icon('sparkles')+' New</span><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="battle-invite-sender">'+escape(str(invite['username']))+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                                show_play_update('battle','invite',invite['id'])
+                                st.html('<div class="battle-overview-card-copy battle-invite-received"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="battle-invite-sender">'+escape(str(invite['username']))+'</p><p>'+escape(str(invite['course']))+'</p></div>')
                             else:
                                 st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p>'+escape(direction.upper()+' · '+invite['username'])+'</p><p>'+escape(str(invite['course']))+'</p></div>')
                             if invite['incoming']:
@@ -2918,6 +3091,8 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                     for session in rows:
                         opponent=session.get('opponent_username') or 'Finding an opponent'
                         with st.container(border=True,key=f'battle_overview_card_{status}_{session["id"]}'):
+                            st.html(f'<span id="battle-match-{escape(session["id"],quote=True)}"></span>')
+                            show_play_update('battle','match',session['id'])
                             waiting=session.get('waiting_for_match')
                             match_label='<div class="bo-wait"><span></span>Finding an opponent</div>' if waiting else versus_markup(opponent)
                             st.html(match_label+deck_markup(session['deck_name']))
@@ -2946,6 +3121,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                 opponent=session.get('opponent_username')
                 with columns[index%3]:
                     with st.container(border=True,key=f'battle_overview_card_completed_{session["id"]}'):
+                        show_play_update('battle','result',session['id'])
                         opponent_score=session.get('opponent_score')
                         score=f"{session['score']} : {opponent_score}" if opponent_score is not None else f"{session['score']} / 15"
                         result=str(session.get('result') or 'completed').title()
@@ -2960,6 +3136,8 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
 
 def battle_session_history(client,sessions):
     """Show completed Battle results in a compact history table using stored values only."""
+    from logic import recent_completed_battles
+    recent=recent_completed_battles(sessions)
     completed=[session for session in sessions if session['status']=='completed']
     with st.container(border=True,key='battle_session_history'):
         title,filters=st.columns([4,1.7],vertical_alignment='center')
@@ -2976,7 +3154,9 @@ def battle_session_history(client,sessions):
             result=str(session.get('result') or 'completed').title()
             outcome,deck,opponent_cell,score_cell,xp,review=st.columns([1.05,2.8,1.65,.85,.7,1.25],vertical_alignment='center')
             with outcome:st.markdown(f'<span class="battle-history-result battle-overview-result-{result.lower()}">{result}</span>',unsafe_allow_html=True)
-            with deck:st.write('**'+session['deck_name']+'**')
+            with deck:
+                if session not in recent:show_play_update('battle','result',session['id'])
+                st.write('**'+session['deck_name']+'**')
             with opponent_cell:st.caption('vs. '+opponent if opponent else 'No opponent matched')
             with score_cell:st.write(score)
             with xp:st.markdown(f'**{session.get("game_xp_delta",0):+d} XP**')
@@ -3124,6 +3304,8 @@ def battle_screen(client,profile):
         battle_game_dialog(client,st.session_state.battle_session);return
     if st.session_state.get('battle_new_setup'):
         battle_new_setup_screen(client,profile);return
+    if st.button('Back to Play mode selection', icon=':material/arrow_back:'):
+        navigate('Play')
     state=battle_request(client,'list')
     if state is None:return
     st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
@@ -3131,54 +3313,111 @@ def battle_screen(client,profile):
         st.session_state.battle_overview_checked_at=time.monotonic()
         battle_status_updates(client,state)
     battle_dashboard_hero(client,profile,state.get('sessions',[]))
+    mode_update_list('battle',state,client)
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
     battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile.get('username'))
     battle_session_history(client,state.get('sessions',[]))
 
 
-def play_landing_invitation_notices(client):
-    """Read-only, server-authoritative invitation notices for the Play landing page."""
-    battle_state=battle_request(client,'list') or {}
-    study_state=study_request(client,'list') or {}
-    battle_invites=[invite for invite in battle_state.get('invites',[]) if invite.get('incoming')]
-    study_invites=list(study_state.get('invites',[]))
-    if not battle_invites and not study_invites:return
+def mode_update_list(mode, data, client):
+    unread = st.session_state.get('play_unread',set())
+    visit = st.session_state.setdefault('play_visit_updates',set())
+    visit.update(key for key in unread if key.startswith(mode+':'))
+    rows = []
+    for kind, items in [('invite',data.get('invites',[])), ('session',data.get('sessions',[]))]:
+        for item in items:
+            item_id = item['id']
+            if kind == 'invite':
+                event = 'invite'
+                title = 'Invitation from ' + str(item.get('username') or 'a student')
+                detail = ' · '.join(filter(None,[item.get('course'),item.get('language'),item.get('deck_name')]))
+            else:
+                event = 'result' if (item.get('state') or item.get('status')) == 'completed' else 'match'
+                title = 'Result ready' if event == 'result' else 'Match found'
+                deck = item.get('name') or item.get('deck_name') or 'Session'
+                title += ' · ' + deck
+                detail = item.get('result') or ('Waiting for your partner to finish' if item.get('state')=='waiting_for_finish'
+                                                else 'Opponent: '+item['opponent_username'] if item.get('opponent_username')
+                                                else 'Your partner is ready')
+            key = f'{mode}:{event}:{item_id}'
+            if key in visit:
+                if item.get('count'): detail += f" · {item['count']} questions"
+                rows.append((key,event,item_id,title,detail,item))
+    if not rows:return
+    st.subheader('Your updates')
+    for key,event,item_id,title,detail,item in rows:
+        with st.container(border=True,key='play_update_row_'+key.replace(':','_')):
+            info, action = st.columns([3,1],vertical_alignment='center')
+            with info:
+                st.html('<strong>'+escape(title)+'</strong>')
+                st.caption(detail)
+                if key in unread:
+                    show_play_update(mode,event,item_id,summary=True)
+                else:
+                    st.caption('Seen')
+            with action:
+                if mode=='battle' and event in ('invite','match'):
+                    st.markdown(f'[View {"invitation" if event=="invite" else "match"}](#battle-{event}-{item_id})')
+                elif st.button({'invite':'View invitation','match':'Open session','result':'View result'}[event],
+                               key='view_update_'+key,use_container_width=True):
+                    if key in unread:
+                        from db import play_unread_updates
+                        remaining=play_unread_updates(client,[key])
+                        if remaining is not None:st.session_state.play_unread=remaining
+                    if mode=='battle':
+                        battle_review_dialog(client,item_id)
+                    elif event=='match':
+                        resume_study_session(item,origin='dashboard')
+                    elif event=='result':
+                        st.session_state.study_history_id=item_id
+                        st.session_state.study_board_return='Completed'
+                        st.rerun()
+                    else:
+                        st.session_state.study_update_invite=item_id
+                        st.rerun()
 
-    def notice_markup(kind,invite,count=None):
-        is_battle=kind=='battle'
-        deck_name=str(invite.get('deck_name') or ('Battle invitation' if is_battle else 'Study invitation'))
-        sender=escape(str(invite.get('username') or 'A student'))
-        course=escape(str(invite.get('course') or 'Course not specified'))
-        label='New Battle invitation' if is_battle else 'New Study invitation'
-        icon=inline_icon('swords' if is_battle else 'file')
-        count_badge='<span class="play-invite-count">'+str(count)+'</span>' if count else ''
-        return ('<div class="play-invite-notice play-invite-'+kind+'">'
-                '<span class="play-invite-badges">'+count_badge+'<span class="play-invite-new">'+inline_icon('sparkles')+' New</span></span>'
-                '<p class="play-invite-label">'+icon+label+'</p>'
-                '<strong>'+escape(deck_name)+'</strong>'
-                '<p><b>'+sender+'</b> · '+course+'</p></div>')
 
-    battle_column,study_column=st.columns(2)
-    with battle_column:
-        for index,invite in enumerate(battle_invites):
-            with st.container(border=True,key='play_battle_invitation_'+invite['id']):
-                st.markdown(notice_markup('battle',invite,len(battle_invites) if index==0 else None),unsafe_allow_html=True)
-                if st.button('Open Battle Mode',key='open_battle_invitation_notice_'+invite['id'],icon=':material/swords:',use_container_width=True):
-                    st.session_state.play_mode_preview='Battle';st.rerun()
-    with study_column:
-        for invite in study_invites:
-            with st.container(border=True,key='play_study_invitation_'+invite['id']):
-                st.markdown(notice_markup('study',invite),unsafe_allow_html=True)
-                if st.button('Open Study Mode',key='open_study_invitation_notice_'+invite['id'],icon=':material/menu_book:',use_container_width=True):
-                    st.session_state.play_mode_preview='Study';st.rerun()
+def show_play_update(mode, kind, item_id, *, summary=False):
+    from play_updates import visible_update
+    key = f'{mode}:{kind}:{item_id}'
+    label = {'invite':'New invitation','match':'New match','result':'New result'}[kind]
+    if key in st.session_state.get('play_unread', set()):
+        if visible_update(key,label,summary=summary):
+            st.session_state.play_displayed.add(key)
+    elif key in st.session_state.get('play_highlights', set()):
+        st.markdown(f':violet-badge[{label}]')
 
 
-def incoming_battle_invite_count(client):
-    """Return the authenticated player's currently actionable Battle invitations."""
-    try:state=battle_request(client,'list')
-    except Exception:return 0
-    if not isinstance(state,dict):return 0
-    return sum(1 for invite in state.get('invites',[]) if invite.get('incoming'))
+@st.fragment(run_every='15s')
+def play_navigation(client, active):
+    from db import play_unread_updates
+    previous = st.session_state.get('play_unread', set())
+    unread = play_unread_updates(client)
+    if unread is None:
+        unread = previous
+    st.session_state.play_unread = unread
+    # A poll can update the sidebar independently. Refresh the mode cards as well
+    # when new activity arrives on Play, without interrupting a question.
+    if (active and previous != unread and st.session_state.get('play_poll_ready')
+            and not any(st.session_state.get(k) for k in ('battle_session','study_session','play_duel'))):
+        st.rerun()
+    st.session_state.play_poll_ready = True
+    with st.container(key='nav_play_invite_badge' if unread else 'nav_play_plain'):
+        if unread:
+            st.html(f'<style>.st-key-nav_play_invite_badge{{--play-count:"{len(unread)}"}}</style>')
+        if st.button('Play',key='nav_Play',type='primary' if active else 'secondary',use_container_width=True):
+            navigate('Play')
+
+
+def play_mode_heading(mode):
+    total = sum(k.startswith(mode.lower()+':') for k in st.session_state.get('play_unread', set()))
+    st.subheader(f'{mode} Mode' + (f' :violet-badge[{total}]' if total else ''))
+    with st.popover(f'About {mode} Mode',icon=':material/info:',key='mode_info_'+mode.lower()):
+        if mode == 'Study':
+            st.write('**Study alone** with your deck at your own pace. Choose chapters and learning levels, and see feedback after each answer.')
+            st.write('**Study together** with a friend or a random partner. Each player brings one deck from the same course and contributes half the questions. In a 20-question session, both players answer the same 10 questions from each deck. Finish both halves to earn a copy of the partner deck. Study awards no XP.')
+        else:
+            st.write('**Battle** a friend or a matched player on the same 15 questions. You have 30 seconds per question. When the result is settled, see your score and Battle XP on the results card.')
 
 
 LEADERBOARD_STYLE = """<style>
@@ -3259,6 +3498,9 @@ def leaderboard_screen(client,repo,profile=None):
 
 def play_screen(client,profile):
     from db import PlayRepository
+    if st.session_state.get('study_history_id'):
+        study_round_screen(client, st.session_state.study_history_id, history=True)
+        return
     if st.session_state.get('study_active'):
         draft = {'mode': st.session_state.get('study_choice','Study alone')}
         study_screen(client,profile,draft)
@@ -3289,30 +3531,45 @@ def play_screen(client,profile):
             with st.container(key='play_mode_choices'):
                 with st.container(border=True,key='battle_mode_card'):
                     st.markdown((assets/'battle-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
-                    st.subheader('Battle Mode')
+                    play_mode_heading('Battle')
                     st.caption('Compete, test your knowledge and earn XP · 15 questions.')
                     if st.button('Battle Mode',key='choose_battle_mode',use_container_width=True):
                         st.session_state.play_mode_preview='Battle';st.rerun()
                 with st.container(border=True,key='study_mode_card'):
                     st.markdown((assets/'study-mode.svg').read_text().replace('\n',''),unsafe_allow_html=True)
-                    st.subheader('Study Mode')
-                    st.caption('Practise together and focus on learning.')
+                    play_mode_heading('Study')
+                    st.caption('Study alone with one deck, or study together with two decks. Each player contributes half the questions.')
                     if st.button('Study Mode',key='choose_study_mode',type='primary',use_container_width=True):
                         st.session_state.play_mode_preview='Study';st.rerun()
-            play_landing_invitation_notices(client)
         elif selected=='Battle':
             battle_screen(client,profile);return
         else:
             st.header('Study Mode')
-            st.caption('Practise together and focus on learning.')
+            if st.button('Back to Play mode selection', icon=':material/arrow_back:'):
+                navigate('Play')
+            st.caption('Study alone with one deck, or study together with two decks. Each player contributes half the questions.')
             study_design()
+            data=study_request(client,'list',{'session_overview':True})
+            if data is None:return
+            invite_id=st.session_state.get('study_update_invite')
+            invite=next((item for item in data.get('invites',[]) if item['id']==invite_id),None)
+            if invite:
+                if st.button('Back to Study overview',icon=':material/arrow_back:'):
+                    st.session_state.pop('study_update_invite',None)
+                    st.rerun()
+                st.subheader('Study invitation')
+                study_invitations(client,[invite],has_unfinished_together(data.get('sessions',[])))
+                return
+            st.session_state.pop('study_update_invite',None)
+            mode_update_list('study',data,client)
             st.caption('How would you like to study?')
             for col,(label,icon,material) in zip(st.columns(2),[('Study alone','solo',':material/person:'),('Study together','together',':material/group:')]):
                 with col:
                     if st.button(label,key='enter_'+icon,icon=material,use_container_width=True):
+                        st.session_state.pop('study_creating',None)
                         st.session_state.study_choice=label;st.session_state.study_active=True;st.session_state.pop('study_session',None);st.session_state.pop('study_join',None);st.rerun()
             st.divider()
-            ongoing_sessions(client)
+            ongoing_sessions(client,data)
 
 
 def config(key):
@@ -3415,6 +3672,7 @@ if not st.session_state.get("browser_loaded"):
                     st.session_state.study_choice = setup['mode']
                     st.session_state.play_mode_preview = 'Study'
                     st.session_state.study_active = True
+                    st.session_state.study_creating = setup.get('screen', 'create') == 'create'
                     st.session_state.returning_study_setup = setup
                 if isinstance(saved.get("deck_open"),str):st.session_state.deck_open=saved["deck_open"]
             st.session_state.started=True
@@ -3557,7 +3815,18 @@ if profile:
 page=st.session_state.get('main_page','Play')
 if str(st.query_params.get('state','')).startswith('sdplan.'):page=st.session_state.main_page='Study Plan'
 if profile:
-    battle_invites=incoming_battle_invite_count(auth.client)
+    if st.session_state.get('play_updates_owner') != auth.user.id:
+        st.session_state.play_unread = set()
+        st.session_state.pop('play_next_highlights', None)
+        st.session_state.play_updates_owner = auth.user.id
+    visit=(auth.user.id,page,st.session_state.get('play_mode_preview'))
+    if visit!=st.session_state.get('play_update_visit'):
+        st.session_state.play_visit_updates=set()
+        st.session_state.pop('study_update_invite',None)
+        st.session_state.play_update_visit=visit
+    st.session_state.play_poll_ready = False
+    st.session_state.play_displayed = set()
+    st.session_state.play_highlights = st.session_state.pop('play_next_highlights',set())
     with st.container(key='sidebar_navigation'):
         with st.container(key='top_brand'):
             # The logo and wordmark are one button that opens Play; assets/navigation.css gives it the brand look.
@@ -3566,11 +3835,10 @@ if profile:
                 navigate('Play')
         with st.container(key='sidebar_main_actions'):
             for label in ['Decks','Play','Leaderboard','Study Plan']:
-                if label=='Play' and battle_invites:
-                    with st.container(key='nav_play_invite_badge'):
-                        clicked=st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True)
-                else:
-                    clicked=st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True)
+                if label=='Play':
+                    play_navigation(auth.client, page=='Play')
+                    continue
+                clicked=st.button(label,key='nav_'+label,type='primary' if page==label else 'secondary',use_container_width=True)
                 if clicked:
                     navigate(label)
         st.divider()
@@ -3600,6 +3868,13 @@ if profile:
         st.stop()
     if page=='Play':
         setup = play_screen(auth.client,profile)
+        if st.session_state.play_displayed:
+            from db import play_unread_updates
+            remaining = play_unread_updates(auth.client, st.session_state.play_displayed)
+            if remaining is not None and st.session_state.play_displayed.isdisjoint(remaining):
+                st.session_state.play_next_highlights = st.session_state.play_displayed
+                st.session_state.play_unread = remaining
+                st.rerun()
         if remember_setup:
             resume_payload['study_setup'] = setup
             browser_bridge('write', resume_payload)

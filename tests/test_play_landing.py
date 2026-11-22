@@ -44,7 +44,8 @@ def test_header_logo_opens_play_from_another_page(monkeypatch):
     assert at.title[0].value=='Play'
 
 
-def test_play_landing_shows_incoming_battle_and_study_invites_as_read_only_notices(monkeypatch):
+def test_play_landing_shows_only_mode_badges_and_keeps_invitations_inside_each_mode(monkeypatch):
+    monkeypatch.setattr('db.play_unread_updates',lambda client,seen=():{'battle:invite:battle-invite','study:invite:study-invite'})
     monkeypatch.setattr('db.BattleRepository.action',lambda self,action,data=None:{'invites':[
         {'id':'battle-invite','incoming':True,'username':'GingerHP','deck_name':'Corporate Finance drill','course':'Corporate Finance'},
     ],'sessions':[],'search':None} if action=='list' else {})
@@ -53,12 +54,11 @@ def test_play_landing_shows_incoming_battle_and_study_invites_as_read_only_notic
     ],'decks':[],'shared':[],'sessions':[],'open':[],'friends':[],'feedback':[]} if action=='list' else {})
     at=deck_app(monkeypatch)
     keyed(at,'nav_Play').click().run()
-    notices=[item.value for item in at.markdown if 'play-invite-notice' in item.value]
-    assert any('New Battle invitation' in notice and 'GingerHP' in notice for notice in notices)
-    assert any('New Study invitation' in notice and 'Alex' in notice for notice in notices)
-    assert any('<span class="play-invite-count">1</span>' in notice for notice in notices)
+    assert [h.value for h in at.subheader] == ['Battle Mode :violet-badge[1]', 'Study Mode :violet-badge[1]']
+    assert not any('play-invite-notice' in item.value for item in at.markdown)
     assert not any(button.label in ('Accept','Accept invitation','Decline') for button in at.button)
-    at.button(key='open_battle_invitation_notice_battle-invite').click().run()
+    keyed(at,'choose_battle_mode').click().run()
+    assert keyed(at,'battle_accept_battle-invite')
     assert at.session_state['play_mode_preview']=='Battle'
     assert not at.exception
 
@@ -70,7 +70,8 @@ def test_study_invitation_notice_opens_study_mode(monkeypatch):
     ],'decks':[],'shared':[],'sessions':[],'open':[],'friends':[],'feedback':[]})
     at=deck_app(monkeypatch)
     keyed(at,'nav_Play').click().run()
-    at.button(key='open_study_invitation_notice_study-invite').click().run()
+    keyed(at,'choose_study_mode').click().run()
+    assert any(b.key=='study_accept_study-invite' for b in at.button)
     assert at.session_state['play_mode_preview']=='Study'
     assert not at.exception
 
@@ -105,3 +106,30 @@ def test_logo_button_keeps_brand_look_and_focus_indicator():
     assert '.st-key-open_home button::before{' in NAVIGATION_CSS
     assert '.st-key-open_home button:focus-visible{outline:' in NAVIGATION_CSS
     assert '.st-key-open_home button p strong{' in NAVIGATION_CSS
+
+
+
+def test_study_overview_explains_both_unread_items_and_keeps_them_visible_after_read(monkeypatch):
+    from test_deck_ui import button
+    events={'study:invite:i','study:match:m','battle:invite:b'}
+    def unread(client,seen=()):
+        events.difference_update(seen)
+        return events.copy()
+    monkeypatch.setattr('db.play_unread_updates',unread)
+    monkeypatch.setattr('play_updates.visible_update',lambda key,label,summary=False:summary)
+    monkeypatch.setattr('db.StudyRepository.action',lambda self,action,data=None:{
+        'invites':[dict(id='i',username='Alex',course='Finance',language='English',count=20)],
+        'sessions':[dict(id='m',state='paired',mode='random',name='Valuation',count=20,cursor=10)],
+        'decks':[],'shared':[]})
+    at=deck_app(monkeypatch)
+    keyed(at,'nav_Play').click().run()
+    keyed(at,'choose_study_mode').click().run()
+    assert not at.exception
+    copy=[e.proto.body for e in at.get('html')]
+    assert any('Invitation from Alex' in line for line in copy)
+    assert any('Match found · Valuation' in line for line in copy)
+    assert events=={'battle:invite:b'}
+    assert len([c for c in at.caption if c.value=='Seen'])==2
+    keyed(at,'view_update_study:invite:i').click().run()
+    assert button(at,'Accept invitation')
+    assert not at.exception

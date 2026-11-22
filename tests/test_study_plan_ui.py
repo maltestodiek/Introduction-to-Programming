@@ -212,9 +212,9 @@ def test_plan_to_dos_appear_above_new_solo_session_in_study_mode(monkeypatch):
     button(at,'Study alone').click().run()
     labels=[b.label for b in at.button]
     headings=[h.value for h in at.subheader]
-    assert headings.index("Today's study plan") < headings.index('Continue session') < headings.index('Create a new study session')
-    assert labels.index('Start session')<labels.index('Start studying')
-    assert any(s.value=='Create a new study session' for s in at.subheader)
+    assert headings.index("Today's study plan") < headings.index('Continue session')
+    assert labels.index('Start session')<labels.index('Create a new study session')
+    assert not any(b.label=='Start studying' for b in at.button)
     morning=at.button(key='solo_start_plan-1_0_Finance')
     assert 'Finance' in morning.help and '09:00' in morning.help
     assert any('15 questions left' in c.value and '09:00' in c.value for c in at.caption)

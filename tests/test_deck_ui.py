@@ -78,7 +78,8 @@ def test_battle_deck_creator_shows_questions_only_after_choosing_a_source(monkey
     assert not at.checkbox
     next(field for field in at.selectbox if field.label=='Source Study deck').set_value('source-1').run()
     assert len(at.checkbox)==17  # 16 questions plus the public-play confirmation.
-    assert not any(button.label=='Back to Decks' for button in at.button)
+    button(at, 'Back to Decks').click().run()
+    assert 'Create a deck' in [h.value for h in at.subheader]
 
 
 def test_battle_deck_creator_opens_a_dialog_when_selection_is_not_fifteen(monkeypatch):
@@ -208,3 +209,13 @@ def test_decks_page_does_not_include_daily_review_controls():
     from pathlib import Path
     app=(Path(__file__).parents[1]/'app.py').read_text()
     assert 'Daily review' not in app
+
+
+def test_manual_study_deck_back_to_decks_preserves_draft(monkeypatch):
+    at = deck_app(monkeypatch)
+    button(at, 'Create Study Deck').click().run()
+    next(field for field in at.text_input if field.label == 'Study deck name').set_value('Review notes').run()
+    button(at, 'Back to Decks').click().run()
+    assert 'Create a deck' in [h.value for h in at.subheader]
+    button(at, 'Create Study Deck').click().run()
+    assert next(field for field in at.text_input if field.label == 'Study deck name').value == 'Review notes'

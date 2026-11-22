@@ -150,3 +150,15 @@ def test_new_invitation_link_remains_visible_after_creation(monkeypatch):
     assert not any(expander.label in {'Add a friend by code','Invite a friend with a link'} for expander in at.expander)
     next(button for button in at.button if button.label=='New link').click().run()
     assert not at.exception
+
+
+def test_university_search_filters_usernames_independently_of_friends(monkeypatch):
+    students = [{'id': 'a', 'username': 'AlexNova'}, {'id': 'b', 'username': 'Sam'}]
+    at, _, _ = friends_page(monkeypatch, students=students)
+    search = at.text_input(key='university_student_search')
+    search.set_value('  XNO  ').run()
+    assert 'university_friend_a' in keys(at) and 'university_friend_b' not in keys(at)
+    at.text_input(key='university_student_search').set_value('missing').run()
+    assert any(c.value == 'No students match your search.' for c in at.caption)
+    at.text_input(key='university_student_search').set_value('').run()
+    assert {'university_friend_a', 'university_friend_b'} <= set(keys(at))

@@ -23,3 +23,9 @@ Changing study scoring, stored avatar character design, authentication, matching
 Light and dark surfaces remain readable, including popovers and university search. Keyboard navigation and reduced-motion support work. The Play landing page keeps its two mode cards clear of dashboard content. Chat and calculator do not obscure required controls at supported viewport sizes. Verify visually in the running app; theme preferences survive browser reloads independently of account data.
 
 Checks: `tests/test_appearance.py`, `tests/test_navigation.py`, `tests/test_launch.py`, `tests/test_study_ui.py`, `tests/test_chat.py`, plus manual layout checks.
+
+### Play updates
+
+Play shows the student's total unread Battle and Study Together invitations, matches and results. Each mode card shows its own count and an information button. Invitation details live inside the relevant mode. Check for updates every 15 seconds. Mark a specific update read when its highlight is visible in the foreground, and save the receipt for that account across devices. Hidden Study tabs and offscreen cards stay unread. A new result counts as a separate update after a match has been viewed.
+
+Inside each mode, Your updates lists the individual invitations, matches and results behind its count. Show the sender or deck, the relevant session details and a link or button to open that item. Keep viewed rows labeled Seen until the user leaves the mode.

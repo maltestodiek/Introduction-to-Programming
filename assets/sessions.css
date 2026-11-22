@@ -27,3 +27,21 @@
 /* History actions always show their full label, wrapping onto a second line if needed. */
 [class*="st-key-history_row_"] [data-testid="stButton"] button{height:auto;min-height:2.5rem;padding:.35rem .75rem}
 [class*="st-key-history_row_"] [data-testid="stButton"] button *{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.25}
+
+
+[class*="st-key-study_board_card_"] {height:100%;border-radius:16px!important;background:var(--sd-surface);padding:1rem!important}
+[class*="st-key-study_board_card_"] [data-testid="stBadge"] {height:auto;white-space:normal;line-height:1.35}
+[class*="st-key-study_board_card_"] [data-testid="stButton"] button {height:auto;min-height:2.5rem}
+
+.study-peer-identity {display:flex;min-height:34px;align-items:center;gap:5px;max-width:100%;color:var(--sd-text)}
+.study-peer-identity img {width:32px;height:32px;flex:none;object-fit:cover;border-radius:50%;background:var(--sd-avatar)}
+.study-peer-identity strong {font-size:.95rem;overflow-wrap:anywhere}
+[class*="st-key-study_peer_"] button {position:relative;width:34px;min-width:34px;height:34px!important;min-height:34px!important;padding:0!important;gap:0;border-radius:9px}
+[class*="st-key-study_peer_"] button [data-testid="stMarkdownContainer"] {position:absolute!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [class*="st-key-study_board_card_"]) {align-items:stretch}
+[data-testid="stColumn"]:has([class*="st-key-study_board_card_"]) > [data-testid="stVerticalBlock"] {height:100%}
+[class*="st-key-study_board_card_"] > [data-testid="stElementContainer"]:has(button):last-child {margin-top:auto}
+[class*="st-key-study_peer_"][data-testid="stHorizontalBlock"] {align-items:center}
+[class*="st-key-study_peer_"] [data-testid="stHtml"] {display:flex;align-items:center}
+[class*="st-key-study_peer_"] button [data-testid="stIconMaterial"] {line-height:1}

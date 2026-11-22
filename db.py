@@ -227,6 +227,14 @@ class PlayRepository:
         return result
 
 
+def play_unread_updates(client, seen=()):
+    try:
+        data = client.rpc('play_unread_updates', {'p_seen':sorted(seen)}).execute().data
+    except Exception:
+        return None
+    return set(data) if isinstance(data, list) and all(isinstance(k,str) for k in data) else None
+
+
 class BattleRepository:
     """Server-authoritative 15-question Battle Mode operations."""
     def __init__(self,client):self.client=client
@@ -359,7 +367,11 @@ class StudyRepository:
     def __init__(self,client):self.client=client
 
     def action(self,action,data=None):
-        try:result=self.client.rpc('study_action',{'p_action':action,'p_data':data or {}}).execute().data
+        try:
+            if action == 'list' and data and data.get('session_overview'):
+                result = self.client.rpc('study_session_dashboard', {}).execute().data
+            else:
+                result = self.client.rpc('study_action', {'p_action':action, 'p_data':data or {}}).execute().data
         except Exception as exc:raise ValueError('Could not confirm this Study action. Refresh and retry. If Study is not set up yet, apply its database migration.') from exc
         if not isinstance(result,dict):raise ValueError('Could not load Study Mode.')
         if result.get('error'):raise ValueError(result['error'])

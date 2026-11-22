@@ -31,6 +31,26 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/study-deck-publication-sort-time.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/study-session-progress.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261121210000_study_timeouts.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122160000_study_answer_review.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122170000_study_session_dashboard.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122190000_study_stop.sql',import.meta.url),'utf8'));
+ async function dashboard(user,id){
+  await who(user);
+  const data=(await db.query('select study_session_dashboard() as data')).rows[0].data;
+  return data.sessions.find(row=>row.id===id);
+ }
+ await test('finished review uses original questions and answers, scoped to their player',async()=>{
+  const d=draft(2);await save(A,d);const session=await start(A,d,'solo',{count:2});
+  const read=async(user)=>{await who(user);return (await db.query('select study_session_progress($1) r',[session.id])).rows[0].r;};
+  await half(A,session.id,1,true);assert.equal((await read(A)).review,undefined);
+  await half(A,session.id,1);const before=await read(A);
+  assert.deepEqual(before.review.map(a=>a.correct),[false,true]);
+  assert.equal(before.review[0].selected,'Answer 1');assert.equal(before.review[0].solution,'Answer 0');
+  assert.ok(before.review[0].question.startsWith('Question '));
+  d.cards[0].question='Rewritten';await save(A,d,1);
+  assert.deepEqual((await read(A)).review,before.review);
+  await assert.rejects(()=>read(B),/unavailable/);
+ });
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
   assert.equal((await ok(A,'deck',{id:d.id})).cards[0].allow_calculator,true);
@@ -50,6 +70,28 @@ try{
   assert.equal((await ok(A,'friend_options',{deck_id:da.id})).friends.length,0);
   await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'friend',friend_id:B,count:20,consent:true,confirm_missing_course:true});
   await admin("update profile_private set courses=array['Finance'] where user_id=$1",[B]);
+ });
+ await test('only friends with a compatible authored deck for this session size may be invited',async()=>{
+  const options=async count=>(await ok(A,'friend_options',{deck_id:da.id,count})).friends;
+  const before=(await admin('select snapshot from study_decks where id=$1',[dbb.id])).rows[0].snapshot;
+  for(const change of [{cards:before.cards.slice(0,19)},{course:'History'},{language:'French'}]){
+   await admin('update study_decks set snapshot=$1 where id=$2',[{...before,...change},dbb.id]);
+   assert.equal((await options(40)).length,0);
+   await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'friend',friend_id:B,count:40,consent:true});
+  }
+  await admin('update study_decks set snapshot=$1 where id=$2',[before,dbb.id]);
+  assert.equal((await options(100)).length,1);
+ });
+ await test('an edited deck cannot receive an incompatible invitation after the sender finishes',async()=>{
+  await db.exec('begin');
+  try{
+   const session=await start(A,da,'friend',{friend_id:B});
+   await admin("update study_decks set snapshot=jsonb_set(snapshot,'{language}',to_jsonb('French'::text)) where id=$1",[dbb.id]);
+   await half(A,session.id);
+   assert.equal((await ok(B,'list')).invites.length,0);
+   assert.equal((await dashboard(A,session.id)).state,'cancelled');
+   assert.equal((await dashboard(A,session.id)).answered,10);
+  }finally{await db.exec('rollback');}
  });
  await test('private decks and mandatory reviewed revision',async()=>{await bad(B,'deck',{id:da.id});await bad(A,'save_deck',{draft:da,revision:1,review_id:randomUUID()});const changed=structuredClone(da);changed.cards[0].question='Edited';await bad(A,'save_deck',{draft:changed,revision:1});await save(A,changed,1);await assert.rejects(()=>save(A,da,1));await save(A,da,2);});
  await test('authors see their published Study decks and compatible students can copy them privately',async()=>{
@@ -86,26 +128,26 @@ try{
   assert.ok(remaining>47.99 && remaining<=48);
   const before=(await admin("select count(*)::int n from study_progress where user_id=$1",[A])).rows[0].n;
   await admin("update study_sessions set expires_at=now() where id=$1",[session.id]);
-  assert.ok(!(await ok(A,'list')).sessions.some(s=>s.id===session.id));
+  assert.equal(await dashboard(A,session.id),undefined);assert.ok(!(await ok(A,'list')).sessions.some(s=>s.id===session.id));
   assert.equal((await admin("select count(*)::int n from study_progress where user_id=$1",[A])).rows[0].n,before);
  });
  await test('size requires enough distinct questions and consent',async()=>{const small=draft(10);await save(A,small);await bad(A,'start',{request_id:randomUUID(),deck_id:small.id,mode:'random',count:100,consent:true});await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'random',count:20,consent:false});});
  let sa,sb;
  await test('mutual queue starts only after own half and enforces university',async()=>{
-  sa=await start(A,da,'random');assert.equal((await ok(B,'list')).open.length,0);await half(A,sa.id);assert.equal((await ok(B,'list')).open.length,1);assert.equal((await ok(C,'list')).open.length,0);await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'random',count:20,consent:true});
+  sa=await start(A,da,'random');assert.equal((await ok(B,'list')).open.length,0);assert.equal((await dashboard(A,sa.id)).state,'own');await half(A,sa.id);assert.equal((await dashboard(A,sa.id)).state,'waiting');assert.equal(await dashboard(C,sa.id),undefined);assert.equal((await ok(B,'list')).open.length,1);assert.equal((await ok(C,'list')).open.length,0);await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'random',count:20,consent:true});
   sb=await start(B,dbb,'random');assert.equal((await ok(A,'round',{id:sa.id})).state,'waiting');await half(B,sb.id);assert.equal((await ok(A,'round',{id:sa.id})).state,'question');
  });
  await test('same questions, hidden full decks, completion grants only finisher immutable copy',async()=>{
   const rows=(await admin('select cards from study_sessions where id in ($1,$2)',[sa.id,sb.id])).rows;assert.deepEqual(rows[0].cards.map(x=>x.id).sort(),rows[1].cards.map(x=>x.id).sort());assert.equal((await ok(A,'list')).shared.length,0);
   const timing=(await admin("select bool_and(deadline between now()+interval '47 hours 59 minutes' and now()+interval '48 hours' and expires_at is null) valid from study_sessions where id in ($1,$2)",[sa.id,sb.id])).rows[0];
   assert.ok(timing.valid);
-  await half(A,sa.id);assert.equal((await ok(A,'list')).shared.length,1);assert.equal((await ok(B,'list')).shared.length,0);assert.equal((await ok(A,'round',{id:sa.id})).result,'Waiting for your study partner');
+  assert.equal((await dashboard(A,sa.id)).state,'paired');await half(A,sa.id);const waiting=await dashboard(A,sa.id);assert.equal(waiting.state,'waiting_for_finish');assert.equal(waiting.opponent_score,null);assert.equal((await dashboard(B,sb.id)).state,'paired');assert.equal((await ok(A,'list')).shared.length,1);assert.equal((await ok(B,'list')).shared.length,0);assert.equal((await ok(A,'round',{id:sa.id})).result,'Waiting for your study partner');
   const changed=structuredClone(dbb);changed.cards[0].question='New content';await save(B,changed,1);const shared=(await ok(A,'list')).shared[0];const received=await ok(A,'deck',{id:shared.id,shared:true});assert.equal(received.cards[0].question,dbb.cards[0].question);
-  await half(B,sb.id,10,true);assert.equal((await ok(A,'round',{id:sa.id})).result,'Win');assert.equal((await ok(B,'round',{id:sb.id})).result,'Loss');assert.equal((await admin('select xp from profiles where id=$1',[A])).rows[0].xp,123);
+  await half(B,sb.id,10,true);const settled=await dashboard(A,sa.id);assert.equal(settled.state,'completed');assert.equal(settled.result,'Win');assert.equal(settled.score,20);assert.equal(settled.opponent_score,10);assert.equal((await ok(A,'round',{id:sa.id})).result,'Win');assert.equal((await ok(B,'round',{id:sb.id})).result,'Loss');assert.equal((await admin('select xp from profiles where id=$1',[A])).rows[0].xp,123);
  });
  await test('open sessions reserve once and expiry awards no unearned copy',async()=>{
   const a=await start(A,da,'random');await half(A,a.id);const b=await start(B,dbb,'random',{join_id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'question');await bad(C,'start',{request_id:randomUUID(),deck_id:dc.id,mode:'random',count:20,consent:true,join_id:a.id});await half(A,a.id);await admin("update study_sessions set deadline=now()-interval '1 second' where id in ($1,$2)",[a.id,b.id]);assert.equal((await ok(A,'round',{id:a.id})).result,'Win');
-  const loss=await ok(B,'round',{id:b.id});assert.equal(loss.result,'Loss');assert.equal(loss.shared,false);
+  const loss=await ok(B,'round',{id:b.id});assert.equal(loss.result,'Loss');assert.equal(loss.shared,false);assert.equal((await dashboard(B,b.id)).result,'Loss');
   assert.equal((await ok(B,'list')).sessions.find(s=>s.id===b.id).state,'completed');await bad(B,'answer',{id:b.id,index:0,answer_id:dbb.cards[0].correct_answer_id});
  });
  await test('friend recipient accepts or declines, no unsolicited random invite',async()=>{
@@ -169,6 +211,41 @@ try{
   await who(A);await db.query("select play_action('round',$1::jsonb)",[JSON.stringify({duel_id:duel})]);
   for(let i=0;i<2;i++)await db.query("select play_action('answer',$1::jsonb)",[JSON.stringify({duel_id:duel,index:0,answer_id:draftA.cards[0].correct_answer_id})]);
   assert.equal((await ok(A,'deck',{id:published[0]})).cards[0].level,1);
+ });
+ await test('stopping frees the slot, preserves progress and only finishers receive a deck',async()=>{
+  const a=await start(A,da,'random');await half(A,a.id);
+  const b=await start(B,dbb,'random',{join_id:a.id});
+  const copiesA=(await ok(A,'list')).shared.length, copiesB=(await ok(B,'list')).shared.length;
+  await bad(C,'stop',{id:a.id});
+  await bad(A,'start',{request_id:randomUUID(),deck_id:da.id,mode:'random',count:20,consent:true});
+  await ok(A,'stop',{id:a.id});await ok(A,'stop',{id:a.id});
+  assert.equal((await dashboard(A,a.id)).result,'Loss');
+  assert.equal((await dashboard(A,a.id)).opponent_score,null);
+  assert.equal((await ok(A,'round',{id:a.id})).opponent_score,null);
+  await bad(A,'next',{id:a.id,index:10});
+  const next=await start(A,da,'random');await half(A,next.id,1);
+  await ok(A,'stop',{id:next.id});assert.equal((await dashboard(A,next.id)).answered,1);
+  assert.equal((await dashboard(A,next.id)).state,'cancelled');
+  await half(B,b.id,20);
+  assert.equal((await dashboard(B,b.id)).result,'Win');
+  assert.equal((await ok(B,'round',{id:b.id})).result,'Win');
+  assert.equal((await ok(A,'list')).shared.length,copiesA);
+  assert.equal((await ok(B,'list')).shared.length,copiesB+1);
+ });
+ await test('a finisher can start again while their partner decides whether to stop',async()=>{
+  const a=await start(A,da,'random');await half(A,a.id);
+  const b=await start(B,dbb,'random',{join_id:a.id});await half(A,a.id);
+  assert.equal((await dashboard(A,a.id)).state,'waiting_for_finish');
+  const next=await start(A,da,'random');
+  await bad(A,'stop',{id:a.id});await ok(B,'stop',{id:b.id});
+  assert.equal((await dashboard(A,a.id)).result,'Win');
+  assert.equal((await ok(A,'round',{id:a.id})).result,'Win');
+  await half(A,next.id);const b2=await start(B,dbb,'random',{join_id:next.id});
+  await ok(B,'stop',{id:b2.id});await ok(A,'stop',{id:next.id});
+  for(const [u,id] of [[A,next.id],[B,b2.id]]){
+   assert.equal((await dashboard(u,id)).result,'Loss');
+   assert.equal((await ok(u,'round',{id})).shared,false);
+  }
  });
  await test('raw tables and internal helpers are inaccessible',async()=>{await who(B);for(const t of ['study_sessions','study_answers','study_progress','study_notes','study_feedback','study_shared'])await assert.rejects(()=>db.query('select * from '+t));await assert.rejects(()=>db.query('select study_pair($1,$2)',[sa.id,sb.id]));await who('','anon');await assert.rejects(()=>db.query("select study_action('list')"));});
  const n=(await admin('select count(*)::int n from study_answers')).rows[0].n;await db.close();const child=spawnSync(process.execPath,[new URL(import.meta.url).pathname,'reload',path.join(dir,'db'),String(n)],{encoding:'utf8',env:process.env});assert.equal(child.status,0,child.stderr);console.log(child.stdout.trim());console.log(`${passed+1} isolated Study checks passed`);
