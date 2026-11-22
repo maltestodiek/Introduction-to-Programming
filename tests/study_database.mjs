@@ -165,6 +165,7 @@ try{
  });
  await test('expired search cannot be joined and cancellation preserves progress',async()=>{await admin("update study_sessions set deadline=now()-interval '1 second' where deadline is not null");const a=await start(A,da,'random');await half(A,a.id);await admin("update study_sessions set expires_at=now()-interval '1 second' where id=$1",[a.id]);await bad(B,'start',{request_id:randomUUID(),deck_id:dbb.id,mode:'random',count:20,consent:true,join_id:a.id});assert.ok(!(await ok(A,'list')).sessions.some(s=>s.id===a.id));await bad(A,'round',{id:a.id});});
  await test('both unfinished friends receive completed losses',async()=>{
+  await admin("update study_sessions set state='cancelled' where finished_at is null");
   const a=await start(A,da,'friend',{friend_id:B});await half(A,a.id);
   const b=await start(B,dbb,'friend',{join_id:a.id});
   await admin("update study_sessions set deadline=now() where id in ($1,$2)",[a.id,b.id]);
