@@ -3077,11 +3077,11 @@ def battle_deck_availability(client,course,language):
     except ValueError as exc:st.error(str(exc));return None
 
 
-def battle_cancel_search(client):
+def battle_cancel_search(client,course=None):
     from db import BattleRepository
     repository=BattleRepository(client)
     if not hasattr(repository,'cancel_search'):repository=fresh_module('db').BattleRepository(client)
-    try:return repository.cancel_search()
+    try:return repository.cancel_search(course) if course else repository.cancel_search()
     except ValueError as exc:st.error(str(exc));return None
 
 
@@ -3356,7 +3356,7 @@ def battle_pending_search(client,search):
         st.write('**Time remaining: '+battle_search_timer_text(remaining)+'**')
         st.progress(min(1,remaining/3600),text='Searching for a compatible player')
         if st.button('Cancel search',key='battle_cancel_search'):
-            if battle_cancel_search(client) is not None:
+            if battle_cancel_search(client,search['course']) is not None:
                 st.session_state.battle_notice='Battle search cancelled.'
                 st.rerun()
 
@@ -3576,6 +3576,7 @@ def battle_new_setup_screen(client,profile):
     can_start=not (source=='Random Deck' and (availability is None or not availability['available']))
     if opponent=='Random player':
         from uuid import uuid4
+        st.caption('You can wait for opponents in different courses at the same time. Only one random search per course is allowed, across all languages.')
         st.caption('Start your 15 questions now. You have one hour from the first question. If nobody is waiting, we look for an opponent for up to 48 hours. Leaving an unfinished Battle counts as an immediate loss, even before a match.')
         if st.button('Start random Battle',type='primary',disabled=not can_start or (source=='Top Decks' and selected is None)):
             request_id=st.session_state.setdefault('battle_start_request',str(uuid4()))

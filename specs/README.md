@@ -7,6 +7,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Deck authoring](deck-authoring.md): editable decks, subsections, review, question calculator and import placeholders.
 - [Study Mode and learning progress](study-mode.md): solo/together sessions, matching, levels, feedback, notes and earned copies.
 - [Battle Mode](battle-mode.md): future competitive rules and the boundary around existing classic duels.
+- [Battle searches per course](tasks/battle-search-per-course.md): parallel random matchmaking across courses with one search per course.
 - [Appearance and navigation](appearance-and-navigation.md): branding, dark/light themes, backgrounds, icons, animations, page layout and history navigation.
 - [Basic Anki text-card import](tasks/basic-anki-import.md): private import of up to 100 text-only Basic Anki notes.
 - [Text from images on Anki cards](tasks/anki-image-text.md): read the text on Anki card images with AI, review it and import it as text cards.
