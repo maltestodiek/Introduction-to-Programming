@@ -12,6 +12,21 @@ def test_battle_error_message_hides_unknown_database_details():
     assert battle_error_message(Exception('column private_data is ambiguous')).startswith('Battle Mode could not be reached')
 
 
+def test_course_search_conflict_explains_other_courses_are_allowed():
+    message=battle_error_message(Exception('You already have an active random search for this course'))
+    assert 'another course now' in message
+
+
+def test_cancel_search_targets_only_requested_course():
+    calls=[]
+    class Client:
+        def rpc(self,name,data):
+            calls.append((name,data))
+            return SimpleNamespace(execute=lambda:SimpleNamespace(data={'cancelled':True}))
+    assert BattleRepository(Client()).cancel_search('Finance')['cancelled']
+    assert calls==[('cancel_battle_search',{'p_course':'Finance'})]
+
+
 def test_battle_error_message_labels_an_existing_invitation():
     error=Exception('There is already a pending Battle invitation between you')
     assert battle_error_message(error).startswith('Outstanding invitation')
