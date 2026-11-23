@@ -3073,7 +3073,11 @@ def battle_cancel_search(client,course=None):
     from db import BattleRepository
     repository=BattleRepository(client)
     if not hasattr(repository,'cancel_search'):repository=fresh_module('db').BattleRepository(client)
-    try:return repository.cancel_search(course) if course else repository.cancel_search()
+    try:
+        if not course:return repository.cancel_search()
+        try:return repository.cancel_search(course)
+        # Keep the single-search cancellation route usable during a rolling deploy.
+        except TypeError:return repository.cancel_search()
     except ValueError as exc:st.error(str(exc));return None
 
 
