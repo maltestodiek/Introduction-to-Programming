@@ -135,3 +135,7 @@ def test_incoming_battle_invitation_is_marked_as_new_and_has_a_primary_accept_ac
     assert "battle_overview_invite_received_" in APP
     assert "show_play_update('battle','invite',invite['id'])" in APP
     assert "accept.button('Accept',key='battle_accept_'+invite['id'],type='primary'" in APP
+
+
+def test_the_battle_screen_has_no_back_button_the_sidebar_play_entry_covers_it():
+    assert 'Back to Play mode selection' not in APP
