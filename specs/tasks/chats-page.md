@@ -10,7 +10,7 @@ Chats is a sidebar destination. The inbox and the open conversation need room to
 
 Open Chats from the sidebar. Use the available width and height of the page. On desktop, show the conversation list on the left and the wider conversation on the right. On narrow screens, give the inbox or open chat the full width and show Back to inbox in an open chat. Show the participant's image, name, latest message preview and any unread count. The inbox updates every 15 seconds and the open conversation every three seconds.
 
-Start conversation replaces the inbox list with accepted friends who have no existing thread. Selecting a friend opens their private chat. Existing Chats, Friends and session links open the same conversation view. Keep the unread total available on the sidebar when visiting other pages.
+Start conversation replaces the inbox list with accepted friends who have no existing thread. Selecting a friend opens their private chat. Existing Chats, Friends and session links open the same conversation view. Keep the unread total available on the sidebar when visiting other pages. An incoming message stays unread until its timestamp appears in the recipient’s visible conversation. A background tab can fetch messages without marking them as read.
 
 The current page uses the existing navigation restore rules. The active thread, friend picker and drafts are held in the app session. Supabase remains the source of truth for accepted friendships, private threads, history and unread counts.
 
