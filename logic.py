@@ -212,8 +212,8 @@ import json
 def new_card():
     return {'id':str(uuid4()),'question':'','answers':[{'id':str(uuid4()),'text':''} for _ in range(4)],'correct_answer_id':None,'allow_calculator':False}
 
-def new_deck(course='',language=''):
-    return {'id':str(uuid4()),'course':course,'language':language,'name':'','cards':[new_card()]}
+def new_deck(course='',language='', *, with_first_card=True):
+    return {'id':str(uuid4()),'course':course,'language':language,'name':'','cards':[new_card()] if with_first_card else []}
 
 def _deck_id(value):
     try:
