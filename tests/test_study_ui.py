@@ -449,4 +449,60 @@ def test_waiting_friend_session_stays_visible_while_another_invitation_can_open(
     assert at.tabs[-1].label == 'Invitations'
     button(at,'Accept invitation').click().run()
     assert at.session_state['study_join'] == 'invite' and at.session_state['study_creating']
+    next(w for w in at.checkbox if w.label.startswith('I agree')).check().run()
+    button(at, 'Start studying').click().run()
+    request = next(data for kind, data in calls if kind == 'start')
+    assert (request['mode'], request['join_id']) == ('friend', 'invite')
     assert not at.exception
+
+
+def test_discover_and_join_random_with_ten_card_deck(monkeypatch):
+    from db import StudyRepository
+
+    at, calls, deck = setup(monkeypatch)
+    original = StudyRepository.action
+    offers = [dict(id=sid, course='Finance', language=language, count=count)
+              for sid, language, count in [('twenty', 'English', 20), ('forty', 'English', 40),
+                                             ('german', 'German', 20)]]
+
+    def action(repo, kind, data=None):
+        result = original(repo, kind, data)
+        if kind == 'list':
+            base = result['decks'][0]
+            result.update(decks=[dict(base, id='large', name='Large', count=30),
+                                 dict(base, id='small', name='Small', count=10)], open=offers)
+        return result
+
+    monkeypatch.setattr(StudyRepository, 'action', action)
+    button(at, 'Back to Study alone').click().run()
+    button(at, 'Change study mode').click().run()
+    button(at, 'Study together').click().run()
+    button(at, 'Create a new study session').click().run()
+    at.selectbox(key='study_setup_deck').set_value('small').run()
+    assert not at.button(key='study_join_twenty').disabled
+    assert at.button(key='study_join_forty').disabled
+    assert at.button(key='study_join_german').disabled
+    assert any('10 from your deck and 10 from your study partner' in x.value for x in at.caption)
+    at.selectbox(key='study_setup_total').set_value(40).run()
+    assert any('20 from your deck and 20 from your study partner' in x.value for x in at.caption)
+    at.button(key='study_join_twenty').click().run()
+    assert at.selectbox(key='study_setup_deck').value == 'small'
+    assert any('10 from your deck and 10 from your study partner' in x.value for x in at.caption)
+    next(w for w in at.checkbox if w.label.startswith('I agree')).check().run()
+    button(at, 'Start studying').click().run()
+    start = next(data for kind, data in calls if kind == 'start')
+    assert (start['mode'], start['join_id'], start['deck_id'], start['count']) == ('random', 'twenty', 'small', 20)
+    assert not at.exception
+
+
+def test_unavailable_study_offer_does_not_become_a_new_search(monkeypatch):
+    at, calls, _ = setup(monkeypatch)
+    at.session_state.study_choice = 'Study together'
+    at.session_state.study_creating = True
+    at.session_state.study_join = 'already-claimed'
+    at.run()
+    assert any('no longer open' in w.value for w in at.warning)
+    assert not any(b.label == 'Start studying' for b in at.button)
+    button(at, 'Return to session setup').click().run()
+    assert not at.session_state.get('study_join')
+    assert not any(kind == 'start' for kind, data in calls)

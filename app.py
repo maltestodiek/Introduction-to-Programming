@@ -989,7 +989,7 @@ def deck_studio_screen(client,profile):
     zone=deck_studio_timezone();groups=deck_studio_groups(decks)
     choice=st.segmented_control('Deck studio filter',list(groups),default='All',key='deck_studio_filter',label_visibility='collapsed') or 'All'
     if not groups[choice]:
-        st.info('You have not created any decks yet. Create one on the Decks page.' if choice=='All' else 'No decks match this filter.')
+        st.info('Your Deck Studio is empty. Create a deck on the Decks page.' if choice=='All' else 'No decks match this filter.')
     for deck in groups[choice]:
         did=deck['id'];study=deck['kind']=='study'
         with st.container(border=True,key=f"studio_deck_{deck['kind']}_{did}"):
@@ -1017,6 +1017,25 @@ def deck_studio_screen(client,profile):
                     st.session_state.notice='Published to students at your university.';st.rerun()
             if battle.button('Battle',key='studio_battle_'+did,icon=':material/swords:',use_container_width=True,disabled=deck['count']<15,help=None if deck['count']>=15 else 'Battle decks need at least 15 questions.'):
                 st.session_state.battle_deck_creator=True;st.session_state.battle_source_id=did;st.session_state.battle_return_study=True;st.rerun()
+
+            if actions.button('Remove from my studio', icon=':material/delete_outline:', key='studio_remove_'+did):
+                st.session_state.studio_removal = did
+            if st.session_state.get('studio_removal') == did:
+                st.text(f"Remove “{deck['name']}” from your Deck Studio?")
+                st.caption('This removes the listing only for you. Published decks and shared copies stay available to other students.')
+                confirm, cancel = st.columns(2)
+                if cancel.button('Keep deck', key='studio_keep_'+did):
+                    st.session_state.pop('studio_removal')
+                    st.rerun()
+                if confirm.button('Confirm removal', key='studio_confirm_remove_'+did):
+                    try:
+                        StudyRepository(client).remove_from_studio(did)
+                    except ValueError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state.pop('studio_removal')
+                        st.session_state.notice = 'Study deck removed from your Deck Studio.'
+                        st.rerun()
 
 
 def course_deck_meta(kind,deck):
@@ -2145,15 +2164,15 @@ def study_plan_live_preview(rules,plan,levels,today,schedule):
             with stats[0]:st.html(f'<div class="study-plan-preview-stat">Per study day<strong>~{total} q</strong></div>')
             with stats[1]:st.html(f'<div class="study-plan-preview-stat">Per session<strong>~{session} q</strong></div>')
             maximum=max((sum(items.values()) for items in schedule.values()),default=1)
-            exams={item['end'] for item in plan['courses']}
+            target_dates={item['end'] for item in plan['courses']}
             cells=[]
             for offset in range(28):
                 day=today+timedelta(days=offset);amount=sum(schedule.get(day,{}).values())
-                state=' exam' if day.isoformat() in exams else (' load-'+str(min(3,max(1,ceil(amount/maximum*3)))) if amount else '')
+                state=' target-date' if day.isoformat() in target_dates else (' load-'+str(min(3,max(1,ceil(amount/maximum*3)))) if amount else '')
                 cells.append(f'<span class="{state.strip()}" title="{day:%d %b}: {amount} questions"></span>')
             st.caption('Next 4 weeks')
             st.html('<div class="study-plan-heatmap" aria-label="Next four weeks of the study plan">'+''.join(cells)+'</div>')
-            st.caption('Darker = more questions · coral = exam')
+            st.caption('Darker = more questions · coral = target date')
             st.caption('The preview is recalculated from your current learning progress.')
         else:
             st.info('Choose valid courses, dates and decks to see the workload preview.')
@@ -2196,12 +2215,13 @@ def study_plan_editor(client,profile,decks,user_id=''):
     configuration,preview=st.columns([1.28,.82],vertical_alignment='top')
     with configuration:
         with st.container(border=True,key='study_plan_editor_courses'):
-            st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">1</span>Courses and exams</p>',unsafe_allow_html=True)
-            name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name',placeholder='Plan name, like Winter exams')
+            st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">1</span>Courses and target dates</p>',unsafe_allow_html=True)
+            name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name',placeholder='e.g. Winter revision')
             courses=st.multiselect('Courses',profile['courses'],default=[c['course'] for c in draft['courses'] if c['course'] in profile['courses']],key=key+'courses',help='Only courses from your profile can be added.')
             chosen=[];row_widths=[1.1,2.7,1.3]
             if courses:
-                for column,label in zip(st.columns(row_widths),['Course','Decks','Exam date']):column.caption(label)
+                st.caption('For each course, choose the last day you want to study. Your plan can include a session on that day.')
+                for column,label in zip(st.columns(row_widths),['Course','Decks','Target date']):column.caption(label)
             for course in courses:
                 old=next((c for c in draft['courses'] if c['course']==course),None);options=decks.get(course,[]);ids=[d['id'] for d in options]
                 with st.container(key=key+'course_'+course):
@@ -2209,10 +2229,10 @@ def study_plan_editor(client,profile,decks,user_id=''):
                     course_col.markdown('**'+course+'**')
                     course_col.caption(f"{len(options)} deck{'s' if len(options)!=1 else ''} available")
                     picked=deck_col.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course,label_visibility='collapsed',placeholder='Choose decks')
-                    end=end_col.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course,label_visibility='collapsed')
+                    end=end_col.date_input('Target date',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course,label_visibility='collapsed')
                     if not options:st.warning('You have no Study decks for this course yet.')
                     with st.expander('Start later (optional)'):
-                        begin=st.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
+                        begin=st.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to shorten your study period.')
                     start=begin.isoformat() if begin>today else None
                     chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
         with st.container(border=True,key='study_plan_editor_goal'):
@@ -2446,7 +2466,7 @@ def study_plan_screen(client,profile,user_id=''):
     saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
     if saved:return study_plan_finish(client,saved,decks,user_id)
     with st.container(horizontal=True,vertical_alignment='bottom'):
-        st.markdown('<p class="study-plan-intro">Plan your Study Mode sessions until your exams and follow your progress.</p>',unsafe_allow_html=True)
+        st.markdown('<p class="study-plan-intro">Choose when you want to finish studying and track your progress.</p>',unsafe_allow_html=True)
         create=st.button('Create study plan',type='primary',icon=':material/add:')
     if create:
         st.session_state.plan_draft={'name':'','target':2,'sessions':1,'times':rules.DEFAULT_TIMES[:1],'weekdays_off':[],'dates_off':[],'courses':[]};st.rerun()
@@ -2454,7 +2474,7 @@ def study_plan_screen(client,profile,user_id=''):
         st.caption('No study plans yet.')
         st.write('**Build a plan in three simple steps**')
         for col,(number,title,detail) in zip(st.columns(3),[
-            ('1','Pick courses and exam dates','Choose the decks you want to master and when you want to be ready.'),
+            ('1','Pick courses and target dates','Choose the decks you want to master and when you want to be ready.'),
             ('2','Set your goal','Choose the learning level each question should reach.'),
             ('3','Get a daily plan','Choose your study days and sessions. You can add the plan to your calendar after saving.'),
         ]):
@@ -2475,7 +2495,7 @@ def study_plan_screen(client,profile,user_id=''):
             if levels is None:continue
             with st.container(border=True,key='study_plan_today_'+plan['id']):
                 study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
-            st.write('**Progress towards your exams**')
+            st.write('**Course progress**')
             if len(plan['courses'])>1:
                 everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
                 st.progress(overall,text=f"Overall progress {overall:.0%}")
@@ -2590,6 +2610,12 @@ def study_stop_control(client, sid, *, in_round=False, full_width=False):
                 st.rerun()
 
 
+def deck_can_join_study_offer(deck, offer):
+    return (deck['course'].strip().casefold() == offer['course'].strip().casefold()
+            and deck['language'] == offer['language']
+            and deck['count'] >= offer['count'] // 2)
+
+
 def study_screen(client,profile,draft):
     from uuid import uuid4
     from logic import filter_study_cards
@@ -2655,13 +2681,24 @@ def study_screen(client,profile,draft):
         decks.extend(dict(d,shared=True) for d in data['shared'])
     if not decks:
         st.info('Create a Study deck in Decks, or set the language of an existing deck first.');return
-    offer=next((o for o in data['invites']+data['open'] if o['id']==st.session_state.get('study_join')),None) if together else None
+    offer = None
+    join_id = st.session_state.get('study_join') if together else None
+    if join_id:
+        offer = next((dict(item, mode=mode)
+                      for mode, items in [('random', data['open']), ('friend', data['invites'])]
+                      for item in items if item['id'] == join_id), None)
+        if offer is None:
+            st.warning('This session is no longer open. It may have been joined, stopped or expired.')
+            if st.button('Return to session setup'):
+                st.session_state.pop('study_join', None)
+                st.rerun()
+            return
     if offer:
         draft['join'] = offer['id']
         st.info(f"Joining: {offer['course']} · {offer['language']} · {offer['count']} questions")
         if st.button('Cancel joining and create a new session'):
             st.session_state.pop('study_join',None);st.rerun()
-        decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
+        decks = [d for d in decks if deck_can_join_study_offer(d, offer)]
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
     setup_heading = f"{offer['course']} – Study together" if offer else 'Create a new study session'
@@ -2685,7 +2722,13 @@ def study_screen(client,profile,draft):
     preselected=st.session_state.pop('study_deck_preselection',None)
     selected_index=deck_ids.index(preselected) if preselected in deck_ids else 0
     restore_study_option(saved, 'deck', 'study_setup_deck', deck_ids)
-    selected_id=st.selectbox('Select quiz deck',deck_ids,index=selected_index,key='study_setup_deck',format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
+    deck_labels = {
+        d['id']: (f"{d['name']} · {d['language']} · {d['count']} questions" if together
+                  else d['name'] + (' · Shared with me' if d['shared'] else ''))
+        for d in choices
+    }
+    selected_id=st.selectbox('Select quiz deck', deck_ids, index=selected_index,
+                             key='study_setup_deck', format_func=deck_labels.get)
     draft['deck'] = selected_id
     deck=next(d for d in choices if d['id']==selected_id)
     request={'deck_id':selected_id,'shared':deck['shared']}
@@ -2717,19 +2760,25 @@ def study_screen(client,profile,draft):
         valid=bool(eligible) and (count==0 or count<=len(eligible))
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
-        opponent = 'Friend' if offer else study_choice_cards(
-            'study_partner',
-            [('Random player','random','Meet someone studying your course.'),
-             ('Friend','friend','Practise with someone you know.')],
-        )
-        draft['partner'] = opponent
-        mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
         if offer:
-            count=offer['count'];request['join_id']=offer['id']
+            mode = offer['mode']
+            count = offer['count']
+            request['join_id'] = offer['id']
         else:
+            opponent = study_choice_cards(
+                'study_partner',
+                [('Random player','random','Meet someone studying your course.'),
+                 ('Friend','friend','Practise with someone you know.')],
+            )
+            mode = 'random' if opponent == 'Random player' else 'friend'
             totals = [20,40,60,80,100]
             restore_study_option(saved, 'total', 'study_setup_total', totals)
             count=st.selectbox('Total questions',totals,key='study_setup_total')
+        request['mode'] = mode
+        draft['partner'] = 'Random player' if mode == 'random' else 'Friend'
+        half = count // 2
+        st.caption(f'{count} questions total: {half} from your deck and {half} from your study partner. Both players answer the same questions.')
+        if not offer:
             if mode=='friend':
                 options=study_request(client,'friend_options',{'deck_id':selected_id,'count':count})
                 if options is None:return
@@ -2758,13 +2807,22 @@ def study_screen(client,profile,draft):
                 st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
             else:
                 st.caption('Only students who also choose random study can match. Your search lasts 48 hours after your own half.')
-                offers=[o for o in data['open'] if o['course'].strip().casefold()==course.strip().casefold() and o['language']==deck['language']]
+                offers=[o for o in data['open'] if o['course'].strip().casefold()==course.strip().casefold()]
                 with st.expander('Discover open study sessions',expanded=bool(offers)):
                     if not offers:st.caption('No open sessions for this course yet. Be the first to start one.')
                     for available in offers:
-                        cols=st.columns([3,1]);cols[0].write(f"**{available['count']} questions** · {available['course']}")
-                        if cols[1].button('Join',key='study_join_'+available['id']):
-                            st.session_state.study_join=available['id'];st.rerun()
+                        cols = st.columns([3, 1])
+                        per_deck = available['count'] // 2
+                        cols[0].write(f"**{available['count']} questions** · {available['language']} · {per_deck} per deck")
+                        eligible = deck_can_join_study_offer(deck, available)
+                        if not eligible:
+                            cols[0].caption(f"Choose a deck in {available['language']} with at least {per_deck} questions. "
+                                            f"Your selected deck has {deck['count']} questions in {deck['language']}.")
+                        if cols[1].button('Join', key='study_join_'+available['id'], disabled=not eligible):
+                            st.session_state.study_deck_preselection = selected_id
+                            st.session_state.study_join = available['id']
+                            st.rerun()
+                    st.button('Refresh open sessions', key='study_refresh_open')
         draft['total'] = count
         full=study_request(client,'deck',{'id':selected_id})
         if full is None:return
@@ -2789,6 +2847,7 @@ def study_screen(client,profile,draft):
         r=study_request(client,'start',request)
         if r is not None:
             st.session_state.pop('study_request_id',None);st.session_state.pop('study_invite_friend',None)
+            st.session_state.pop('study_join', None)
             open_round('study', r['id'], fresh=True)
 
 

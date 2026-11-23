@@ -129,3 +129,27 @@ def test_the_deck_view_offers_a_highlighted_link_into_the_studio():
     section=app[app.index("st.session_state.study_deck_open"):app.index("data=study_request(client,'list')")]
     assert "studio.button('Open Deck studio',key='deck_view_open_studio',icon=':material/design_services:',type='primary'" in section
     assert "st.session_state.deck_studio=True" in section
+
+
+def test_remove_study_deck_only_after_confirmation(monkeypatch):
+    calls = []
+    at = studio_app(monkeypatch, calls)
+    hidden = set()
+    monkeypatch.setattr('db.StudyRepository.studio',
+                        lambda self: [d for d in DECKS if d['id'] not in hidden])
+    assert not any(b.key == 'studio_remove_battle-1' for b in at.button)
+    at.button(key='studio_remove_study-private').click().run()
+    at.button(key='studio_keep_study-private').click().run()
+    assert at.button(key='studio_remove_study-private')
+    at.button(key='studio_remove_study-private').click().run()
+    def reject(self, deck_id):
+        raise ValueError('Could not remove the deck. Try again.')
+    monkeypatch.setattr('db.StudyRepository.remove_from_studio', reject)
+    at.button(key='studio_confirm_remove_study-private').click().run()
+    assert any('Try again' in e.value for e in at.error)
+    monkeypatch.setattr('db.StudyRepository.remove_from_studio', lambda self, deck_id: hidden.add(deck_id))
+    at.button(key='studio_confirm_remove_study-private').click().run()
+    assert hidden == {'study-private'}
+    assert not any(b.key == 'studio_remove_study-private' for b in at.button)
+    assert not any(action == 'unpublish' for _, action, _ in calls)
+    assert not at.exception

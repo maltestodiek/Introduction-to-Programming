@@ -31,7 +31,7 @@
 [class*="st-key-plan_"][class*="_course_"] [data-testid="stExpander"] details{border:0!important;background:transparent!important}
 [class*="st-key-plan_"][class*="_course_"] [data-testid="stExpander"] summary{padding-left:0;font-size:.85rem;color:var(--sd-muted)}
 [class*="st-key-plan_"][class*="_study_day_"] button,[class*="st-key-plan_"][class*="_session_"] button{min-height:2.4rem;padding:.25rem .4rem;border-radius:999px!important;font-weight:650}
-.study-plan-heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:.34rem;margin:.8rem 0}.study-plan-heatmap span{height:1.55rem;border-radius:5px;background:#dedcf7}.study-plan-heatmap .load-1{background:#c5c1f0}.study-plan-heatmap .load-2{background:#958de0}.study-plan-heatmap .load-3{background:#5b53bc}.study-plan-heatmap .exam{background:#ef9b7b}
+.study-plan-heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:.34rem;margin:.8rem 0}.study-plan-heatmap span{height:1.55rem;border-radius:5px;background:#dedcf7}.study-plan-heatmap .load-1{background:#c5c1f0}.study-plan-heatmap .load-2{background:#958de0}.study-plan-heatmap .load-3{background:#5b53bc}.study-plan-heatmap .target-date{background:#ef9b7b}
 .study-plan-preview-note{margin:.5rem 0 0;color:var(--sd-muted);line-height:1.5}
 .study-plan-preview-stat{padding:.85rem;border:1px solid var(--sd-border);border-radius:14px;background:var(--sd-surface);margin:.7rem 0}
 .study-plan-preview-stat strong{display:block;font-size:1.35rem;margin-top:.25rem}
