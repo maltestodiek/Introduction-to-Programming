@@ -17,6 +17,8 @@ Apply `supabase/migrations/20261123000000_study_result_summary.sql` after the ex
 
 Apply `supabase/migrations/20261123010000_release_completed_study_slot.sql` after that migration. It releases a Together player-pair slot when the complete answer set is present, including sessions whose older client did not persist the final status transition.
 
+Apply `supabase/migrations/20261123020000_release_completed_random_study_slot.sql` next. A completed random session also releases its slot when every answer is saved, even if its completion timestamp is missing. An unfinished random search still reserves its slot.
+
 A user/session is derived from auth.uid(), never a submitted user ID. All raw Study tables have RLS and revoked client privileges. A short shared transaction lock serializes claims and progress writes. Failed operations roll back their writes. Session request IDs, answer keys, reviews and earned-copy uniqueness protect retries.
 
 Do not reset production tables for tests. Automated database tests create and remove their own temporary PGlite database with fictional users. The optional TEST_STUDY_MIGRATION=1 switch runs the existing Play database tests with Study installed, without changing their expectations.
