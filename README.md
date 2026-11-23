@@ -111,7 +111,7 @@ uv sync --locked
 uv run pytest -q
 ```
 
-For the remaining GitHub checks, install Node.js 24 (with npm) and Deno 2.5.6. From the same directory, these macOS/Linux commands install the isolated database engine inside the ignored virtual environment, run the university search and database tests, and run the AI tests with simulated responses. [Test setup and examples](docs/verification.md)
+To run the other automated test suites, install Node.js 24 (with npm) and Deno 2.5.6. The first setup needs internet access to download dependencies. From the same directory, these macOS/Linux commands install the isolated database engine inside the ignored virtual environment, run the university search and database tests, and run the AI tests with simulated responses. [Test setup and examples](docs/verification.md)
 
 ```sh
 npm install --prefix .venv/pglite --ignore-scripts --no-audit --no-fund @electric-sql/pglite@0.5.16
@@ -120,6 +120,8 @@ node --test tests/university_picker.mjs
 node --test --test-concurrency=2 tests/*_database.mjs
 deno test --deny-net supabase/functions
 ```
+
+Each test command prints a summary. Look for zero failures and a successful exit from each command. GitHub runs these suites on pull requests and runs dependency security scans separately.
 
 ### Run the app locally with sign-in and saved decks
 
