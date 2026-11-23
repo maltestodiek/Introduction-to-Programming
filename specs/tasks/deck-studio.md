@@ -14,6 +14,8 @@ A large **Deck studio** card on the Decks page, between the deck creation cards 
 
 Each Study deck shows its course, language, question count, status (Private, only visible to its creator, or Published since a time), its creation time and its last edit. Actions are Edit (opens the existing Study editor with the deck), Publish or Unpublish, and Battle, which opens Create Battle Mode Deck with this deck already selected and returns to Deck studio. Battle needs at least 15 questions. Each Battle deck shows its creation time and is marked as a public fixed snapshot; new Battles start only from Play.
 
+In **Decks → Your courses**, published Study decks offer **Study** and **Add to my Deck Studio**. Adding keeps the course list open. It creates or reuses a private editable copy, or restores a previously removed listing. A visible copy shows **In my Deck Studio**. Apply `supabase/migrations/20261123040000_add_published_deck_to_studio.sql` after the personal removal migration.
+
 Study deck owners can choose **Remove from my studio** and confirm or cancel. Confirmation hides that listing in all of their Studio filters, including on other devices. Publication, shared copies, existing sessions and Battle snapshots keep their existing access. The owner’s other Study screens can still open the deck. Apply `supabase/migrations/20261123030000_personal_deck_studio_removal.sql` after the original Deck Studio schema.
 
 Times are shown in the viewer's browser time zone (Europe/Berlin when it is unknown), for example "19 Nov 2026, 20:25".

@@ -41,6 +41,22 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123000000_study_result_summary.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123010000_release_completed_study_slot.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123020000_release_completed_random_study_slot.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/deck-studio.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123030000_personal_deck_studio_removal.sql',import.meta.url),'utf8'));
+ // Deck Studio's Battle rows use this relation in the combined listing.
+ await db.exec('create table public.battle_decks(id uuid primary key,creator_id uuid,source_deck_id uuid,course text,language text,name text,cards jsonb,created_at timestamptz)');
+ const legacy=draft(1);await save(A,legacy);await publicationOk(A,'publish',{id:legacy.id});
+ const oldCopy=await publicationOk(B,'copy',{id:legacy.id});
+ await db.exec('reset role');
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123040000_add_published_deck_to_studio.sql',import.meta.url),'utf8'));
+ const studioIds=async user=>{await who(user);return (await db.query('select deck_studio() r')).rows[0].r.decks.map(d=>d.id);};
+ await test('adding a previously copied course deck reuses its visible Studio listing',async()=>{
+  const listed=(await publicationOk(B,'list')).decks.find(d=>d.id===legacy.id);
+  assert.equal(listed.in_studio,true);
+  assert.equal((await publicationOk(B,'add_to_studio',{id:legacy.id})).id,oldCopy.id);
+  assert.ok((await studioIds(B)).includes(oldCopy.id));
+  await publicationOk(A,'unpublish',{id:legacy.id});
+ });
  async function dashboard(user,id){
   await who(user);
   const data=(await db.query('select study_session_dashboard() as data')).rows[0].data;
@@ -139,7 +155,26 @@ try{
   assert.equal((await publicationOk(C,'list')).decks.some(deck=>deck.id===da.id),false);
   const visible=await publicationOk(B,'deck',{id:da.id});
   assert.equal(visible.name,da.name);
-  const copied=await publicationOk(B,'copy',{id:da.id});
+  const listing=async user=>(await publicationOk(user,'list')).decks.find(deck=>deck.id===da.id);
+  assert.equal((await listing(A)).in_studio,true);
+  assert.equal((await listing(B)).in_studio,false);
+  await assert.rejects(()=>publication(C,'add_to_studio',{id:da.id}),/unavailable/i);
+  const copied=await publicationOk(B,'add_to_studio',{id:da.id});
+  assert.equal((await listing(B)).in_studio,true);
+  assert.ok((await studioIds(B)).includes(copied.id));
+  assert.ok(!(await studioIds(A)).includes(copied.id));
+  assert.equal((await publicationOk(B,'copy',{id:da.id})).id,copied.id);
+  const personal=structuredClone(da);personal.id=copied.id;personal.name='My notes';await save(B,personal,1);
+  const hide=async(user,id)=>{await who(user);await db.query('select remove_study_deck_from_studio($1)',[id]);};
+  await hide(B,copied.id);
+  assert.equal((await listing(B)).in_studio,false);
+  assert.equal((await publicationOk(B,'add_to_studio',{id:da.id})).id,copied.id);
+  assert.equal((await listing(B)).in_studio,true);
+  assert.equal((await ok(B,'deck',{id:copied.id})).name,'My notes');
+  await hide(A,da.id);
+  assert.equal((await listing(A)).in_studio,false);
+  assert.equal((await publicationOk(A,'add_to_studio',{id:da.id})).id,da.id);
+  assert.equal((await listing(A)).in_studio,true);
   const ownedIds=async()=>(await ok(B,'list')).decks.map(deck=>deck.id).sort();
   const beforeUnpublish=await ownedIds();
   assert.ok(beforeUnpublish.includes(copied.id));

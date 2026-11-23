@@ -923,12 +923,20 @@ def decks_screen(client,profile):
     def study_deck_rows(decks,index):
         for deck in decks:
             with st.container(key=f'course_list_deck_{index}_{deck["id"]}'):
-                info,count,action=st.columns([4,1,1],vertical_alignment='center')
+                info,count,action,studio=st.columns([3,1,1.15,2.25],vertical_alignment='center')
                 with info:st.markdown(':material/menu_book: **'+deck['name']+'**')
                 with count:st.caption(f'{deck["count"]} questions')
                 with action:
                     if st.button('Study',key=f'course_study_{index}_{deck["id"]}',icon=':material/menu_book:',use_container_width=True):
                         open_course_study_deck(client,deck)
+                in_studio = deck.get('in_studio', deck.get('owned', False))
+                if studio.button('In my Deck Studio' if in_studio else 'Add to my Deck Studio',
+                                 key=f'course_studio_{index}_{deck["id"]}', disabled=in_studio,
+                                 icon=':material/check:' if in_studio else ':material/library_add:',
+                                 use_container_width=True):
+                    if study_public_request(client, 'add_to_studio', {'id': deck['id']}) is not None:
+                        st.session_state.notice = f'Added “{deck["name"]}” to your Deck Studio.'
+                        st.rerun()
 
     def sorted_study_decks(decks,sort_order):
         if sort_order=='A–Z':return sorted(decks,key=lambda deck:deck['name'].casefold())
@@ -1735,7 +1743,7 @@ def study_library(client,profile):
                 if st.button('Open your Study deck',key='study_open_public_'+d['id']):
                     st.session_state.study_deck_open={'id':d['id'],'shared':False};st.rerun()
             elif st.button('Save private Study copy',key='study_copy_public_'+d['id']):
-                copied=study_public_request(client,'copy',{'id':d['id']})
+                copied=study_public_request(client,'add_to_studio',{'id':d['id']})
                 if copied is not None:
                     st.success('Saved a private Study copy.');st.rerun()
     with st.expander('Feedback on your questions'):
