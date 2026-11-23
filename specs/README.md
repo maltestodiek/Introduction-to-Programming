@@ -6,7 +6,7 @@ Each active specification uses the lecture structure: **Why, What, Out of scope,
 - [Social connections](social-connections.md): friend codes, invitation links, requests, chat and participant actions.
 - [Deck authoring](deck-authoring.md): editable decks, subsections, review, question calculator and import placeholders.
 - [Study Mode and learning progress](study-mode.md): solo/together sessions, matching, levels, feedback, notes and earned copies.
-- [Battle Mode](battle-mode.md): future competitive rules and the boundary around existing classic duels.
+- [Battle Mode](battle-mode.md): timed, 15-question matches against a friend or a random opponent, with scores and Battle XP when the result is settled.
 - [Battle searches per course](tasks/battle-search-per-course.md): parallel random matchmaking across courses with one search per course.
 - [Appearance and navigation](appearance-and-navigation.md): branding, dark/light themes, backgrounds, icons, animations, page layout and history navigation.
 - [Basic Anki text-card import](tasks/basic-anki-import.md): private import of up to 100 text-only Basic Anki notes.
