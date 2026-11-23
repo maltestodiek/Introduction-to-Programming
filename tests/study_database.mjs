@@ -40,6 +40,7 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261122240000_study_session_dashboard_matching_criteria.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123000000_study_result_summary.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123010000_release_completed_study_slot.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123020000_release_completed_random_study_slot.sql',import.meta.url),'utf8'));
  async function dashboard(user,id){
   await who(user);
   const data=(await db.query('select study_session_dashboard() as data')).rows[0].data;
@@ -48,31 +49,37 @@ try{
  await test('finished review uses original questions and answers, scoped to their player',async()=>{
   const d=draft(2);await save(A,d);const session=await start(A,d,'solo',{count:2});
   const read=async(user)=>{await who(user);return (await db.query('select study_session_progress($1) r',[session.id])).rows[0].r;};
+  const firstRound=await ok(A,'round',{id:session.id});
+  const firstCard=d.cards.find(card=>card.question===firstRound.question);
+  assert.ok(firstCard,'The first question must belong to the original deck');
   await half(A,session.id,1,true);assert.equal((await read(A)).review,undefined);
   await half(A,session.id,1);const before=await read(A);
   assert.deepEqual(before.review.map(a=>a.correct),[false,true]);
   assert.equal(before.review[0].selected,'Answer 1');assert.equal(before.review[0].solution,'Answer 0');
-  assert.equal(before.review[0].selected_id,d.cards[0].answers[1].id);
-  assert.equal(before.review[0].correct_answer_id,d.cards[0].answers[0].id);
-  assert.deepEqual(before.review[0].options,d.cards[0].answers);
-  assert.ok(before.review[0].question.startsWith('Question '));
-  d.cards[0].question='Rewritten';await save(A,d,1);
+  assert.equal(before.review[0].selected_id,firstCard.answers[1].id);
+  assert.equal(before.review[0].correct_answer_id,firstCard.answers[0].id);
+  assert.deepEqual(before.review[0].options,firstCard.answers);
+  assert.equal(before.review[0].question,firstRound.question);
+  firstCard.question='Rewritten';await save(A,d,1);
   assert.deepEqual((await read(A)).review,before.review);
   await assert.rejects(()=>read(B),/unavailable/);
  });
  await test('completed together progress groups each player score by the two source decks',async()=>{
+  await db.exec('begin');
   const left=draft(10),right=draft(10);await save(A,left);await save(B,right);
   const a=await start(A,left,'random');await half(A,a.id,10,false);
-  const b=await start(B,right,'random',{join_id:a.id});await half(B,b.id,10,true);
+  const b=await start(B,right,'random',{join_id:a.id});await half(B,b.id,6,true);await half(B,b.id,4,false);
   await half(A,a.id,10,true);await half(B,b.id,10,false);
   await who(A);const summary=(await db.query('select study_session_progress($1) r',[a.id])).rows[0].r;
   assert.equal(summary.deck_name,'Study finance');assert.equal(summary.partner_username,'Bob');
   assert.deepEqual([summary.own_deck_score,summary.partner_deck_score],[10,0]);
-  assert.deepEqual([summary.partner_own_deck_score,summary.partner_partner_deck_score],[0,10]);
+  // Both rows use the viewer’s deck first. Bob got ten right on Alice’s deck and four on his.
+  assert.deepEqual([summary.partner_own_deck_score,summary.partner_partner_deck_score],[10,4]);
   // Recover safely if an older client persisted all answers but missed the
   // final session-state update. The completed pair may immediately start again.
   await admin("update study_sessions set finished_at=null,state='paired' where id in ($1,$2)",[a.id,b.id]);
   const replacement=await start(A,left,'random');assert.ok(replacement.id);
+  await db.exec('rollback');
  });
  await test('calculator permission persists, defaults off and stays fixed in active snapshots',async()=>{
   const d=draft(1);d.cards[0].allow_calculator=true;await save(A,d);
