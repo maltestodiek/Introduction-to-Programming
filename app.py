@@ -877,7 +877,7 @@ def decks_screen(client,profile):
                 if st.button('Write questions',disabled=not profile['courses'],use_container_width=True):
                     st.session_state.study_library=True
                     if not st.session_state.get('study_draft'):
-                        st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0
+                        st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0], with_first_card=False);st.session_state.study_revision=0
                     st.session_state.pop('study_deck_open',None);st.rerun()
         with anki:
             with st.container(border=True,key='deck_create_anki'):
@@ -1532,12 +1532,10 @@ def study_progress_summary(cards):
     st.progress(sum((c.get('level') or 0) for c in cards)/(3*len(cards)) if cards else 0,text='Your learning progress')
 
 
-def study_edit_change(field,key,index=None,answer=None):
+def study_edit_change(field,key):
     draft=st.session_state.study_draft
     st.session_state.pop('study_review',None)
-    if index is None:draft[field]=st.session_state[key]
-    elif answer is None:draft['cards'][index][field]=(st.session_state[key] or '') if field=='chapter' else st.session_state[key]
-    else:draft['cards'][index]['answers'][answer]['text']=st.session_state[key]
+    draft[field]=st.session_state[key]
 
 
 def study_editor(client,profile):
@@ -1546,7 +1544,7 @@ def study_editor(client,profile):
     st.subheader('Edit Study deck')
     if st.button('Back to Decks', icon=':material/arrow_back:', help='Keep your draft in this session.'):
         navigate('Decks')
-    st.caption('Add up to 100 questions. Your deck stays private until a together session shares a fixed copy with a partner who finishes.')
+    st.caption('Add 1–100 questions. You can review and study alone with one complete question. The smallest Study Together session needs 10 questions from each deck.')
     if st.session_state.get('study_review'):
         st.warning('Review every question and correct answer before saving. Edits affect future sessions; received copies stay unchanged.')
         show_deck_cards(d['cards'])
@@ -1562,38 +1560,86 @@ def study_editor(client,profile):
         st.selectbox(label,options,index=options.index(d[field]) if d[field] in options else 0,key=key,on_change=study_edit_change,args=(field,key))
     key='study_edit_'+d['id']+'name'
     st.text_input('Study deck name',value=d['name'],key=key,on_change=study_edit_change,args=('name',key))
-    index=st.selectbox('Question to edit',range(len(d['cards'])),format_func=lambda i:f"{i+1}. {d['cards'][i]['question'][:60] or 'New question'}",index=len(d['cards'])-1,key='study_edit_index_'+d['id']+'_'+str(len(d['cards'])))
-    c=d['cards'][index];prefix='study_edit_'+c['id']
-    st.subheader('Organise your questions')
-    st.caption('Subsections group questions by topic or lecture. You can focus on these sections when studying alone. Choose an existing section or type a new one; leave it empty for General. Use a topic name that does not reveal the answer.')
-    chapters=sorted({card.get('chapter','').strip() for card in d['cards'] if card.get('chapter','').strip()})
-    current=c.get('chapter','').strip();key=prefix+'chapter'
-    st.selectbox('Subsection / lecture',chapters,index=chapters.index(current) if current in chapters else None,accept_new_options=True,placeholder='Choose or type a subsection',key=key,on_change=study_edit_change,args=('chapter',key,index))
-    if chapters:
-        st.caption(' · '.join(f"{chapter}: {sum(card.get('chapter','').strip()==chapter for card in d['cards'])} questions" for chapter in chapters))
-    key=prefix+'question'
-    st.text_input('Question',value=c.get('question',''),key=key,on_change=study_edit_change,args=('question',key,index))
-    for i,a in enumerate(c['answers']):
-        key=prefix+a['id'];st.text_input(f'Answer {i+1}',value=a['text'],key=key,on_change=study_edit_change,args=('answers',key,index,i))
-    ids=[a['id'] for a in c['answers']];key=prefix+'correct'
-    st.radio('Correct answer',ids,index=ids.index(c['correct_answer_id']) if c['correct_answer_id'] in ids else None,format_func=lambda x:f'Answer {ids.index(x)+1}',key=key,on_change=study_edit_change,args=('correct_answer_id',key,index))
-    key=prefix+'calculator'
-    st.checkbox('Allow calculator for this question',value=c.get('allow_calculator',False),key=key,on_change=study_edit_change,args=('allow_calculator',key,index))
-    add,delete=st.columns(2)
-    if add.button('Add Study question',disabled=len(d['cards'])>=100):
-        try:validate_card(c)
-        except ValueError as exc:st.error(str(exc))
+    cards = d['cards']
+    choice_key = 'study_edit_index_' + d['id']
+    if st.session_state.get('study_editor_deck') != d['id']:
+        st.session_state.pop('study_next_choice', None)
+        st.session_state.study_editor_deck = d['id']
+        st.session_state.study_new_card = dict(new_card(), chapter=cards[-1].get('chapter', '') if cards else '')
+    if 'study_next_choice' in st.session_state:
+        st.session_state[choice_key] = st.session_state.pop('study_next_choice')
+    labels = {card['id']: f"{i}. {card['question'][:60]}" for i, card in enumerate(cards, 1)}
+    if len(cards) < 100:
+        labels['new'] = 'New question'
+    selected = st.selectbox('Question to edit', list(labels), format_func=labels.get, key=choice_key)
+    is_new = selected == 'new'
+    index = next((i for i, card in enumerate(cards) if card['id'] == selected), None)
+    c = st.session_state.study_new_card if is_new else cards[index]
+    prefix = 'study_edit_' + c['id']
+    st.caption(f"{len(cards)} of 100 questions added. Save edits before selecting another question.")
+    chapters = sorted({card['chapter'] for card in cards if card.get('chapter')})
+    current = c.get('chapter', '')
+    if current and current not in chapters:
+        chapters.append(current)
+    with st.form(prefix, enter_to_submit=False):
+        st.subheader('Organise your questions')
+        st.caption('Choose a subsection or type a new one. Leave it empty for General. Use a topic name that does not reveal the answer.')
+        chapter = st.selectbox('Subsection / lecture', chapters,
+                               index=chapters.index(current) if current else None,
+                               accept_new_options=True, placeholder='Choose or type a subsection', key=prefix+'chapter')
+        question = st.text_input('Question', value=c['question'], key=prefix+'question')
+        answers = [
+            {'id': answer['id'], 'text': st.text_input(f'Answer {i}', value=answer['text'], key=prefix+answer['id'])}
+            for i, answer in enumerate(c['answers'], 1)
+        ]
+        ids = [a['id'] for a in answers]
+        correct = st.radio('Correct answer', ids,
+                           index=ids.index(c['correct_answer_id']) if c['correct_answer_id'] in ids else None,
+                           format_func=lambda value: f'Answer {ids.index(value)+1}', key=prefix+'correct')
+        calculator = st.checkbox('Allow calculator for this question', value=c.get('allow_calculator', False),
+                                 key=prefix+'calculator')
+        commit = st.form_submit_button('Add Study question' if is_new else 'Save question changes')
+        another = not is_new and len(cards) < 100 and st.form_submit_button('Write another question')
+        review = st.form_submit_button('Review Study deck', type='primary')
+    if commit or another or review:
+        next_choice = selected
+        updated = list(cards)
+        has_input = bool(question.strip() or correct or calculator or any(a['text'].strip() for a in answers))
+        try:
+            if not (is_new and review and not has_input):
+                candidate = validate_card(dict(c, question=question, answers=answers, correct_answer_id=correct,
+                                               allow_calculator=calculator))
+                candidate['chapter'] = (chapter or '').strip()
+                normalized = ' '.join(candidate['question'].split()).casefold()
+                if any(card['id'] != c['id'] and ' '.join(card['question'].split()).casefold() == normalized
+                       for card in cards):
+                    raise ValueError('This question is already in your deck. Select it to edit its answers.')
+                next_choice = candidate['id']
+                if is_new:
+                    updated.append(candidate)
+                else:
+                    updated[index] = candidate
+            if review:
+                clean = validate_study_deck(dict(d, cards=updated))
+                if next_choice == 'new':
+                    next_choice = updated[0]['id']
+        except ValueError as exc:
+            st.error(str(exc))
         else:
-            added=new_card();added['chapter']=c.get('chapter','');d['cards'].append(added);st.rerun()
-    if delete.button('Remove Study question',disabled=len(d['cards'])<=1):
-        d['cards'].pop(index);st.rerun()
-    st.caption(f"{len(d['cards'])} of 100 questions. Changing question content resets its learning level; changing a chapter label does not.")
-    if st.button('Review Study deck',type='primary'):
-        try:clean=validate_study_deck(d)
-        except ValueError as exc:st.error(str(exc))
-        else:
-            r=study_request(client,'review_deck',{'draft':clean,'revision':revision})
-            if r is not None:st.session_state.study_review=r;st.rerun()
+            result = study_request(client, 'review_deck', {'draft': clean, 'revision': revision}) if review else None
+            if not review or result is not None:
+                d['cards'] = updated
+                if review:
+                    st.session_state.study_review = result
+                if another or is_new:
+                    st.session_state.study_new_card = dict(new_card(), chapter=chapter or '')
+                st.session_state.study_next_choice = 'new' if another else next_choice
+                st.rerun()
+    st.caption('Changing a question or its answers resets its learning level. Changing only its subsection preserves progress.')
+    if not is_new and st.button('Remove Study question'):
+        cards.pop(index)
+        st.session_state.study_next_choice = cards[min(index,len(cards)-1)]['id'] if cards else 'new'
+        st.rerun()
     def leave_study_editor():
         st.session_state.pop('study_draft');st.session_state.pop('study_review',None);st.rerun()
     leave_creation_control('Leave Study editor','study_editor_leave',True,'Changes that were not saved through a Study review will be discarded. A saved deck keeps its last saved version.',leave_study_editor)
@@ -1642,7 +1688,7 @@ def study_library(client,profile):
     if public is None:return
     published_ids=set(public.get('published_ids',[]))
     if st.button('Create Study deck',type='primary',disabled=not profile['courses']):
-        st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0]);st.session_state.study_revision=0;st.rerun()
+        st.session_state.study_draft=new_deck(profile['courses'][0],profile['languages'][0], with_first_card=False);st.session_state.study_revision=0;st.rerun()
     st.caption('Study decks have flexible question counts and chapters. Existing published decks remain available below.')
     for title,key in [('Your decks','decks'),('Shared with me','shared')]:
         st.subheader(title)

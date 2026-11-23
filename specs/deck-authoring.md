@@ -6,6 +6,8 @@ Students need reviewed course material that can be reused for solo and shared st
 ## What
 The main Create New Deck action creates a private, editable Study deck with one to 100 questions. Each question has four answers and exactly one correct answer. Select a course and language, name the deck, and type or reuse subsection/lecture names. New questions inherit the current subsection. Chapter labels must not reveal solutions.
 
+In the manual editor, typing answers leaves the question count unchanged. Add a complete question once or review it directly. Save question changes updates its original card. The editor rejects repeated question text after normalizing whitespace and capitalization. An empty new-question form does not block review of the cards already added.
+
 Require review before saving. Retain drafts when returning to editing; validate the exact reviewed content before publication/save. Revision checks prevent overwriting concurrent changes. Changed question content creates a new learning-progress identity; chapter-only or calculator-permission changes do not. Supabase stores saved decks; unsaved drafts are not guaranteed to survive a full browser reload.
 
 Full-deck copies earned through Study Together are fixed snapshots: later author edits do not change received copies. The original 15-question published editor remains under Classic 30-question duels and keeps its immutable publication rules; see [classic authoring](../docs/archive/specifications/classic-deck-authoring.md). Those rules do not impose a 15-question limit on new Study decks.

@@ -84,13 +84,62 @@ def test_study_editor_requires_review_and_adds_more_questions(monkeypatch):
     for label,value in [('Study deck name','Practice'),('Question','A question?')]+[(f'Answer {i}',f'Choice {i}') for i in range(1,5)]:
         next(w for w in at.text_input if w.label==label).set_value(value)
     next(w for w in at.selectbox if w.label=='Subsection / lecture').set_value('Lecture 1')
-    card=at.session_state.study_draft['cards'][0]
-    next(w for w in at.radio if w.label=='Correct answer').set_value(card['answers'][0]['id'])
+    radio=next(w for w in at.radio if w.label=='Correct answer')
+    assert at.get('form')[0].proto.form.enter_to_submit is False
+    assert len(at.session_state.study_draft['cards']) == 0
+    radio.set_value(at.session_state.study_new_card['answers'][0]['id'])
     button(at,'Review Study deck').click().run()
     assert any(a=='review_deck' for a,_ in calls)
     assert not any(a=='save_deck' for a,_ in calls)
-    button(at,'Back to Study editing').click().run();button(at,'Add Study question').click().run()
-    assert len(at.session_state.study_draft['cards'])==2
+    assert len(at.session_state.study_draft['cards'])==1
+    original_id=at.session_state.study_draft['cards'][0]['id']
+    button(at,'Back to Study editing').click().run()
+    next(w for w in at.text_input if w.label=='Question').set_value('Edited question?')
+    button(at,'Save question changes').click().run()
+    cards=at.session_state.study_draft['cards']
+    assert [(c['id'],c['question']) for c in cards]==[(original_id,'Edited question?')]
+    button(at,'Write another question').click().run()
+    for label,value in [('Question',' EDITED   QUESTION? ')]+[(f'Answer {i}',f'Choice {i}') for i in range(1,5)]:
+        next(w for w in at.text_input if w.label==label).set_value(value)
+    next(w for w in at.radio if w.label=='Correct answer').set_value(at.session_state.study_new_card['answers'][0]['id'])
+    button(at,'Add Study question').click().run()
+    assert any('already' in error.value for error in at.error)
+    assert len(at.session_state.study_draft['cards'])==1
+    next(w for w in at.text_input if w.label=='Question').set_value('Second question?')
+    button(at,'Add Study question').click().run()
+    button(at,'Write another question').click().run()
+    button(at,'Review Study deck').click().run()
+    reviewed=[data['draft'] for action,data in calls if action=='review_deck'][-1]
+    assert [c['question'] for c in reviewed['cards']]==['Edited question?','Second question?']
+    button(at,'Confirm and save Study deck').click().run()
+    assert any(action=='save_deck' for action,_ in calls)
+    assert not at.exception
+
+
+def test_full_manual_deck_allows_editing_and_review_at_the_limit(monkeypatch):
+    from logic import new_card
+
+    at, calls, _ = setup(monkeypatch)
+    deck = complete_deck()
+    while len(deck['cards']) < 100:
+        card = new_card()
+        card['question'] = f"Question {len(deck['cards']) + 1}?"
+        for number, answer in enumerate(card['answers'], 1):
+            answer['text'] = f'Option {number}'
+        card['correct_answer_id'] = card['answers'][0]['id']
+        deck['cards'].append(card)
+    at.session_state['main_page'] = 'Decks'
+    at.session_state['study_library'] = True
+    at.session_state['study_draft'] = deck
+    at.run()
+    assert 'New question' not in next(w for w in at.selectbox if w.label == 'Question to edit').options
+    assert not any(b.label in ('Add Study question', 'Write another question') for b in at.button)
+    next(w for w in at.text_input if w.label == 'Question').set_value('Revised first question?')
+    button(at, 'Review Study deck').click().run()
+    reviewed = next(data['draft']['cards'] for action, data in calls if action == 'review_deck')
+    assert len(reviewed) == 100
+    assert reviewed[0]['id'] == deck['cards'][0]['id']
+    assert reviewed[0]['question'] == 'Revised first question?'
     assert not at.exception
 
 
@@ -239,16 +288,19 @@ def test_main_creation_supports_more_than_fifteen_and_reuses_subsections(monkeyp
     for card in draft['cards']:card['chapter']='Lecture 1'
     at.session_state['study_draft']=draft
     at.run()
+    button(at,'Write another question').click().run()
+    assert len(at.session_state.study_draft['cards'])==15
+    section=next(w for w in at.selectbox if w.label=='Subsection / lecture')
+    assert section.value=='Lecture 1'
+    section.options.append('Lecture 2')
+    section.set_value('Lecture 2')
+    for label,value in [('Question','Question sixteen?')]+[(f'Answer {i}',f'Option {i}') for i in range(1,5)]:
+        next(w for w in at.text_input if w.label==label).set_value(value)
+    next(w for w in at.radio if w.label=='Correct answer').set_value(at.session_state.study_new_card['answers'][0]['id'])
+    next(w for w in at.checkbox if w.label=='Allow calculator for this question').check()
     button(at,'Add Study question').click().run()
     assert len(at.session_state.study_draft['cards'])==16
-    assert at.session_state.study_draft['cards'][-1]['chapter']=='Lecture 1'
-    assert next(w for w in at.selectbox if w.label=='Subsection / lecture').value=='Lecture 1'
-    section=next(w for w in at.selectbox if w.label=='Subsection / lecture')
-    # AppTest cannot serialize a newly typed option yet; mirror the browser's new-option entry.
-    section.options.append('Lecture 2')
-    section.set_value('Lecture 2').run()
     assert at.session_state.study_draft['cards'][-1]['chapter']=='Lecture 2'
-    next(w for w in at.checkbox if w.label=='Allow calculator for this question').check().run()
     assert at.session_state.study_draft['cards'][-1]['allow_calculator'] is True
     assert not at.exception
 
