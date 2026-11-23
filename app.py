@@ -2145,15 +2145,15 @@ def study_plan_live_preview(rules,plan,levels,today,schedule):
             with stats[0]:st.html(f'<div class="study-plan-preview-stat">Per study day<strong>~{total} q</strong></div>')
             with stats[1]:st.html(f'<div class="study-plan-preview-stat">Per session<strong>~{session} q</strong></div>')
             maximum=max((sum(items.values()) for items in schedule.values()),default=1)
-            exams={item['end'] for item in plan['courses']}
+            target_dates={item['end'] for item in plan['courses']}
             cells=[]
             for offset in range(28):
                 day=today+timedelta(days=offset);amount=sum(schedule.get(day,{}).values())
-                state=' exam' if day.isoformat() in exams else (' load-'+str(min(3,max(1,ceil(amount/maximum*3)))) if amount else '')
+                state=' target-date' if day.isoformat() in target_dates else (' load-'+str(min(3,max(1,ceil(amount/maximum*3)))) if amount else '')
                 cells.append(f'<span class="{state.strip()}" title="{day:%d %b}: {amount} questions"></span>')
             st.caption('Next 4 weeks')
             st.html('<div class="study-plan-heatmap" aria-label="Next four weeks of the study plan">'+''.join(cells)+'</div>')
-            st.caption('Darker = more questions · coral = exam')
+            st.caption('Darker = more questions · coral = target date')
             st.caption('The preview is recalculated from your current learning progress.')
         else:
             st.info('Choose valid courses, dates and decks to see the workload preview.')
@@ -2196,12 +2196,13 @@ def study_plan_editor(client,profile,decks,user_id=''):
     configuration,preview=st.columns([1.28,.82],vertical_alignment='top')
     with configuration:
         with st.container(border=True,key='study_plan_editor_courses'):
-            st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">1</span>Courses and exams</p>',unsafe_allow_html=True)
-            name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name',placeholder='Plan name, like Winter exams')
+            st.markdown('<p class="study-plan-step-heading"><span class="study-plan-step-number">1</span>Courses and target dates</p>',unsafe_allow_html=True)
+            name=st.text_input('Plan name',value=draft['name'],max_chars=60,key=key+'name',placeholder='e.g. Winter revision')
             courses=st.multiselect('Courses',profile['courses'],default=[c['course'] for c in draft['courses'] if c['course'] in profile['courses']],key=key+'courses',help='Only courses from your profile can be added.')
             chosen=[];row_widths=[1.1,2.7,1.3]
             if courses:
-                for column,label in zip(st.columns(row_widths),['Course','Decks','Exam date']):column.caption(label)
+                st.caption('For each course, choose the last day you want to study. Your plan can include a session on that day.')
+                for column,label in zip(st.columns(row_widths),['Course','Decks','Target date']):column.caption(label)
             for course in courses:
                 old=next((c for c in draft['courses'] if c['course']==course),None);options=decks.get(course,[]);ids=[d['id'] for d in options]
                 with st.container(key=key+'course_'+course):
@@ -2209,10 +2210,10 @@ def study_plan_editor(client,profile,decks,user_id=''):
                     course_col.markdown('**'+course+'**')
                     course_col.caption(f"{len(options)} deck{'s' if len(options)!=1 else ''} available")
                     picked=deck_col.multiselect('Decks to study',ids,default=[d for d in (old['decks'] if old else []) if d in ids],format_func=lambda i,options=options:next(f"{d['name']} · {d['count']} questions" for d in options if d['id']==i),key=key+'decks_'+course,label_visibility='collapsed',placeholder='Choose decks')
-                    end=end_col.date_input('Finish by (exam or target date)',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course,label_visibility='collapsed')
+                    end=end_col.date_input('Target date',value=max(date.fromisoformat(old['end']),today) if old else today+timedelta(days=14),min_value=today,key=key+'end_'+course,label_visibility='collapsed')
                     if not options:st.warning('You have no Study decks for this course yet.')
                     with st.expander('Start later (optional)'):
-                        begin=st.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to begin closer to the exam.')
+                        begin=st.date_input('Start studying on',value=max(date.fromisoformat(old['start']),today) if old and old.get('start') else today,min_value=today,key=key+'start_'+course,help='Today means you start right away. Pick a later day to shorten your study period.')
                     start=begin.isoformat() if begin>today else None
                     chosen.append({'course':course,'start':start,'end':end.isoformat(),'decks':picked})
         with st.container(border=True,key='study_plan_editor_goal'):
@@ -2446,7 +2447,7 @@ def study_plan_screen(client,profile,user_id=''):
     saved=next((p for p in data['plans'] if p['id']==st.session_state.get('study_plan_finish')),None)
     if saved:return study_plan_finish(client,saved,decks,user_id)
     with st.container(horizontal=True,vertical_alignment='bottom'):
-        st.markdown('<p class="study-plan-intro">Plan your Study Mode sessions until your exams and follow your progress.</p>',unsafe_allow_html=True)
+        st.markdown('<p class="study-plan-intro">Choose when you want to finish studying and track your progress.</p>',unsafe_allow_html=True)
         create=st.button('Create study plan',type='primary',icon=':material/add:')
     if create:
         st.session_state.plan_draft={'name':'','target':2,'sessions':1,'times':rules.DEFAULT_TIMES[:1],'weekdays_off':[],'dates_off':[],'courses':[]};st.rerun()
@@ -2454,7 +2455,7 @@ def study_plan_screen(client,profile,user_id=''):
         st.caption('No study plans yet.')
         st.write('**Build a plan in three simple steps**')
         for col,(number,title,detail) in zip(st.columns(3),[
-            ('1','Pick courses and exam dates','Choose the decks you want to master and when you want to be ready.'),
+            ('1','Pick courses and target dates','Choose the decks you want to master and when you want to be ready.'),
             ('2','Set your goal','Choose the learning level each question should reach.'),
             ('3','Get a daily plan','Choose your study days and sessions. You can add the plan to your calendar after saving.'),
         ]):
@@ -2475,7 +2476,7 @@ def study_plan_screen(client,profile,user_id=''):
             if levels is None:continue
             with st.container(border=True,key='study_plan_today_'+plan['id']):
                 study_plan_today(client,plan,levels,by_deck,decks,today,'plan')
-            st.write('**Progress towards your exams**')
+            st.write('**Course progress**')
             if len(plan['courses'])>1:
                 everything=[level for item in plan['courses'] for level in levels[item['course']]];overall=rules.plan_progress(everything,plan['target'])
                 st.progress(overall,text=f"Overall progress {overall:.0%}")

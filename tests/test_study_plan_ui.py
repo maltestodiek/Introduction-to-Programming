@@ -47,7 +47,7 @@ def test_create_plan_shows_workload_and_saves_only_on_save(monkeypatch):
     widget(at.multiselect,'Courses').set_value(['Finance']).run()
     assert button(at,'Save study plan').disabled
     end=date.today()+timedelta(days=9)
-    widget(at.date_input,'Finish by (exam or target date)').set_value(end).run()
+    widget(at.date_input,'Target date').set_value(end).run()
     assert widget(at.multiselect,'Decks to study').options==['Returns · 30 questions','Bonds (shared with me) · 30 questions']
     widget(at.multiselect,'Decks to study').set_value(['d1']).run()
     assert any('**20 questions per day**' in m.value and 'on 3 study days' in m.value and '7 days before your target date' in m.value for m in at.markdown)
@@ -106,7 +106,7 @@ def test_days_off_and_rejected_plan_cannot_be_saved(monkeypatch):
     widget(at.text_input,'Plan name').set_value('Short').run()
     widget(at.multiselect,'Courses').set_value(['Finance']).run()
     widget(at.multiselect,'Decks to study').set_value(['d1']).run()
-    widget(at.date_input,'Finish by (exam or target date)').set_value(date.today()).run()
+    widget(at.date_input,'Target date').set_value(date.today()).run()
     assert not button(at,'Save study plan').disabled
     widget(at.date_input,'Single day without studying').set_value(date.today()).run()
     button(at,'Add day off').click().run()
@@ -116,7 +116,7 @@ def test_days_off_and_rejected_plan_cannot_be_saved(monkeypatch):
     assert not button(at,'Save study plan').disabled
     assert any('**20 questions per day**' in m.value and 'on 3 study days' in m.value for m in at.markdown) is False  # one day only: all 60 answers today
     assert any('**60 questions per day**' in m.value and 'on 1 study day.' in m.value and 'You will be done on your target date' in m.value for m in at.markdown)
-    widget(at.date_input,'Finish by (exam or target date)').set_value(date.today()+timedelta(days=9)).run()
+    widget(at.date_input,'Target date').set_value(date.today()+timedelta(days=9)).run()
     assert widget(at.date_input,'Start studying on').value==date.today()
     widget(at.date_input,'Start studying on').set_value(date.today()+timedelta(days=5)).run()
     assert any('**20 questions per day**' in m.value and ' from ' in m.value and '2 days before your target date' in m.value for m in at.markdown)

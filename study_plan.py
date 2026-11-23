@@ -76,14 +76,14 @@ def validate_plan(plan,profile_courses,decks_by_course,today):
         allowed={d['id'] for d in decks_by_course.get(course,[])};decks=list(dict.fromkeys(item.get('decks') or []))
         if not decks or any(d not in allowed for d in decks):raise ValueError(f'Choose at least one deck you can study for {course}.')
         try:end=_day(item.get('end'))
-        except (TypeError,ValueError):raise ValueError(f'Choose an end date for {course}.') from None
-        if end<today:raise ValueError(f'The end date for {course} is in the past.')
+        except (TypeError,ValueError):raise ValueError(f'Choose a target date for {course}.') from None
+        if end<today:raise ValueError(f'The target date for {course} is in the past.')
         start=None
         if item.get('start'):
             try:start=_day(item['start'])
             except (TypeError,ValueError):raise ValueError(f'Choose a start date for {course}.') from None
-            if start>end:raise ValueError(f'The start date for {course} is after its end date.')
-        if not study_days(max(today,start) if start else today,end,weekdays_off,dates_off):raise ValueError(f'There is no study day left before the end date for {course}.')
+            if start>end:raise ValueError(f'The start date for {course} is after its target date.')
+        if not study_days(max(today,start) if start else today,end,weekdays_off,dates_off):raise ValueError(f'There is no study day left on or before the target date for {course}.')
         courses.append({'course':course,'start':start.isoformat() if start else None,'end':end.isoformat(),'decks':decks})
     clean={'name':name,'target':target,'sessions':sessions,'times':times,'weekdays_off':weekdays_off,'dates_off':dates_off,'courses':courses}
     if plan.get('id'):clean['id']=plan['id']
@@ -207,5 +207,5 @@ def plan_checklist(plan,today):
         ('Name the plan',bool((plan.get('name') or '').strip())),
         ('Add at least one course',bool(courses)),
         ('Choose decks for every course',bool(courses) and all(item.get('decks') for item in courses)),
-        ('Set an exam date for every course',bool(courses) and all(future(item.get('end')) for item in courses)),
+        ('Set a target date for every course',bool(courses) and all(future(item.get('end')) for item in courses)),
     ]

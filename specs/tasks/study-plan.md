@@ -15,7 +15,7 @@ The Study Plan tab lists the student's plans and offers Create study plan. A stu
 
 A plan contains one or more courses. Only courses from the student's profile can be added. For each course the student sets:
 
-- an end date (exam date or the date they want to be finished); courses in one plan can have different end dates;
+- a target date for each course, the last day the student wants to study. Sessions may be scheduled on that date;
 - a start date, shown next to the end date: today by default (start right away), or a later first study day before the end date; it can be changed whenever the plan is edited;
 - the decks to study, chosen from the decks available to them for that course: their own decks and copies earned by studying with friends.
 
@@ -40,7 +40,7 @@ Because of the 20-per-day minimum a course can be finished before its end date. 
 Saving a new or edited plan opens a short step for that plan: it repeats the workload, offers the calendar file and Add to / Update Google Calendar, and has a Finish button. Finish leads to the overview with the progress of every plan. From the overview the student can still create further plans and edit or delete existing ones, and the calendar actions stay available there.
 
 ### Today's sessions
-Each saved plan shows today's sessions at full width above exam progress. Long session button labels wrap so the action, course and question count are readable on narrow screens. Today's sessions (named Morning, Afternoon or Evening by their start time) have a start button for everything still open, per course. Starting one opens a solo Study session with questions below the target level from the plan's decks. The same open to-dos are listed on Play with the ongoing Study sessions.
+Each saved plan shows today's sessions at full width above course progress. Long session button labels wrap so the action, course and question count are readable on narrow screens. Today's sessions (named Morning, Afternoon or Evening by their start time) have a start button for everything still open, per course. Starting one opens a solo Study session with questions below the target level from the plan's decks. The same open to-dos are listed on Play with the ongoing Study sessions.
 
 The amount for today is fixed the first time the plan is opened that day. Answers given during the day fill the sessions in order, and a finished session is marked as done. A session can be done at any time of the day, also late in the evening; nothing is added or moved while the day is running. Only what is still open after the day is over is spread over the remaining study days.
 
