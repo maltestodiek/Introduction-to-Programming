@@ -17,7 +17,11 @@
 [class*="st-key-battle_overview_card_"],[class*="st-key-battle_overview_invite_"],.st-key-battle_overview_search{box-sizing:border-box;padding:.9rem 1rem!important;margin-bottom:.65rem;border:0!important;border-radius:16px!important;background:var(--sd-surface)!important;box-shadow:0 6px 16px rgba(79,70,229,.08)!important}
 /* Versus cards */
 .bo-vs{display:flex;align-items:center;gap:10px;margin:0 0 .45rem}
-.bo-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:.95rem;flex-shrink:0}
+.bo-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:.95rem;flex-shrink:0;overflow:hidden}
+.bo-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.bo-person{display:flex;align-items:center;gap:8px}
+.bo-person img{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.bo-person span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bo-av-me{background:linear-gradient(135deg,#4f46e5,#818cf8)}
 .bo-av-op{background:linear-gradient(135deg,#f59e0b,#ec4899)}
 .bo-vs i{font-style:normal;font-size:.72rem;font-weight:800;color:var(--sd-muted);background:var(--sd-hover);border-radius:6px;padding:2px 7px}
