@@ -989,7 +989,7 @@ def deck_studio_screen(client,profile):
     zone=deck_studio_timezone();groups=deck_studio_groups(decks)
     choice=st.segmented_control('Deck studio filter',list(groups),default='All',key='deck_studio_filter',label_visibility='collapsed') or 'All'
     if not groups[choice]:
-        st.info('You have not created any decks yet. Create one on the Decks page.' if choice=='All' else 'No decks match this filter.')
+        st.info('Your Deck Studio is empty. Create a deck on the Decks page.' if choice=='All' else 'No decks match this filter.')
     for deck in groups[choice]:
         did=deck['id'];study=deck['kind']=='study'
         with st.container(border=True,key=f"studio_deck_{deck['kind']}_{did}"):
@@ -1017,6 +1017,25 @@ def deck_studio_screen(client,profile):
                     st.session_state.notice='Published to students at your university.';st.rerun()
             if battle.button('Battle',key='studio_battle_'+did,icon=':material/swords:',use_container_width=True,disabled=deck['count']<15,help=None if deck['count']>=15 else 'Battle decks need at least 15 questions.'):
                 st.session_state.battle_deck_creator=True;st.session_state.battle_source_id=did;st.session_state.battle_return_study=True;st.rerun()
+
+            if actions.button('Remove from my studio', icon=':material/delete_outline:', key='studio_remove_'+did):
+                st.session_state.studio_removal = did
+            if st.session_state.get('studio_removal') == did:
+                st.text(f"Remove “{deck['name']}” from your Deck Studio?")
+                st.caption('This removes the listing only for you. Published decks and shared copies stay available to other students.')
+                confirm, cancel = st.columns(2)
+                if cancel.button('Keep deck', key='studio_keep_'+did):
+                    st.session_state.pop('studio_removal')
+                    st.rerun()
+                if confirm.button('Confirm removal', key='studio_confirm_remove_'+did):
+                    try:
+                        StudyRepository(client).remove_from_studio(did)
+                    except ValueError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state.pop('studio_removal')
+                        st.session_state.notice = 'Study deck removed from your Deck Studio.'
+                        st.rerun()
 
 
 def course_deck_meta(kind,deck):

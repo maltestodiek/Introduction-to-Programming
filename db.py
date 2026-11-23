@@ -395,6 +395,12 @@ class StudyRepository:
         if not isinstance(decks,list):raise ValueError(message)
         return decks
 
+    def remove_from_studio(self, deck_id):
+        try:
+            self.client.rpc('remove_study_deck_from_studio', {'p_deck_id': deck_id}).execute()
+        except Exception as exc:
+            raise ValueError('Could not remove the deck from your studio. Refresh and try again.') from exc
+
     def progress(self,session_id):
         try:result=self.client.rpc('study_session_progress',{'p_session':session_id}).execute().data
         except Exception as exc:raise ValueError('Study progress could not be loaded. Refresh and retry.') from exc

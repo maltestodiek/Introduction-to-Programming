@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const directory=await fs.mkdtemp(path.join(os.tmpdir(),'uniarena-deck-studio-'));
-const db=new PGlite(path.join(directory,'db'));
+let db=new PGlite(path.join(directory,'db'));
 const A=randomUUID(),B=randomUUID();
 const reviewed=randomUUID(),copied=randomUUID(),other=randomUUID(),battle=randomUUID();
 const snapshot=(name,count=3)=>JSON.stringify({name,course:'Finance',language:'English',cards:Array.from({length:count},(_,index)=>({id:randomUUID(),question:`Q${index}`}))});
@@ -40,6 +40,8 @@ try{
 
   await db.exec(await fs.readFile(new URL('../supabase/deck-studio.sql',import.meta.url),'utf8'));
 
+  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123030000_personal_deck_studio_removal.sql',import.meta.url),'utf8'));
+
   const times=(await db.query('select id,created_at from public.study_decks')).rows;
   const createdOf=id=>times.find(row=>row.id===id).created_at;
   assert.equal(createdOf(reviewed).toISOString(),'2026-11-19T19:20:00.000Z','earliest review before saving is the creation time');
@@ -62,7 +64,26 @@ try{
   assert.ok(decks.every(deck=>deck.cards===undefined),'questions are not returned');
   assert.deepEqual((await studio(B)).map(deck=>deck.name),["Bob's deck"],'students see only their own decks');
 
+  const remove=id=>db.query('select remove_study_deck_from_studio($1)',[id]);
+  await asUser(B);
+  await assert.rejects(()=>remove(reviewed),/unavailable/i);
+  await asUser(A);
+  await assert.rejects(()=>remove(battle),/unavailable/i);
+  await remove(copied);await remove(copied);
+  await remove(reviewed);
+  assert.deepEqual((await studio(A)).map(d=>d.name),['New deck','Battle snapshot']);
+  assert.deepEqual((await studio(B)).map(d=>d.id),[other]);
+  await db.exec('reset role');
+  const preserved=(await db.query('select published_at, snapshot, revision from study_decks where id=$1',[copied])).rows[0];
+  assert.ok(preserved.published_at);
+  assert.equal(preserved.snapshot.name,'Copied deck');
+  assert.equal((await db.query('select source_deck_id from battle_decks where id=$1',[battle])).rows[0].source_deck_id,reviewed);
+  await db.close();
+  db=new PGlite(path.join(directory,'db'));
+  assert.deepEqual((await studio(A)).map(d=>d.name),['New deck','Battle snapshot'],'personal removal persists after reopening the database');
   await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub','',false)");await db.exec('set role anon');
   await assert.rejects(()=>db.query('select deck_studio()'));
+  await assert.rejects(()=>remove(other));
+  console.log('PASS personal removal persists, checks ownership and preserves publication and Battle snapshots');
   console.log('PASS Deck studio lists only own decks with creation, edit and publication times');
 }catch(error){console.error(error.stack||error);process.exitCode=1;}finally{await db.close().catch(()=>{});await fs.rm(directory,{recursive:true,force:true});}
