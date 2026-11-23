@@ -249,7 +249,7 @@ try{
   // One waiting search per normalized course, independently of language.
   await db.exec('reset role');
   await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123090000_battle_search_per_course.sql',import.meta.url),'utf8'));
-  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123100000_reject_duplicate_course_battle_search.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123110000_reject_duplicate_course_battle_search.sql',import.meta.url),'utf8'));
   await fixtureQuery("update profile_private set courses=array['Finance','Modelling'] where user_id in ($1,$2)",[A,B]);
   await fixtureQuery("update profiles set languages=array['English','German'] where id in ($1,$2)",[A,B]);
   const modelling=sourceDeck('Modelling');const modellingId=randomUUID();
