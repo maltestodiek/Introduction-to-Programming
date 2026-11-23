@@ -909,7 +909,7 @@ def decks_screen(client,profile):
         studio_text,studio_open=st.columns([5,2],vertical_alignment='center')
         with studio_text:
             st.markdown('#### :material/edit: Deck studio')
-            st.caption('Edit, publish and track every deck you created: private drafts, published Study decks and Battle decks, with their dates.')
+            st.caption('Edit, publish and track your decks. Open decks you earned in Study Together to review their questions.')
         if studio_open.button('Open Deck studio',key='open_deck_studio',icon=':material/design_services:',type='primary',use_container_width=True):
             st.session_state.deck_studio=True;st.rerun()
     course_names=list(dict.fromkeys(profile['courses']))
@@ -989,7 +989,7 @@ def deck_studio_screen(client,profile):
     from db import StudyRepository
     from logic import deck_studio_created_text,deck_studio_groups,format_deck_time
     st.header(':material/design_services: Deck studio')
-    st.caption('Decks created by you. Edit them, publish them to your university or turn them into Battle decks.')
+    st.caption('Find decks you created, saved from your courses or earned in Study Together.')
     if st.button('Back to Decks',icon=':material/arrow_back:'):
         st.session_state.pop('deck_studio',None);st.rerun()
     try:decks=StudyRepository(client).studio()
@@ -999,32 +999,42 @@ def deck_studio_screen(client,profile):
     if not groups[choice]:
         st.info('Your Deck Studio is empty. Create a deck on the Decks page.' if choice=='All' else 'No decks match this filter.')
     for deck in groups[choice]:
-        did=deck['id'];study=deck['kind']=='study'
+        did=deck['id'];shared=deck['kind']=='shared'
         with st.container(border=True,key=f"studio_deck_{deck['kind']}_{did}"):
             info,status,times,actions=st.columns([2,1.1,1.9,2.5],vertical_alignment='center')
-            info.markdown((':material/menu_book:' if study else ':material/swords:')+' **'+deck['name']+'**')
+            info.markdown((':material/menu_book:' if deck['kind']!='battle' else ':material/swords:')+' **'+deck['name']+'**')
             info.caption(f"{deck['course']} · {deck['language']} · {deck['count']} questions")
-            created=deck_studio_created_text(deck,zone)
-            times.caption('Created '+(created[0].lower()+created[1:] if created.startswith('On or before') else created))
-            if not study:
-                status.markdown(':red-badge[Battle · public]');times.caption('Fixed 15-question snapshot')
-                continue
-            times.caption('Last edited '+format_deck_time(deck['updated_at'],zone))
-            if deck.get('published_at'):
-                status.markdown(':green-badge[Published]');status.caption('Published since '+format_deck_time(deck['published_at'],zone))
+            info.caption('By '+(deck.get('author') or 'Unknown author'))
+            if shared:
+                status.markdown(':blue-badge[Study Together]')
+                times.caption('Received '+format_deck_time(deck['received_at'],zone))
+                if actions.button('Open deck',key='studio_open_'+did,icon=':material/menu_book:'):
+                    st.session_state.study_deck_open={'id':did,'shared':True}
+                    st.session_state.study_library=True
+                    st.session_state.pop('deck_studio',None)
+                    st.rerun()
             else:
-                status.markdown(':orange-badge[Private]');status.caption('Only you can see it')
-            edit,publish,battle=actions.columns([.8,1.3,1.35])
-            if edit.button('Edit',key='studio_edit_'+did,use_container_width=True):deck_studio_edit(client,did)
-            if deck.get('published_at'):
-                if publish.button('Unpublish',key='studio_unpublish_'+did,use_container_width=True):
-                    if study_public_request(client,'unpublish',{'id':did}) is not None:
-                        st.session_state.notice='The Study deck is private again.';st.rerun()
-            elif publish.button('Publish',key='studio_publish_'+did,type='primary',use_container_width=True):
-                if study_public_request(client,'publish',{'id':did}) is not None:
-                    st.session_state.notice='Published to students at your university.';st.rerun()
-            if battle.button('Battle',key='studio_battle_'+did,icon=':material/swords:',use_container_width=True,disabled=deck['count']<15,help=None if deck['count']>=15 else 'Battle decks need at least 15 questions.'):
-                st.session_state.battle_deck_creator=True;st.session_state.battle_source_id=did;st.session_state.battle_return_study=True;st.rerun()
+                created=deck_studio_created_text(deck,zone)
+                times.caption('Created '+(created[0].lower()+created[1:] if created.startswith('On or before') else created))
+                if deck['kind']=='battle':
+                    status.markdown(':red-badge[Battle · public]');times.caption('Fixed 15-question snapshot')
+                    continue
+                times.caption('Last edited '+format_deck_time(deck['updated_at'],zone))
+                if deck.get('published_at'):
+                    status.markdown(':green-badge[Published]');status.caption('Published since '+format_deck_time(deck['published_at'],zone))
+                else:
+                    status.markdown(':orange-badge[Private]');status.caption('Only you can see it')
+                edit,publish,battle=actions.columns([.8,1.3,1.35])
+                if edit.button('Edit',key='studio_edit_'+did,use_container_width=True):deck_studio_edit(client,did)
+                if deck.get('published_at'):
+                    if publish.button('Unpublish',key='studio_unpublish_'+did,use_container_width=True):
+                        if study_public_request(client,'unpublish',{'id':did}) is not None:
+                            st.session_state.notice='The Study deck is private again.';st.rerun()
+                elif publish.button('Publish',key='studio_publish_'+did,type='primary',use_container_width=True):
+                    if study_public_request(client,'publish',{'id':did}) is not None:
+                        st.session_state.notice='Published to students at your university.';st.rerun()
+                if battle.button('Battle',key='studio_battle_'+did,icon=':material/swords:',use_container_width=True,disabled=deck['count']<15,help=None if deck['count']>=15 else 'Battle decks need at least 15 questions.'):
+                    st.session_state.battle_deck_creator=True;st.session_state.battle_source_id=did;st.session_state.battle_return_study=True;st.rerun()
 
             if actions.button('Remove from my studio', icon=':material/delete_outline:', key='studio_remove_'+did):
                 st.session_state.studio_removal = did
@@ -1323,7 +1333,7 @@ def play_request(repository,action,data=None):
     except ValueError as exc:st.error(str(exc));return None
 
 
-def navigate(page):
+def navigate(page, *, earned_decks=False):
     if st.session_state.get('play_in_round'):
         st.session_state.play_exit_to=page
     else:
@@ -1334,6 +1344,9 @@ def navigate(page):
         if page=='Decks':
             for key in ('study_library','study_deck_open','deck_open','battle_deck_creator','battle_source_id','battle_return_study','deck_studio','anki_import_open','pdf_import_open','anki_generation_open'):
                 st.session_state.pop(key,None)
+            if earned_decks:
+                st.session_state.deck_studio=True
+                st.session_state.deck_studio_filter='Study Together'
         st.session_state.main_page=page
         if page=='Play':
             st.session_state.pop('study_active',None)
@@ -1677,7 +1690,7 @@ def study_library(client,profile):
     from copy import deepcopy
     from logic import new_deck
     st.header('Study decks & progress')
-    if st.session_state.get('study_draft'):
+    if st.session_state.get('study_draft') and not (st.session_state.get('study_deck_open') or {}).get('shared'):
         study_editor(client,profile);return
     if st.session_state.get('study_deck_open'):
         choice=st.session_state.study_deck_open
@@ -1999,7 +2012,10 @@ def study_round_screen(client,sid, *, history=False):
         if r.get('left_early'):st.caption('You stopped this match and gave up the partner deck.')
         if r.get('timed_out'):st.caption('The 48-hour deadline passed. Each player who did not finish received a loss.')
         study_answer_review(progress, result_layout=progress.get('mode') in ('random', 'friend'))
-        if r.get('shared'):st.success('Your partner’s full deck is available under Decks → Study decks & progress → Shared with me.')
+        if r.get('shared'):
+            st.success('Your partner’s full deck is in Decks → Deck studio → Study Together.')
+            if st.button('Open earned decks',icon=':material/menu_book:'):
+                navigate('Decks', earned_decks=True)
         if st.button('Refresh session result'):st.rerun()
     else:st.info('This session '+state+'. Your completed practice and notes are saved.')
 
@@ -2965,7 +2981,7 @@ def study_session_card(client, session, location, relationships):
                      else 'Waiting to be matched')
             st.markdown(f':orange-badge[{label}]')
             if state == 'waiting_for_finish':
-                st.caption('Your answers are saved. You have earned your partner’s deck.')
+                st.caption('Your partner’s deck is ready in Decks → Deck studio → Study Together.')
             else:
                 st.caption('Your half is finished. You can leave while you wait.')
         else:
