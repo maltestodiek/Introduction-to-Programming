@@ -2,9 +2,28 @@
 
 We built UniArena for students who want to turn their course material into quizzes. You can use the same material to prepare for an exam at your own pace or challenge a classmate. Your decks and progress are saved between visits.
 
-**Open UniArena:** [uniarena.streamlit.app](https://uniarena.streamlit.app/) · [uniarena.net](https://uniarena.net)
+## Team and GitHub contributors
+
+| Team member | Student number | GitHub accounts |
+| --- | --- | --- |
+| Jan-Malte Stodiek | 83912 | [maltestodiek](https://github.com/maltestodiek), [malte1001](https://github.com/malte1001) |
+| Penelope Erhard | 81555 | [8155503](https://github.com/8155503) |
+| Paul Timm Kriehuber | 81548 | [PaulNOVA26](https://github.com/PaulNOVA26), [Paulemann187](https://github.com/Paulemann187) |
+| Vincent Jonathan Bachmann | 71010 | [VincentBach719](https://github.com/VincentBach719) |
+
+Jan-Malte and Paul also used Claude when they needed additional coding credits. Before they corrected the Git author settings, some of their commits were recorded under the author name **Claude**. [GitHub contributor history](https://github.com/maltestodiek/Introduction-to-Programming/graphs/contributors?all=1)
+
+## Project description and objectives
+
+Our goal with UniArena is to build a study app that uses gamification to make regular practice more engaging. Three objectives guide the design.
+
+- **Make revision active.** Students turn their own course material into quiz questions, test what they remember and get immediate feedback on each answer.
+- **Study Mode.** Study alone at your own pace, or study together with a classmate. Each partner contributes half the questions, and you earn a copy of your partner’s deck when you finish.
+- **Battle Mode.** Compete against another student on the same 15 timed questions. The higher score wins, and Battle XP counts toward the 30-day leaderboard.
 
 ## How to play
+
+UniArena runs in your browser. Open the public app to start playing. [Open UniArena](https://uniarena.streamlit.app/) · [Alternate address](https://uniarena.net)
 
 Create an account with a **personal email address**. Verification emails may not reach NOVA SBE inboxes (`@novasbe.pt`). Once you confirm your email, open **Profile** and add your university, at least one course at that university, and your languages.
 
@@ -60,31 +79,39 @@ Open **Study Plan → Create study plan**, choose the courses and decks you want
 
 **Calendar export.** UniArena's Google Calendar integration uses a Google OAuth app in **Testing**. Only Google accounts the team has added to its test-user list can authorize direct sync. Everyone else can open a saved **Study Plan**, choose **Calendar file**, and import the downloaded `.ics` file on a computer under **Google Calendar → Settings → Import & export**. The file contains the sessions as scheduled when you downloaded it. [Google OAuth testing rules](https://support.google.com/cloud/answer/15549945?hl=en) · [Calendar import instructions](https://support.google.com/calendar/answer/37118?hl=en)
 
-## Team and GitHub contributors
+## Integrated services and APIs
 
-| Team member | Student number | GitHub accounts |
-| --- | --- | --- |
-| Jan-Malte Stodiek | 83912 | [maltestodiek](https://github.com/maltestodiek), [malte1001](https://github.com/malte1001) |
-| Penelope Erhard | 81555 | [8155503](https://github.com/8155503) |
-| Paul Timm Kriehuber | 81548 | [PaulNOVA26](https://github.com/PaulNOVA26), [Paulemann187](https://github.com/Paulemann187) |
-| Vincent Jonathan Bachmann | 71010 | [VincentBach719](https://github.com/VincentBach719) |
+| Service | Where you use it in UniArena |
+| --- | --- |
+| Supabase | Auth handles sign-in. PostgreSQL keeps decks, learning progress, matches, chats and study plans. Private Storage holds uploaded profile photos, and Edge Functions run the AI imports. |
+| Research Organization Registry (ROR) API | Search by name when choosing your university in **Profile**. If your university is missing, you can enter its name yourself. |
+| Resend | Delivers account verification and password reset emails through Supabase Auth’s SMTP connection. |
+| Requesty API | Generates draft questions from selected Anki cards or PDF text and can transcribe an Anki card image. You review the questions and answers before saving the deck. |
+| Google Calendar API | Adds scheduled Study Plan sessions to the calendars of approved Google test users. Everyone can use the **Calendar file** download described under **Study Plan**. |
 
-Jan-Malte and Paul also used Claude when they needed additional coding credits. Before they corrected the Git author settings, some of their commits were recorded under the author name **Claude**. [GitHub contributor history](https://github.com/maltestodiek/Introduction-to-Programming/graphs/contributors?all=1)
+Streamlit Community Cloud hosts the public app from this repository’s `main` branch. For details about service outages and what still works, see the [external API guide](docs/external-apis.md).
 
 ## Run and test
 
-You can use the hosted app by signing in with a UniArena account. We configure its connection to Supabase for you.
+The public app is ready to use with a UniArena account. To run your own copy or work on the code, install Git and uv, then clone the repository and open its folder. [Get uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+```sh
+git clone https://github.com/maltestodiek/Introduction-to-Programming.git
+cd Introduction-to-Programming
+```
+
+The project supports Python 3.11 or newer. The commands below use uv to set up the environment from the project’s locked dependencies.
 
 ### Run the tests
 
-Anyone can run the automated tests from a clone of this repository. They use test data and simulated services, so you do not need a Supabase account, an API key or a local secrets file. Install [uv](https://docs.astral.sh/uv/getting-started/installation/), open a terminal in the repository root, and run:
+Anyone can run the automated tests from a clone of this repository. They use test data and simulated services, so you do not need a Supabase account, an API key or a local secrets file. From the repository root, run the following commands.
 
 ```sh
 uv sync --locked
 uv run pytest -q
 ```
 
-For the remaining GitHub checks, install Node.js 24 (with npm) and Deno 2.5.6. From the same directory, these macOS/Linux commands install the isolated database engine inside the ignored virtual environment, run the university search and database tests, and run the AI tests with simulated responses. [Test setup and examples](docs/verification.md)
+To run the other automated test suites, install Node.js 24 (with npm) and Deno 2.5.6. The first setup needs internet access to download dependencies. From the same directory, these macOS/Linux commands install the isolated database engine inside the ignored virtual environment, run the university search and database tests, and run the AI tests with simulated responses. [Test setup and examples](docs/verification.md)
 
 ```sh
 npm install --prefix .venv/pglite --ignore-scripts --no-audit --no-fund @electric-sql/pglite@0.5.16
@@ -93,6 +120,8 @@ node --test tests/university_picker.mjs
 node --test --test-concurrency=2 tests/*_database.mjs
 deno test --deny-net supabase/functions
 ```
+
+Each test command prints a summary. Look for zero failures and a successful exit from each command. GitHub runs these suites on pull requests and runs dependency security scans separately.
 
 ### Run the app locally with sign-in and saved decks
 
