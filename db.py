@@ -273,9 +273,9 @@ class BattleRepository:
         if not isinstance(decks,list):raise ValueError(message)
         return decks
 
-    def cancel_search(self):
+    def cancel_search(self,course=None):
         """Cancel only the signed-in user's pending random Battle search."""
-        try:result=self.client.rpc('cancel_battle_search',{}).execute().data
+        try:result=self.client.rpc('cancel_battle_search',{'p_course':course} if course else {}).execute().data
         except Exception as exc:raise ValueError('This Battle search could not be cancelled. Refresh and retry.') from exc
         if not isinstance(result,dict):raise ValueError('This Battle search could not be cancelled. Refresh and retry.')
         return result
@@ -316,6 +316,7 @@ def battle_error_message(error):
         'Choose an eligible Top Deck':'Not able to start this Battle: choose a currently eligible Top Deck.',
         'Choose one of your courses and languages':'Not able to start this Battle: choose a course and language from your profile.',
         'Complete your profile first':'Not able to use Battle Mode: complete your university, course, and language profile first.',
+        'You already have an active random search for this course':'You already have a random Battle search for this course. Resume it or cancel it in Active battles before changing its language or deck. You can search in another course now.',
         'You already have an active random search':'Finish or cancel your existing random search in Active battles before choosing different settings.',
         'Battle unavailable':'This Battle is unavailable. Return to Active battles to see your current games.',
         'Battle invitation unavailable':'This Battle invitation is no longer available.',
