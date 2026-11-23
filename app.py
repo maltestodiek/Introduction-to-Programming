@@ -3645,8 +3645,6 @@ def battle_screen(client,profile):
         battle_game_dialog(client,st.session_state.battle_session);return
     if st.session_state.get('battle_new_setup'):
         battle_new_setup_screen(client,profile);return
-    if st.button('Back to Play mode selection', icon=':material/arrow_back:'):
-        navigate('Play')
     state=battle_request(client,'list')
     if state is None:return
     st.html('<style>'+(Path(__file__).parent/'assets'/'battle-overview.css').read_text()+'</style>')
