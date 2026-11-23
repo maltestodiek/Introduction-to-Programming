@@ -2590,6 +2590,12 @@ def study_stop_control(client, sid, *, in_round=False, full_width=False):
                 st.rerun()
 
 
+def deck_can_join_study_offer(deck, offer):
+    return (deck['course'].strip().casefold() == offer['course'].strip().casefold()
+            and deck['language'] == offer['language']
+            and deck['count'] >= offer['count'] // 2)
+
+
 def study_screen(client,profile,draft):
     from uuid import uuid4
     from logic import filter_study_cards
@@ -2655,13 +2661,24 @@ def study_screen(client,profile,draft):
         decks.extend(dict(d,shared=True) for d in data['shared'])
     if not decks:
         st.info('Create a Study deck in Decks, or set the language of an existing deck first.');return
-    offer=next((o for o in data['invites']+data['open'] if o['id']==st.session_state.get('study_join')),None) if together else None
+    offer = None
+    join_id = st.session_state.get('study_join') if together else None
+    if join_id:
+        offer = next((dict(item, mode=mode)
+                      for mode, items in [('random', data['open']), ('friend', data['invites'])]
+                      for item in items if item['id'] == join_id), None)
+        if offer is None:
+            st.warning('This session is no longer open. It may have been joined, stopped or expired.')
+            if st.button('Return to session setup'):
+                st.session_state.pop('study_join', None)
+                st.rerun()
+            return
     if offer:
         draft['join'] = offer['id']
         st.info(f"Joining: {offer['course']} · {offer['language']} · {offer['count']} questions")
         if st.button('Cancel joining and create a new session'):
             st.session_state.pop('study_join',None);st.rerun()
-        decks=[d for d in decks if d['course'].strip().casefold()==offer['course'].strip().casefold() and d['language']==offer['language'] and d['count']>=offer['count']//2]
+        decks = [d for d in decks if deck_can_join_study_offer(d, offer)]
         if not decks:
             st.warning('You need your own compatible deck with enough questions to accept this session. Create one in Decks first.');return
     setup_heading = f"{offer['course']} – Study together" if offer else 'Create a new study session'
@@ -2685,7 +2702,13 @@ def study_screen(client,profile,draft):
     preselected=st.session_state.pop('study_deck_preselection',None)
     selected_index=deck_ids.index(preselected) if preselected in deck_ids else 0
     restore_study_option(saved, 'deck', 'study_setup_deck', deck_ids)
-    selected_id=st.selectbox('Select quiz deck',deck_ids,index=selected_index,key='study_setup_deck',format_func=lambda x:next(d['name']+(' · Shared with me' if d['shared'] else '') for d in choices if d['id']==x))
+    deck_labels = {
+        d['id']: (f"{d['name']} · {d['language']} · {d['count']} questions" if together
+                  else d['name'] + (' · Shared with me' if d['shared'] else ''))
+        for d in choices
+    }
+    selected_id=st.selectbox('Select quiz deck', deck_ids, index=selected_index,
+                             key='study_setup_deck', format_func=deck_labels.get)
     draft['deck'] = selected_id
     deck=next(d for d in choices if d['id']==selected_id)
     request={'deck_id':selected_id,'shared':deck['shared']}
@@ -2717,19 +2740,25 @@ def study_screen(client,profile,draft):
         valid=bool(eligible) and (count==0 or count<=len(eligible))
         request.update(mode='solo',count=count,chapters=chapters,levels=levels)
     else:
-        opponent = 'Friend' if offer else study_choice_cards(
-            'study_partner',
-            [('Random player','random','Meet someone studying your course.'),
-             ('Friend','friend','Practise with someone you know.')],
-        )
-        draft['partner'] = opponent
-        mode='random' if opponent=='Random player' else 'friend';request['mode']=mode
         if offer:
-            count=offer['count'];request['join_id']=offer['id']
+            mode = offer['mode']
+            count = offer['count']
+            request['join_id'] = offer['id']
         else:
+            opponent = study_choice_cards(
+                'study_partner',
+                [('Random player','random','Meet someone studying your course.'),
+                 ('Friend','friend','Practise with someone you know.')],
+            )
+            mode = 'random' if opponent == 'Random player' else 'friend'
             totals = [20,40,60,80,100]
             restore_study_option(saved, 'total', 'study_setup_total', totals)
             count=st.selectbox('Total questions',totals,key='study_setup_total')
+        request['mode'] = mode
+        draft['partner'] = 'Random player' if mode == 'random' else 'Friend'
+        half = count // 2
+        st.caption(f'{count} questions total: {half} from your deck and {half} from your study partner. Both players answer the same questions.')
+        if not offer:
             if mode=='friend':
                 options=study_request(client,'friend_options',{'deck_id':selected_id,'count':count})
                 if options is None:return
@@ -2758,13 +2787,22 @@ def study_screen(client,profile,draft):
                 st.caption('Your invitation is sent after you finish your own half. Your friend must accept.')
             else:
                 st.caption('Only students who also choose random study can match. Your search lasts 48 hours after your own half.')
-                offers=[o for o in data['open'] if o['course'].strip().casefold()==course.strip().casefold() and o['language']==deck['language']]
+                offers=[o for o in data['open'] if o['course'].strip().casefold()==course.strip().casefold()]
                 with st.expander('Discover open study sessions',expanded=bool(offers)):
                     if not offers:st.caption('No open sessions for this course yet. Be the first to start one.')
                     for available in offers:
-                        cols=st.columns([3,1]);cols[0].write(f"**{available['count']} questions** · {available['course']}")
-                        if cols[1].button('Join',key='study_join_'+available['id']):
-                            st.session_state.study_join=available['id'];st.rerun()
+                        cols = st.columns([3, 1])
+                        per_deck = available['count'] // 2
+                        cols[0].write(f"**{available['count']} questions** · {available['language']} · {per_deck} per deck")
+                        eligible = deck_can_join_study_offer(deck, available)
+                        if not eligible:
+                            cols[0].caption(f"Choose a deck in {available['language']} with at least {per_deck} questions. "
+                                            f"Your selected deck has {deck['count']} questions in {deck['language']}.")
+                        if cols[1].button('Join', key='study_join_'+available['id'], disabled=not eligible):
+                            st.session_state.study_deck_preselection = selected_id
+                            st.session_state.study_join = available['id']
+                            st.rerun()
+                    st.button('Refresh open sessions', key='study_refresh_open')
         draft['total'] = count
         full=study_request(client,'deck',{'id':selected_id})
         if full is None:return
@@ -2789,6 +2827,7 @@ def study_screen(client,profile,draft):
         r=study_request(client,'start',request)
         if r is not None:
             st.session_state.pop('study_request_id',None);st.session_state.pop('study_invite_friend',None)
+            st.session_state.pop('study_join', None)
             open_round('study', r['id'], fresh=True)
 
 

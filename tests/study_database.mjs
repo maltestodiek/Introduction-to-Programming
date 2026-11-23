@@ -68,7 +68,13 @@ try{
   await db.exec('begin');
   const left=draft(10),right=draft(10);await save(A,left);await save(B,right);
   const a=await start(A,left,'random');await half(A,a.id,10,false);
+  const available=async()=> (await ok(B,'list')).open.find(offer=>offer.id===a.id);
+  assert.equal((await available()).count,20);
+  const tooSmall=draft(9);await save(B,tooSmall);
+  await bad(B,'start',{request_id:randomUUID(),deck_id:tooSmall.id,mode:'random',count:20,consent:true,join_id:a.id});
+  assert.equal((await available()).count,20,'The rejected join must leave the offer available');
   const b=await start(B,right,'random',{join_id:a.id});await half(B,b.id,6,true);await half(B,b.id,4,false);
+  assert.equal(await available(),undefined,'A claimed session leaves the open list');
   await half(A,a.id,10,true);await half(B,b.id,10,false);
   await who(A);const summary=(await db.query('select study_session_progress($1) r',[a.id])).rows[0].r;
   assert.equal(summary.deck_name,'Study finance');assert.equal(summary.partner_username,'Bob');
