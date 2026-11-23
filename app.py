@@ -307,6 +307,11 @@ def chat_conversation(client,thread_id,own_picture=None):
     st.session_state[history_key]=messages
     older_key='chat_older_'+thread_id
     if older_key not in st.session_state:st.session_state[older_key]=data['has_older']
+    from chat_receipt import visible_timestamp
+    seen_key = 'chat_seen_' + thread_id
+    last_seen = st.session_state.get(seen_key, 0)
+    latest_incoming = next((m['id'] for m in reversed(messages) if not m['from_me']), 0)
+    received_in_view = False
     with st.container(height=340, border=True, autoscroll=True, key='chat_messages'):
         if st.session_state[older_key] and messages and st.button('Load earlier messages', key='chat_earlier_' + thread_id):
             older = chat_call(client, 'read', {'id': thread_id, 'before': messages[0]['id']})
@@ -318,10 +323,17 @@ def chat_conversation(client,thread_id,own_picture=None):
         if not messages:st.caption('Start the conversation. Only you and this person can read it.')
         for message in messages:
             with st.chat_message('You' if message['from_me'] else data['partner']['username'],avatar=own_avatar if message['from_me'] else partner_avatar):
-                st.text(message['body']);st.caption(('You' if message['from_me'] else data['partner']['username'])+' · '+message['created_at'][:16].replace('T',' ')+' UTC')
-    if data['messages']:
-        latest=data['messages'][-1]['id'];seen_key='chat_seen_'+thread_id
-        if st.session_state.get(seen_key)!=latest and chat_call(client,'seen',{'id':thread_id,'through':latest},quiet=True) is not None:st.session_state[seen_key]=latest
+                st.text(message['body'])
+                sender = 'You' if message['from_me'] else data['partner']['username']
+                timestamp = sender + ' · ' + message['created_at'][:16].replace('T', ' ') + ' UTC'
+                if message['id'] == latest_incoming and latest_incoming > last_seen:
+                    received_in_view = visible_timestamp(thread_id, latest_incoming, timestamp)
+                else:
+                    st.caption(timestamp)
+    if received_in_view:
+        receipt = chat_call(client, 'seen', {'id': thread_id, 'through': latest_incoming}, quiet=True)
+        if receipt is not None:
+            st.session_state[seen_key] = latest_incoming
     text_key='chat_text_'+thread_id
     if st.session_state.pop('chat_clear_'+thread_id,False):st.session_state[text_key]=''
     with st.form('chat_send_' + thread_id):

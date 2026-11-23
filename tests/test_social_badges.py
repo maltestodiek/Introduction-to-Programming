@@ -9,7 +9,10 @@ def badge(at, destination, count):
 
 
 def test_opening_one_chat_only_clears_that_conversations_messages(monkeypatch):
-    unread = {'Alex': 2, 'Noor': 1}
+    visible = set()
+    monkeypatch.setattr('chat_receipt.visible_timestamp', lambda thread, message, label: (thread, message) in visible)
+    unread = {'Alex': 0, 'Noor': 0}
+    newest = {'Alex': 3, 'Noor': 3}
 
     def chat(repo, action, data=None):
         if action == 'list':
@@ -20,19 +23,37 @@ def test_opening_one_chat_only_clears_that_conversations_messages(monkeypatch):
         name = data['id']
         if action == 'read':
             return {'partner': {'id': name, 'username': name}, 'has_older': False,
-                    'messages': [{'id': 3, 'from_me': False, 'body': 'Hello', 'created_at': '2026-11-22T10:00:00'}]}
+                    'messages': [{'id': newest[name], 'from_me': False, 'body': 'Hello', 'created_at': '2026-11-22T10:00:00'}]}
         assert action == 'seen'
+        assert data['through'] == newest[name]
         unread[name] = 0
         return {}
 
     monkeypatch.setattr('db.ChatRepository.action', chat)
     at = deck_app(monkeypatch)
+    badge(at, 'chats', 0)
+    unread.update(Alex=2, Noor=1)
+    at.run()
     badge(at, 'chats', 3)
     button(at, 'Chats').click().run()
     badge(at, 'chats', 3)
     button(at, 'Open chat with Alex (2 unread)').click().run()
+    # A background tab can fetch Alex's messages without the recipient seeing them.
+    badge(at, 'chats', 3)
+    visible.add(('Alex', 3))
+    at.run()
     badge(at, 'chats', 1)
+    visible.add(('Noor', 3))
     button(at, 'Open chat with Noor (1 unread)').click().run()
+    badge(at, 'chats', 0)
+
+    # Viewing Noor's earlier message does not acknowledge a later delivery.
+    newest['Noor'] += 1
+    unread['Noor'] = 1
+    at.run()
+    badge(at, 'chats', 1)
+    visible.add(('Noor', 4))
+    at.run()
     badge(at, 'chats', 0)
 
 
