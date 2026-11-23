@@ -3605,6 +3605,9 @@ def battle_new_setup_screen(client,profile):
                 st.session_state.pop('battle_start_request',None)
                 st.session_state.pop('battle_new_setup',None)
                 open_round('battle',result['session_id'],fresh=not result.get('resumed'))
+            else:
+                # A rejected submission must not reuse its request ID on the next click.
+                st.session_state.pop('battle_start_request',None)
     else:
         friend_options=battle_request(client,'friend_options',{'course':course,'language':language})
         friends=(friend_options or {}).get('friends',[])
