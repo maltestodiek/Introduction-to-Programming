@@ -159,6 +159,15 @@ def chat_person_avatar(image_repo, person):
     return chat_avatar_url(None)
 
 
+def self_avatar_url(image_repo,profile):
+    """The user's own face: their photo if set, else their configured avatar."""
+    path=(profile or {}).get('image_path')
+    if path:return chat_person_avatar(image_repo,{'image_path':path})
+    try:picture=render_avatar((profile or {}).get('avatar') or DEFAULT_AVATAR)
+    except Exception:picture=None
+    return chat_avatar_url(picture)
+
+
 def chat_list_item(image_repo, person, label, key, *, preview='', unread=0, selected=False):
     username = escape(person['username'])
     avatar = chat_person_avatar(image_repo, person)
@@ -3381,13 +3390,16 @@ def battle_pending_search(client,search):
                 st.rerun()
 
 
-def battle_session_overview(client,sessions,search=None,invites=(),username=None):
+def battle_session_overview(client,sessions,search=None,invites=(),profile=None):
     """Group actionable rounds, incoming/outgoing invitations and settled results."""
     from logic import recent_completed_battles
-    me=escape(str(username or 'You')[:1].upper())
-    def versus_markup(opponent):
-        return ('<div class="bo-vs"><span class="bo-av bo-av-me">'+me+'</span><i>VS</i>'
-                '<span class="bo-av bo-av-op">'+escape(str(opponent)[:1].upper())+'</span><b>'+escape(str(opponent))+'</b></div>')
+    image_repo=ProfileRepository(client,st.session_state.auth.user.id)
+    me_url=self_avatar_url(image_repo,profile)
+    def face(url):return '<img src="'+url+'" alt="">'
+    def opponent_face(image_path):return face(chat_person_avatar(image_repo,{'image_path':image_path}))
+    def versus_markup(opponent,opponent_path=None):
+        return ('<div class="bo-vs"><span class="bo-av bo-av-me">'+face(me_url)+'</span><i>VS</i>'
+                '<span class="bo-av bo-av-op">'+opponent_face(opponent_path)+'</span><b>'+escape(str(opponent))+'</b></div>')
     def deck_markup(name):
         safe=escape(str(name),quote=True)
         return '<p class="bo-deck" title="'+safe+'">'+safe+'</p>'
@@ -3411,11 +3423,12 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                             direction='Invitation received' if invite['incoming'] else 'Invitation sent'
                             deck_name=str(invite.get('deck_name') or 'Random Deck')
                             safe_deck=escape(deck_name,quote=True)
+                            sender_row=('<p class="battle-invite-sender bo-person">'+opponent_face(invite.get('image_path'))+'<span>'+escape(str(invite['username']))+'</span></p>')
                             if invite['incoming']:
                                 show_play_update('battle','invite',invite['id'])
-                                st.html('<div class="battle-overview-card-copy battle-invite-received"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="battle-invite-sender">'+escape(str(invite['username']))+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                                st.html('<div class="battle-overview-card-copy battle-invite-received"><strong title="'+safe_deck+'">'+safe_deck+'</strong>'+sender_row+'<p>'+escape(str(invite['course']))+'</p></div>')
                             else:
-                                st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p>'+escape(direction.upper()+' · '+invite['username'])+'</p><p>'+escape(str(invite['course']))+'</p></div>')
+                                st.html('<div class="battle-overview-card-copy"><strong title="'+safe_deck+'">'+safe_deck+'</strong><p class="bo-direction">'+escape(direction.upper())+'</p>'+sender_row+'<p>'+escape(str(invite['course']))+'</p></div>')
                             if invite['incoming']:
                                 accept,decline=st.columns(2)
                                 if accept.button('Accept',key='battle_accept_'+invite['id'],type='primary',use_container_width=True):
@@ -3431,7 +3444,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                             st.html(f'<span id="battle-match-{escape(session["id"],quote=True)}"></span>')
                             show_play_update('battle','match',session['id'])
                             waiting=session.get('waiting_for_match')
-                            match_label='<div class="bo-wait"><span></span>Finding an opponent</div>' if waiting else versus_markup(opponent)
+                            match_label='<div class="bo-wait"><span></span>Finding an opponent</div>' if waiting else versus_markup(opponent,session.get('opponent_image_path'))
                             st.html(match_label+deck_markup(session['deck_name']))
                             if session['status']=='ongoing':
                                 if session.get('finish_by'):
@@ -3465,7 +3478,7 @@ def battle_session_overview(client,sessions,search=None,invites=(),username=None
                         xp=session.get('game_xp_delta',0)
                         xp_class='bo-xp-plus' if xp>0 else 'bo-xp-minus'
                         trophy=inline_icon('trophy') if result=='Win' else ''
-                        match_label=versus_markup(opponent) if opponent else '<div class="bo-wait">No opponent matched</div>'
+                        match_label=versus_markup(opponent,session.get('opponent_image_path')) if opponent else '<div class="bo-wait">No opponent matched</div>'
                         st.html(match_label+deck_markup(session['deck_name'])
                          +f'<div class="bo-score"><b>{score}</b><span class="bo-pill bo-{result.lower()}">{trophy}{result}</span><span class="bo-pill {xp_class}">{xp:+d} XP</span></div>')
                         if st.button('Review questions',key='overview_battle_review_'+session['id'],use_container_width=True):battle_review_dialog(client,session['id'])
@@ -3654,7 +3667,7 @@ def battle_screen(client,profile):
     battle_dashboard_hero(client,profile,state.get('sessions',[]))
     mode_update_list('battle',state,client)
     if notice:=st.session_state.pop('battle_notice',None):st.success(notice)
-    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile.get('username'))
+    battle_session_overview(client,state.get('sessions',[]),state.get('search'),state.get('invites',[]),profile)
     battle_session_history(client,state.get('sessions',[]))
 
 

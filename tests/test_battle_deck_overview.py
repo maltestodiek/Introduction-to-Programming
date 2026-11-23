@@ -126,9 +126,32 @@ def test_overview_cards_present_battles_as_versus_duels():
 
 def test_pending_invitation_card_lists_the_deck_before_status_opponent_and_course():
     assert 'battle-overview-card-copy' in APP
-    assert "direction.upper()+' · '+invite['username']" in APP
     assert "escape(str(invite['course']))" in APP
     assert 'strong title="'+"'+safe_deck+'" in APP
+
+
+def test_invitation_cards_show_the_senders_avatar_beside_the_name():
+    assert "opponent_face(invite.get('image_path'))" in APP
+    assert 'bo-person' in APP
+    assert '.bo-person{display:flex;align-items:center;gap:8px}' in BATTLE_OVERVIEW_CSS
+
+
+def test_versus_cards_show_real_avatar_faces_for_both_players():
+    section=APP[APP.index('def battle_session_overview'):APP.index('def battle_session_history')]
+    assert 'self_avatar_url(image_repo,profile)' in section
+    assert "versus_markup(opponent,session.get('opponent_image_path'))" in section
+    assert section.count("session.get('opponent_image_path')")==2
+    assert '.bo-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}' in BATTLE_OVERVIEW_CSS
+    from pathlib import Path
+    migration=(Path(__file__).parents[1]/'supabase'/'migrations'/'20261123120000_battle_avatars.sql').read_text()
+    assert "'opponent_image_path',p.image_path" in migration
+    assert "raise exception 'Cannot install Battle invite avatars" in migration
+
+
+def test_the_own_avatar_prefers_the_photo_and_falls_back_to_the_configured_face():
+    section=APP[APP.index('def self_avatar_url'):APP.index('def chat_list_item')]
+    assert "chat_person_avatar(image_repo,{'image_path':path})" in section
+    assert "render_avatar((profile or {}).get('avatar') or DEFAULT_AVATAR)" in section
 
 
 def test_incoming_battle_invitation_is_marked_as_new_and_has_a_primary_accept_action():
