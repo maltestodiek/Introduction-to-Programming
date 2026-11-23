@@ -1671,6 +1671,9 @@ def leave_study_round():
     origin = st.session_state.pop('study_round_origin', 'mode')
     st.session_state.pop('study_session', None)
     st.session_state.pop('study_creating', None)
+    # A finished round must not carry a previous create request into the next
+    # Study Together setup within the same browser session.
+    st.session_state.pop('study_request_id', None)
     if origin in ('dashboard', 'Study Plan'):
         st.session_state.pop('study_active', None)
         st.session_state.play_mode_preview = 'Study'
@@ -1679,7 +1682,10 @@ def leave_study_round():
     st.rerun()
 
 
-def study_answer_review(progress):
+def study_answer_review(progress, *, result_layout=False):
+    if result_layout:
+        study_result_answer_review(progress)
+        return
     st.subheader('Your answers')
     answers = progress.get('review', progress.get('answers', []))
     if not answers:
@@ -1701,6 +1707,86 @@ def study_answer_review(progress):
         st.caption(f'{unanswered} unanswered')
 
 
+def score_markup(score, total, style=''):
+    if score is None:
+        return '<span class="study-result-score study-result-score-muted">—</span>'
+    return (f'<span class="study-result-score {style}">{score}'
+            f'<small> / {total}</small></span>')
+
+
+def study_result_summary(progress, result, opponent_score):
+    """Render the completed-session score split without exposing partner answers."""
+    partner = progress.get('partner_username') or 'Partner'
+    deck = progress.get('deck_name') or progress.get('course') or 'Study session'
+    total = int(progress.get('total', 0))
+    half = total // 2
+    outcome = str(result or 'Completed').lower().replace(' ', '-')
+    partner_complete = opponent_score is not None
+    you_total = sum((progress.get('own_deck_score') or 0, progress.get('partner_deck_score') or 0))
+    partner_total = (sum((progress.get('partner_own_deck_score') or 0,
+                         progress.get('partner_partner_deck_score') or 0))
+                     if partner_complete else None)
+    subtitle = f"Study together · {deck} · vs. {partner}"
+    waiting_for_partner = str(result or '').startswith('Waiting for your study partner')
+    title_class = ' is-waiting' if waiting_for_partner else ''
+    context = '' if waiting_for_partner else f'<p>{escape(subtitle)}</p>'
+    markup = (
+        f'<div class="study-result-title{title_class}">'
+        f'<h1>{escape(str(result or "Completed"))}</h1>'
+        f'{context}</div>'
+        '<section class="study-result-scorecard">'
+        '<div class="study-result-score-head"><span></span>'
+        '<span>Questions from your deck</span>'
+        f'<span>Questions from {escape(str(partner)).upper()}’s deck</span><span>Total</span></div>'
+        '<div class="study-result-score-row"><strong>You</strong>'
+        f'{score_markup(progress.get("own_deck_score"), half)}'
+        f'{score_markup(progress.get("partner_deck_score"), half)}'
+        f'{score_markup(you_total, total, "is-" + outcome)}</div>'
+        f'<div class="study-result-score-row"><strong>{escape(str(partner))}</strong>'
+        f'{score_markup(progress.get("partner_own_deck_score") if partner_complete else None, half)}'
+        f'{score_markup(progress.get("partner_partner_deck_score") if partner_complete else None, half)}'
+        f'{score_markup(partner_total, total, "is-partner" if partner_complete else "")}</div>'
+        '</section>'
+    )
+    st.html(markup)
+
+
+def study_result_answer_review(progress):
+    """Compact native disclosure rows for an immutable completed-session review."""
+    answers = {answer['index']: answer for answer in progress.get('review', [])}
+    total = int(progress.get('total', len(answers)))
+    st.html('<div class="study-result-review-heading"><h2>Your answers</h2>'
+            f'<span>{total} questions · click to see the options</span></div>')
+    rows = []
+    for index in range(total):
+        answer = answers.get(index)
+        if answer is None:
+            rows.append(f'<details class="study-result-review-row is-unanswered"><summary>'
+                        f'<span class="study-result-chevron">›</span><strong>Question {index + 1}</strong>'
+                        '<em>…</em><span>…</span></summary></details>')
+            continue
+        verdict = 'Correct' if answer['correct'] else 'Incorrect'
+        verdict_class = 'is-correct' if answer['correct'] else 'is-incorrect'
+        options = []
+        for option in answer.get('options') or []:
+            option_id = str(option.get('id', ''))
+            correct = option_id == str(answer.get('correct_answer_id', ''))
+            selected = option_id == str(answer.get('selected_id', ''))
+            option_class = ' is-correct' if correct else ' is-selected-wrong' if selected else ''
+            suffix = 'Your answer · correct' if correct and selected else 'Correct answer' if correct else 'Your answer' if selected else ''
+            options.append('<div class="study-result-option' + option_class + '"><span class="study-result-radio">●</span>'
+                           + escape(str(option.get('text', ''))) + f'<b>{suffix}</b></div>')
+        if not options:
+            options.append('<div class="study-result-option">Your answer: ' + escape(str(answer.get('selected', ''))) + '</div>'
+                           '<div class="study-result-option is-correct">Correct answer: ' + escape(str(answer.get('solution', ''))) + '</div>')
+        rows.append('<details class="study-result-review-row"' + (' open' if index == 0 else '') + '><summary>'
+                    '<span class="study-result-chevron">›</span>'
+                    f'<strong>Question {index + 1}</strong><em class="{verdict_class}">{verdict}</em>'
+                    f'<span>{escape(str(answer.get("question") or ""))}</span></summary>'
+                    '<div class="study-result-options">' + ''.join(options) + '</div></details>')
+    st.html('<div class="study-result-review">' + ''.join(rows) + '</div>')
+
+
 def study_round_screen(client,sid, *, history=False):
     if history:
         if st.button('Back to Study history', icon=':material/arrow_back:'):
@@ -1718,7 +1804,19 @@ def study_round_screen(client,sid, *, history=False):
     except ValueError as exc:st.error(str(exc));return
     st.html('<style>'+ (Path(__file__).parent/'assets'/'study-round.css').read_text()+(Path(__file__).parent/'assets'/'round-effects.css').read_text()+'</style>')
     state=r['state']
-    if not history:
+    # Mirror the Battle completion flow: a player who has completed their half
+    # returns to the session dashboard, where the waiting card remains resumable.
+    if state=='waiting' and not history:
+        st.session_state.notice = 'Your half is complete. The session is now under Waiting while your partner finishes.'
+        leave_study_round()
+        return
+    if state=='completed' and not history:
+        if st.button('Back to Study history', icon=':material/arrow_back:'):
+            st.session_state.study_board_return = 'Completed'
+            leave_study_round()
+        # Completed results deliberately use the history layout below rather
+        # than the in-round header and save/leave controls.
+    if not history and state != 'completed':
         with st.container(horizontal=True, vertical_alignment='center'):
             st.caption(':material/menu_book: Study Mode · '+st.session_state.get('study_choice','Study alone'))
             if state in ('feedback','question') and progress.get('match_deadline'):
@@ -1727,7 +1825,7 @@ def study_round_screen(client,sid, *, history=False):
                     st.caption('You can leave and resume until '+battle_deadline(progress['match_deadline'])+'. Finish by then to earn the partner deck. An unfinished match counts as a loss.')
     # Waiting and result screens have no right-side overview. Keep their
     # session controls available in the normal header area.
-    if not history and state not in ('question','feedback'):
+    if not history and state not in ('question','feedback','completed'):
         with st.container(horizontal=True, vertical_alignment='center'):
             if st.button('Save and leave Study session'):
                 leave_study_round()
@@ -1809,19 +1907,15 @@ def study_round_screen(client,sid, *, history=False):
                         st.rerun()
         return
     elif state=='completed':
-        st.subheader(r['result']);st.metric('Your correct answers',f"{r['score']} / {r['total']}")
-        if r.get('opponent_score') is not None:st.metric('Partner’s correct answers',f"{r['opponent_score']} / {r['total']}")
+        if progress.get('mode') in ('random', 'friend'):
+            study_result_summary(progress, r.get('result'), r.get('opponent_score'))
+        else:
+            st.subheader(r['result']);st.metric('Your correct answers',f"{r['score']} / {r['total']}")
         if r.get('left_early'):st.caption('You stopped this match and gave up the partner deck.')
         if r.get('timed_out'):st.caption('The 48-hour deadline passed. Each player who did not finish received a loss.')
-        study_answer_review(progress)
+        study_answer_review(progress, result_layout=progress.get('mode') in ('random', 'friend'))
         if r.get('shared'):st.success('Your partner’s full deck is available under Decks → Study decks & progress → Shared with me.')
         if st.button('Refresh session result'):st.rerun()
-    elif state=='waiting':
-        st.info('Your practice is saved. Waiting for a partner—there is no need to stay online.')
-        from logic import format_expiration_time
-        expires_at=format_expiration_time(r.get('expires_at'),deck_studio_timezone())
-        if expires_at:st.caption('Search / invitation expires: '+expires_at)
-        if st.button('Check for a study partner'):st.rerun()
     else:st.info('This session '+state+'. Your completed practice and notes are saved.')
 
 

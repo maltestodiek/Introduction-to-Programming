@@ -42,3 +42,9 @@ Before inviting a friend, check that they own an eligible deck for the course an
 When accepting an invitation, the matched course, language and total are fixed by that invitation. The setup labels the matched course as `Course – Study together`; it does not offer a course selector. The recipient selects only one of their compatible authored decks.
 
 The Study Together setup presents its game rules in the information control: each player answers their own half first, then the partner half; both answer the same combined set; there is no per-question timer; and saved progress remains available after leaving and returning.
+
+After a player completes their half, Study returns to the Study sessions overview like Battle returns to its overview. The session remains in the Waiting tab until the partner finishes or the deadline settles the result.
+
+Completed Study Together history shows the same outcome-oriented review pattern as Battle: a result heading, the matched deck and partner, scores split by each contributor's deck half, and a compact expandable list of the student's answers. Correct and incorrect choices remain visible from the immutable session snapshot; unanswered questions remain visibly unanswered.
+
+After a player has answered the full shared set, that completed Together session no longer reserves the player-pair slot. The same two students can immediately start another Together session without reloading the browser.

@@ -54,3 +54,41 @@ def test_study_overview_extends_its_single_card_to_include_session_actions():
     assert '.study-overview-actions-divider' in css
     assert '[class*="st-key-study_save_leave_"] button' in css
     assert '[class*="st-key-study_stop_confirm_"] button{border-color:transparent' in css
+
+
+def test_finished_study_half_returns_to_the_waiting_session_card_like_battle():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    section=app[app.index('def study_round_screen'):app.index('def study_plan_screen')]
+    wait_redirect="""if state=='waiting' and not history:
+        st.session_state.notice = 'Your half is complete. The session is now under Waiting while your partner finishes.'
+        leave_study_round()
+        return"""
+    assert wait_redirect in section
+    assert section.index(wait_redirect) < section.index("if state in ('question','feedback'):")
+
+
+def test_leaving_a_finished_study_round_clears_a_stale_create_request():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    section=app[app.index('def leave_study_round'):app.index('def study_answer_review')]
+    assert "st.session_state.pop('study_request_id', None)" in section
+
+
+def test_completed_together_session_uses_the_battle_style_score_table_and_answer_review():
+    from pathlib import Path
+    app=(Path(__file__).parents[1]/'app.py').read_text()
+    css=(Path(__file__).parents[1]/'assets'/'study-round.css').read_text()
+    assert 'def study_result_summary(progress, result, opponent_score):' in app
+    assert "study_result_summary(progress, r.get('result'), r.get('opponent_score'))" in app
+    assert "study_answer_review(progress, result_layout=progress.get('mode') in ('random', 'friend'))" in app
+    assert "if state=='completed' and not history:" in app
+    assert "st.session_state.study_board_return = 'Completed'" in app
+    assert 'def study_result_answer_review(progress):' in app
+    assert 'Questions from your deck' in app
+    assert 'click to see the options' in app
+    assert "waiting_for_partner = str(result or '').startswith('Waiting for your study partner')" in app
+    assert "context = '' if waiting_for_partner" in app
+    assert '.study-result-scorecard' in css
+    assert '.study-result-review-row' in css
+    assert '.study-result-title.is-waiting h1{white-space:nowrap' in css

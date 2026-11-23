@@ -13,6 +13,10 @@ Apply `supabase/migrations/20261122230000_list_all_study_friend_invites.sql` aft
 
 Apply `supabase/migrations/20261122240000_study_session_dashboard_matching_criteria.sql` after those migrations. It adds each signed-in student's own session course and language to the session dashboard so Study Together cards can display the matching criteria. It does not expose another student's private deck or session data.
 
+Apply `supabase/migrations/20261123000000_study_result_summary.sql` after the existing Study migrations. It adds authenticated completed-session result data: the two deck-half score splits, the matched partner's public username and the immutable answer options required for the review. It does not expose a partner's individual answers.
+
+Apply `supabase/migrations/20261123010000_release_completed_study_slot.sql` after that migration. It releases a Together player-pair slot when the complete answer set is present, including sessions whose older client did not persist the final status transition.
+
 A user/session is derived from auth.uid(), never a submitted user ID. All raw Study tables have RLS and revoked client privileges. A short shared transaction lock serializes claims and progress writes. Failed operations roll back their writes. Session request IDs, answer keys, reviews and earned-copy uniqueness protect retries.
 
 Do not reset production tables for tests. Automated database tests create and remove their own temporary PGlite database with fictional users. The optional TEST_STUDY_MIGRATION=1 switch runs the existing Play database tests with Study installed, without changing their expectations.
@@ -31,6 +35,9 @@ Do not reset production tables for tests. Automated database tests create and re
 5. With two consenting test accounts, select Study together, same course/language and size. A random search is invisible until the first player completes their own half. No player receives an unsolicited invitation. The second opted-in completed half causes matching. Open sessions instead reserve the selected partner immediately while the joining player answers their own half.
 6. Friend mode: sender completes their own half; recipient accepts with a compatible deck or declines. No partner action is simulated on production accounts.
 7. Complete one player's entire session. Only that player receives the partner's entire snapshotted deck in Shared with me. Complete the other player to show scores and win/draw/loss. Neither XP nor streak changes. A received copy stays unchanged after its author edits the original.
+   After completing a half, the round returns to Study sessions and the saved session appears in the Waiting tab.
+   Open the completed session from Study history. Its score table must split both players' scores by the two contributing decks; expanding an answered row must show the selected and correct options, while unanswered rows remain marked as unanswered.
+   Start another Together session with the same partner without reloading the page; the completed session must not trigger an ongoing-session error.
 8. Deadline cases are tested with an isolated database clock adjustment, never by modifying real users' deadlines: an abandoned first half or an unmatched waiting session disappears after 48 hours. A matched player who misses the 48-hour deadline sees a completed Loss. A finished partner sees a Win. If neither finishes, both lose. Completed practice and notes remain saved.
 
 ## Verification record — 12 November 2026
