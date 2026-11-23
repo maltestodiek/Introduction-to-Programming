@@ -243,10 +243,13 @@ try{
   await db.close();db=new PGlite(path.join(directory,'db'));
   assert.equal((await ok(A,'round',{id:lone})).state,'completed');
   assert.equal(await xp(A),beforeLeave+loss.game_xp_delta);
-  assert.notEqual((await begin(B)).session_id,lone);
+  const preMigrationSearch=(await begin(B)).session_id;
+  assert.notEqual(preMigrationSearch,lone);
+  assert.equal((await ok(B,'cancel_unmatched',{id:preMigrationSearch})).cancelled,true);
   // One waiting search per normalized course, independently of language.
   await db.exec('reset role');
   await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123090000_battle_search_per_course.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123100000_reject_duplicate_course_battle_search.sql',import.meta.url),'utf8'));
   await fixtureQuery("update profile_private set courses=array['Finance','Modelling'] where user_id in ($1,$2)",[A,B]);
   await fixtureQuery("update profiles set languages=array['English','German'] where id in ($1,$2)",[A,B]);
   const modelling=sourceDeck('Modelling');const modellingId=randomUUID();
@@ -256,7 +259,7 @@ try{
   const modelSession=(await multiStart(B,'Modelling')).session_id;
   const financeSession=(await begin(B)).session_id;
   assert.notEqual(modelSession,financeSession);
-  assert.equal((await multiStart(B,' finance ')).session_id,financeSession);
+  await fail(B,'start_random',{...settings,course:' finance ',request_id:randomUUID()});
   await fail(B,'start_random',{...settings,language:'German',request_id:randomUUID()});
   const multiple=await ok(B,'list');
   assert.equal(multiple.searches.length,2);

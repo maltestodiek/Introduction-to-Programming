@@ -164,6 +164,23 @@ def test_random_battle_starts_before_matching_and_confirmed_exit_records_loss(mo
     assert not at.exception
 
 
+def test_existing_course_search_stays_on_setup_and_shows_a_clear_error(monkeypatch):
+    def action(self,kind,data=None):
+        if kind=='list':return {'sessions':[],'invites':[],'search':None}
+        if kind=='start_random':raise ValueError('You are already searching for a random player for this course. Manage or cancel the existing search in Active battles.')
+        if kind=='friend_options':return {'friends':[]}
+        return {}
+    monkeypatch.setattr('db.BattleRepository.action',action)
+    monkeypatch.setattr('db.BattleRepository.availability',lambda self,course,language:{'available':True})
+    at=deck_app(monkeypatch)
+    button(at,'Play').click().run();button(at,'Battle Mode').click().run();button(at,'New Battle').click().run()
+    button(at,'Start random Battle').click().run()
+    assert any('already searching for a random player for this course' in error.value for error in at.error)
+    assert any(item.value=='Start a new Battle' for item in at.subheader)
+    assert 'battle_rating_session' not in at.session_state
+    assert not at.exception
+
+
 def test_pending_random_battle_search_can_be_cancelled(monkeypatch):
     state={'sessions':[],'invites':[],'search':{'course':'Finance','language':'English','expires_at':'2099-01-01T00:00:00Z'}}
     def action(self,kind,data=None):

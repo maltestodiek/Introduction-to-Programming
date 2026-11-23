@@ -12,9 +12,9 @@ def test_battle_error_message_hides_unknown_database_details():
     assert battle_error_message(Exception('column private_data is ambiguous')).startswith('Battle Mode could not be reached')
 
 
-def test_course_search_conflict_explains_other_courses_are_allowed():
-    message=battle_error_message(Exception('You already have an active random search for this course'))
-    assert 'another course now' in message
+def test_course_search_conflict_explains_that_the_same_course_is_already_pending():
+    message=battle_error_message(Exception('You are already searching for a random player for this course'))
+    assert message=='You are already searching for a random player for this course. Manage or cancel the existing search in Active battles.'
 
 
 def test_cancel_search_targets_only_requested_course():
