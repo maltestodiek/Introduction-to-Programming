@@ -41,6 +41,24 @@ try{
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123000000_study_result_summary.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123010000_release_completed_study_slot.sql',import.meta.url),'utf8'));
  await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123020000_release_completed_random_study_slot.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/deck-studio.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123030000_personal_deck_studio_removal.sql',import.meta.url),'utf8'));
+ // Deck Studio's Battle rows use this relation in the combined listing.
+ await db.exec('create table public.battle_decks(id uuid primary key,creator_id uuid,source_deck_id uuid,course text,language text,name text,cards jsonb,created_at timestamptz)');
+ const legacy=draft(1);await save(A,legacy);await publicationOk(A,'publish',{id:legacy.id});
+ const oldCopy=await publicationOk(B,'copy',{id:legacy.id});
+ await db.exec('reset role');
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123040000_add_published_deck_to_studio.sql',import.meta.url),'utf8'));
+ await db.exec(await fs.readFile(new URL('../supabase/migrations/20261123100000_earned_decks_in_studio.sql',import.meta.url),'utf8'));
+ const studio=async user=>{await who(user);return (await db.query('select deck_studio() r')).rows[0].r.decks;};
+ const studioIds=async user=>(await studio(user)).map(d=>d.id);
+ await test('adding a previously copied course deck reuses its visible Studio listing',async()=>{
+  const listed=(await publicationOk(B,'list')).decks.find(d=>d.id===legacy.id);
+  assert.equal(listed.in_studio,true);
+  assert.equal((await publicationOk(B,'add_to_studio',{id:legacy.id})).id,oldCopy.id);
+  assert.equal((await studio(B)).find(d=>d.id===oldCopy.id).author,'Alice');
+  await publicationOk(A,'unpublish',{id:legacy.id});
+ });
  async function dashboard(user,id){
   await who(user);
   const data=(await db.query('select study_session_dashboard() as data')).rows[0].data;
@@ -139,7 +157,26 @@ try{
   assert.equal((await publicationOk(C,'list')).decks.some(deck=>deck.id===da.id),false);
   const visible=await publicationOk(B,'deck',{id:da.id});
   assert.equal(visible.name,da.name);
-  const copied=await publicationOk(B,'copy',{id:da.id});
+  const listing=async user=>(await publicationOk(user,'list')).decks.find(deck=>deck.id===da.id);
+  assert.equal((await listing(A)).in_studio,true);
+  assert.equal((await listing(B)).in_studio,false);
+  await assert.rejects(()=>publication(C,'add_to_studio',{id:da.id}),/unavailable/i);
+  const copied=await publicationOk(B,'add_to_studio',{id:da.id});
+  assert.equal((await listing(B)).in_studio,true);
+  assert.ok((await studioIds(B)).includes(copied.id));
+  assert.ok(!(await studioIds(A)).includes(copied.id));
+  assert.equal((await publicationOk(B,'copy',{id:da.id})).id,copied.id);
+  const personal=structuredClone(da);personal.id=copied.id;personal.name='My notes';await save(B,personal,1);
+  const hide=async(user,id)=>{await who(user);await db.query('select remove_study_deck_from_studio($1)',[id]);};
+  await hide(B,copied.id);
+  assert.equal((await listing(B)).in_studio,false);
+  assert.equal((await publicationOk(B,'add_to_studio',{id:da.id})).id,copied.id);
+  assert.equal((await listing(B)).in_studio,true);
+  assert.equal((await ok(B,'deck',{id:copied.id})).name,'My notes');
+  await hide(A,da.id);
+  assert.equal((await listing(A)).in_studio,false);
+  assert.equal((await publicationOk(A,'add_to_studio',{id:da.id})).id,da.id);
+  assert.equal((await listing(A)).in_studio,true);
   const ownedIds=async()=>(await ok(B,'list')).decks.map(deck=>deck.id).sort();
   const beforeUnpublish=await ownedIds();
   assert.ok(beforeUnpublish.includes(copied.id));
@@ -179,7 +216,20 @@ try{
   assert.ok(timing.valid);
   assert.equal((await dashboard(A,sa.id)).state,'paired');await half(A,sa.id);const waiting=await dashboard(A,sa.id);assert.equal(waiting.state,'waiting_for_finish');assert.equal(waiting.opponent_score,null);assert.equal((await dashboard(B,sb.id)).state,'paired');assert.equal((await ok(A,'list')).shared.length,1);assert.equal((await ok(B,'list')).shared.length,0);assert.equal((await ok(A,'round',{id:sa.id})).result,'Waiting for your study partner');
   const changed=structuredClone(dbb);changed.cards[0].question='New content';await save(B,changed,1);const shared=(await ok(A,'list')).shared[0];const received=await ok(A,'deck',{id:shared.id,shared:true});assert.equal(received.cards[0].question,dbb.cards[0].question);
+  const earned=(await studio(A)).filter(d=>d.kind==='shared');
+  assert.equal(earned.length,1);
+  assert.equal(earned[0].id,shared.id);
+  assert.equal(earned[0].author,'Bob');
+  assert.equal(earned[0].count,dbb.cards.length);
+  assert.ok(earned[0].received_at);
+  assert.ok(!(await studioIds(C)).includes(shared.id));
+  assert.ok(!(await studio(B)).some(d=>d.kind==='shared'));
+  await assert.rejects(db.query('select remove_study_deck_from_studio($1)',[shared.id]),/unavailable/);
   await half(B,sb.id,10,true);const settled=await dashboard(A,sa.id);assert.equal(settled.state,'completed');assert.equal(settled.result,'Win');assert.equal(settled.score,20);assert.equal(settled.opponent_score,10);assert.equal((await ok(A,'round',{id:sa.id})).result,'Win');assert.equal((await ok(B,'round',{id:sb.id})).result,'Loss');assert.equal((await admin('select xp from profiles where id=$1',[A])).rows[0].xp,123);
+  assert.equal((await studio(B)).find(d=>d.kind==='shared').author,'Alice');
+  await who(A);await db.query('select remove_study_deck_from_studio($1)',[shared.id]);
+  assert.ok(!(await studioIds(A)).includes(shared.id));
+  assert.equal((await ok(A,'deck',{id:shared.id,shared:true})).cards.length,dbb.cards.length);
  });
  await test('open sessions reserve once and expiry awards no unearned copy',async()=>{
   const a=await start(A,da,'random');await half(A,a.id);const b=await start(B,dbb,'random',{join_id:a.id});assert.equal((await ok(A,'round',{id:a.id})).state,'question');await bad(C,'start',{request_id:randomUUID(),deck_id:dc.id,mode:'random',count:20,consent:true,join_id:a.id});await half(A,a.id);await admin("update study_sessions set deadline=now()-interval '1 second' where id in ($1,$2)",[a.id,b.id]);assert.equal((await ok(A,'round',{id:a.id})).result,'Win');

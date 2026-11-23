@@ -439,10 +439,11 @@ def deck_studio_created_text(deck,tz_name):
     return f"On or before {moment.day} {moment:%b %Y}"
 
 def deck_studio_groups(decks):
-    """Deck studio filters: everything, private and published Study decks, and Battle decks."""
+    """Deck studio filters: owned, published and received decks."""
     study=[deck for deck in decks if deck.get('kind')=='study']
     return {'All':list(decks),'Private':[deck for deck in study if not deck.get('published_at')],
-            'Published':[deck for deck in study if deck.get('published_at')],'Battle':[deck for deck in decks if deck.get('kind')=='battle']}
+            'Published':[deck for deck in study if deck.get('published_at')],'Battle':[deck for deck in decks if deck.get('kind')=='battle'],
+            'Study Together':[deck for deck in decks if deck.get('kind')=='shared']}
 
 
 STUDY_ONGOING_STATES=('own','waiting','paired')

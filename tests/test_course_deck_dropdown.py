@@ -14,10 +14,10 @@ def course_app(monkeypatch,copies=None):
     def publication(self,action,data=None):
         if action=='list':return {'decks':[
             {'id':'study-own','name':'WACC basics','course':'Corporate Finance','language':'English','author':'student_a','count':20,'owned':True,'published_at':'2026-11-21T12:00:00+00:00'},
-            {'id':'study-other','name':'Bond pricing','course':'corporate finance ','language':'English','author':'Student B','count':12,'owned':False,'published_at':'2026-11-20T12:00:00+00:00'},
+            {'id':'study-other','name':'Bond pricing','course':'corporate finance ','language':'English','author':'Student B','count':12,'owned':False,'in_studio':bool(copies),'published_at':'2026-11-20T12:00:00+00:00'},
         ]}
-        if action=='copy':
-            (copies if copies is not None else []).append(data['id']);return {'id':'copy-1'}
+        if action in ('copy','add_to_studio'):
+            (copies if copies is not None else []).append((action,data['id']));return {'id':'copy-1'}
         return {}
     monkeypatch.setattr('db.StudyRepository.publication',publication)
     monkeypatch.setattr('db.StudyRepository.action',lambda self,action,data=None:{
@@ -68,6 +68,24 @@ def test_study_buttons_open_study_mode_with_the_selected_deck(monkeypatch):
     assert at.session_state['study_deck_preselection']=='study-own'
     at=course_app(monkeypatch,copies)
     at.button(key='course_study_0_study-other').click().run()
-    assert copies==['study-other']
+    assert copies==[('copy','study-other')]
     assert at.session_state['study_deck_preselection']=='copy-1'
+    assert not at.exception
+
+
+def test_add_published_deck_from_search_without_starting_study(monkeypatch):
+    copies = []
+    at = course_app(monkeypatch, copies)
+    assert at.button(key='course_studio_0_study-own').disabled
+    at.text_input(key='course_study_search_0').set_value('bond').run()
+    add = at.button(key='course_studio_0_study-other')
+    assert add.label == 'Add to my Deck Studio'
+    add.click().run()
+    assert copies == [('add_to_studio','study-other')]
+    assert at.session_state.main_page == 'Decks'
+    assert not at.session_state.get('study_active')
+    saved = at.button(key='course_studio_0_study-other')
+    assert saved.disabled and saved.label == 'In my Deck Studio'
+    at.text_input(key='course_study_search_0').set_value('').run()
+    assert at.button(key='course_studio_0_study-other').disabled
     assert not at.exception

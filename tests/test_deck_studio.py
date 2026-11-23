@@ -153,3 +153,18 @@ def test_remove_study_deck_only_after_confirmation(monkeypatch):
     assert not any(b.key == 'studio_remove_study-private' for b in at.button)
     assert not any(action == 'unpublish' for _, action, _ in calls)
     assert not at.exception
+
+
+def test_earned_deck_shows_author_and_opens_the_permanent_copy(monkeypatch):
+    earned = dict(kind='shared', id='earned-1', name='Bond pricing', course='Finance',
+                  language='English', count=20, author='Bob', received_at='2026-11-19T18:41:00Z')
+    monkeypatch.setattr('test_deck_studio.DECKS', [*DECKS, earned])
+    calls = []
+    at = studio_app(monkeypatch, calls)
+    assert any('By Bob' in item.value for item in at.caption)
+    at.segmented_control(key='deck_studio_filter').set_value('Study Together').run()
+    assert 'Edit' not in [item.label for item in at.button]
+    at.button(key='studio_open_earned-1').click().run()
+    assert ('study', 'deck', {'id':'earned-1', 'shared':True}) in calls
+    assert any('permanent version' in item.value for item in at.info)
+    assert not at.exception
